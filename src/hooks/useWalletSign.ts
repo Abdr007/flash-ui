@@ -35,17 +35,21 @@ export function useWalletSign() {
         // 2. Ask wallet to sign (Phantom/Solflare popup)
         const signed = await signTransaction(transaction);
 
-        // 3. Send to RPC
+        // 3. Send to RPC — skip preflight since Flash API already simulated
         const signature = await connection.sendRawTransaction(signed.serialize(), {
-          skipPreflight: false,
+          skipPreflight: true,
           maxRetries: 3,
         });
 
-        // 4. Confirm
-        const confirmation = await connection.confirmTransaction(signature, "confirmed");
+        // 4. Confirm with timeout
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        const confirmation = await connection.confirmTransaction(
+          { signature, blockhash, lastValidBlockHeight },
+          "confirmed"
+        );
 
         if (confirmation.value.err) {
-          throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+          throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
         }
 
         // 5. Success
