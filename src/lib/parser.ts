@@ -468,8 +468,11 @@ export function parseFieldResponse(input: string, currentTrade: TradeObject): Tr
   // Try extracting leverage (e.g. "5x", "x5")
   let lev = extractLeverage(trimmed);
 
-  // If leverage is still missing and input is a bare number, accept it as leverage
-  if (!lev && !updated.leverage) {
+  // If leverage is missing and collateral is already filled,
+  // accept a bare number as leverage (e.g. user types "2" when asked for leverage).
+  // IMPORTANT: only when collateral was already set BEFORE this parse step,
+  // so "10" typed for collateral doesn't also get consumed as leverage.
+  if (!lev && !updated.leverage && currentTrade.collateral_usd) {
     const bare = parseFloat(trimmed.replace(/x/i, ""));
     if (Number.isFinite(bare) && bare >= 1 && bare <= 100) {
       lev = bare;
