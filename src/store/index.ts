@@ -385,17 +385,96 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       return;
     }
 
-    // ---- UNRECOGNIZED ----
+    // ---- UNRECOGNIZED: AI fallback ----
+    try {
+      const aiRes = await fetch("/api/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: trimmed }),
+      });
+
+      if (aiRes.ok) {
+        const aiIntent = await aiRes.json();
+
+        // If AI returned a valid intent, re-process as a structured command
+        if (aiIntent.intent && !aiIntent.error) {
+          const side = aiIntent.direction as "LONG" | "SHORT" | null;
+          const market = aiIntent.market as string | null;
+          const collateral = aiIntent.collateral_usd as number | null;
+          const leverage = aiIntent.leverage as number | null;
+
+          if (aiIntent.intent === "OPEN_POSITION" && (side || market)) {
+            // Build trade from AI extraction and re-enter the flow
+            const { parseCommand: reparse } = await import("@/lib/parser");
+            const synthetic = [
+              side?.toLowerCase() ?? "",
+              market ?? "",
+              collateral != null ? `$${collateral}` : "",
+              leverage != null ? `${leverage}x` : "",
+            ].filter(Boolean).join(" ");
+
+            const reparsed = reparse(synthetic);
+            if (reparsed.type === "trade" && reparsed.trade) {
+              const trade = reparsed.trade;
+              const question = getNextQuestion(trade);
+              if (question) {
+                const showCard = !!(trade.market && trade.collateral_usd);
+                addSystemMsg(question, showCard ? trade : undefined);
+                set({ activeTrade: trade, isProcessing: false });
+                return;
+              }
+              // Complete — enrich
+              const enriched = await enrichTradeWithQuote(trade, get().walletAddress ?? undefined);
+              if (stateVersion !== versionBefore) { set({ isProcessing: false }); return; }
+              addSystemMsg(
+                enriched.status === "READY" ? "Ready to execute." : enriched.error || "Error loading data.",
+                enriched
+              );
+              set({ activeTrade: enriched, isProcessing: false });
+              return;
+            }
+          }
+
+          if (aiIntent.intent === "CLOSE_POSITION" && aiIntent.market) {
+            addSystemMsg(`Closing ${aiIntent.market}...`);
+            set({ isProcessing: false });
+            await get().closePosition(aiIntent.market, side ?? "LONG");
+            return;
+          }
+
+          if (aiIntent.intent === "QUERY") {
+            const m = aiIntent.market;
+            if (m && state.prices[m]) {
+              addSystemMsg(`${m}: $${state.prices[m].price.toLocaleString("en-US", { minimumFractionDigits: 2 })}`);
+            } else {
+              addSystemMsg('Try: "Long SOL 100 5x" or "Short BTC 50 3x"');
+            }
+            set({ isProcessing: false });
+            return;
+          }
+
+          if (aiIntent.intent === "CANCEL") {
+            get().cancelTrade();
+            set({ isProcessing: false });
+            return;
+          }
+        }
+      }
+    } catch {
+      // AI fallback failed — fall through to help message
+    }
+
     addSystemMsg('Try: "Long SOL 100 5x" or "Short BTC 50 3x"');
     set({ isProcessing: false });
 
     // Helper: add a system message to chat
-    function addSystemMsg(content: string) {
+    function addSystemMsg(content: string, tradeCard?: TradeObject) {
       const sysMsg: ChatMessage = {
         id: msgId(),
         role: "system",
         content,
         timestamp: Date.now(),
+        ...(tradeCard && { trade_card: tradeCard }),
       };
       set({ messages: [...get().messages, sysMsg] });
     }
