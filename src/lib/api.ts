@@ -248,7 +248,17 @@ export async function buildOpenPosition(
     throw new Error(result.err);
   }
 
-  return result;
+  // Flash API returns numeric fields as strings — parse to numbers
+  return {
+    ...result,
+    newEntryPrice: parseFloat(String(result.newEntryPrice)),
+    newLeverage: parseFloat(String(result.newLeverage)),
+    newLiquidationPrice: parseFloat(String(result.newLiquidationPrice)),
+    entryFee: parseFloat(String(result.entryFee)),
+    entryFeeBeforeDiscount: parseFloat(String(result.entryFeeBeforeDiscount)),
+    openPositionFeePercent: parseFloat(String(result.openPositionFeePercent)),
+    availableLiquidity: parseFloat(String(result.availableLiquidity)),
+  };
 }
 
 export interface BuildCloseParams {
