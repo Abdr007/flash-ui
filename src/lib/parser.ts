@@ -465,7 +465,17 @@ export function parseFieldResponse(input: string, currentTrade: TradeObject): Tr
     }
   }
 
-  const lev = extractLeverage(trimmed);
+  // Try extracting leverage (e.g. "5x", "x5")
+  let lev = extractLeverage(trimmed);
+
+  // If leverage is still missing and input is a bare number, accept it as leverage
+  if (!lev && !updated.leverage) {
+    const bare = parseFloat(trimmed.replace(/x/i, ""));
+    if (Number.isFinite(bare) && bare >= 1 && bare <= 100) {
+      lev = bare;
+    }
+  }
+
   if (lev) updated.leverage = lev;
 
   // Don't auto-assign leverage in progressive flow — let getNextQuestion ask
