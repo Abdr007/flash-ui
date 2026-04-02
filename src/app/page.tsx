@@ -7,6 +7,7 @@ import PositionPanel from "@/components/positions/PositionPanel";
 import InputBar from "@/components/layout/InputBar";
 import ConfirmOverlay from "@/components/trade/ConfirmOverlay";
 import { usePriceStream } from "@/hooks/usePriceStream";
+import { useWalletSign } from "@/hooks/useWalletSign";
 
 // Dynamic import to avoid SSR issues with wallet adapter
 const WalletProvider = dynamic(
@@ -14,9 +15,10 @@ const WalletProvider = dynamic(
   { ssr: false }
 );
 
-/** Hosts the price stream — must be inside WalletProvider for store access */
+/** Hosts the price stream + wallet signing — must be inside WalletProvider */
 function StreamHost({ children }: { children: React.ReactNode }) {
   usePriceStream();
+  useWalletSign();
   return <>{children}</>;
 }
 

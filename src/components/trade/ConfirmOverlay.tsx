@@ -8,13 +8,13 @@ export default function ConfirmOverlay() {
   const executeTrade = useFlashStore((s) => s.executeTrade);
   const cancelTrade = useFlashStore((s) => s.cancelTrade);
 
-  // Show during CONFIRMING (awaiting user) and EXECUTING (tx in flight)
-  if (!trade || (trade.status !== "CONFIRMING" && trade.status !== "EXECUTING")) {
+  // Show during CONFIRMING, EXECUTING, and SIGNING
+  if (!trade || (trade.status !== "CONFIRMING" && trade.status !== "EXECUTING" && trade.status !== "SIGNING")) {
     return null;
   }
 
   const isLong = trade.action === "LONG";
-  const isExecuting = trade.status === "EXECUTING";
+  const isExecuting = trade.status === "EXECUTING" || trade.status === "SIGNING";
   const accentColor = isLong
     ? "var(--color-accent-long)"
     : "var(--color-accent-short)";
@@ -51,7 +51,9 @@ export default function ConfirmOverlay() {
 
         <p className="text-sm text-text-secondary mb-5">
           {isExecuting ? (
-            "Building and submitting transaction..."
+            trade.status === "SIGNING"
+              ? "Sign the transaction in your wallet..."
+              : "Building transaction..."
           ) : (
             <>
               You are opening a{" "}
@@ -111,7 +113,7 @@ export default function ConfirmOverlay() {
         {isExecuting ? (
           <div className="w-full py-3.5 rounded-[10px] text-sm font-semibold text-center text-text-tertiary bg-bg-card-hover mb-3">
             <span className="inline-block w-3 h-3 border-2 border-text-tertiary border-t-transparent rounded-full mr-2" style={{ animation: "spin 0.8s linear infinite" }} />
-            Submitting...
+            {trade.status === "SIGNING" ? "Sign in wallet..." : "Building tx..."}
           </div>
         ) : (
           <button

@@ -58,6 +58,8 @@ export interface FlashStore {
   sendMessage: (input: string) => Promise<void>;
   confirmTrade: () => void;
   executeTrade: () => Promise<void>;
+  completeExecution: (txSignature: string) => void;
+  failExecution: (error: string) => void;
   cancelTrade: () => void;
   closePosition: (market: string, side: Side) => Promise<void>;
   refreshPrices: () => Promise<void>;
@@ -630,67 +632,43 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       // Circuit breaker: record success (API call worked)
       recordSuccess();
 
-      // Transaction is built but NOT signed yet.
-      // Wallet adapter signing must happen in the UI layer (React context).
-      // Store the base64 tx on the trade object for the UI to sign and send.
-      // Status remains EXECUTING until the UI confirms the tx was sent.
       if (!result.transactionBase64) {
         throw new Error("API returned no transaction data");
       }
 
-      const successTrade: TradeObject = {
+      // Transaction built — move to SIGNING state.
+      // The UI layer (useWalletSign hook) will pick this up,
+      // ask the wallet to sign, send to RPC, and call completeExecution().
+      const signingTrade: TradeObject = {
         ...trade,
-        status: "SUCCESS",
+        status: "SIGNING",
         entry_price: result.newEntryPrice,
         liquidation_price: result.newLiquidationPrice,
         fees: result.entryFee,
         leverage: result.newLeverage,
         position_size: (collateral as number) * result.newLeverage,
-        tx_signature: "pending_signature",
+        unsigned_tx: result.transactionBase64,
       };
-      updateLastTradeCard(get, set, successTrade);
+      updateLastTradeCard(get, set, signingTrade);
+      set({ activeTrade: signingTrade });
 
       logTrace({
         execution_id: execId,
         timestamp: new Date().toISOString(),
-        stage: "trade_success",
+        stage: "trade_execute",
         wallet,
         market: trade.market,
         side: trade.action,
         collateral,
         leverage,
-        position_size: collateral * leverage,
         entry_price: result.newEntryPrice,
-        liquidation_price: result.newLiquidationPrice,
-        fees: result.entryFee,
-        tx_signature: successTrade.tx_signature,
         latency_ms: latencyMs,
         circuit_state: "closed",
-        system_status: "ok",
+        system_status: "signing",
       });
 
-      // Collapse trade card in chat after 8s
-      // Snapshot all values as concrete numbers (already validated above)
-      const collapseData = {
-        market: trade.market,
-        side: trade.action,
-        collateral: collateral as number, // validated non-null at line 302-321
-        leverage: leverage as number,     // validated non-null at line 302-321
-        entry_price: Number.isFinite(trade.entry_price) ? (trade.entry_price as number) : 0,
-        tx_signature: successTrade.tx_signature,
-      };
-      setTimeout(() => {
-        const msgs = [...get().messages];
-        const lastTradeMsg = [...msgs].reverse().find((m) => m.trade_card);
-        if (lastTradeMsg && lastTradeMsg.trade_card?.status === "SUCCESS") {
-          lastTradeMsg.collapsed_trade = collapseData;
-          lastTradeMsg.trade_card = undefined;
-          set({ messages: msgs });
-        }
-      }, 8000);
-
-      set({ activeTrade: null });
-      get().refreshPositions();
+      // Don't set activeTrade to null — SIGNING state stays until wallet signs
+      // Don't refresh positions — no tx sent yet
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Trade failed";
       const failureType = errorMsg.includes("API") ? "api"
@@ -723,6 +701,59 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
     } finally {
       tradeLock = false;
     }
+  },
+
+  // ---- Complete Execution (called by UI after wallet signs + tx confirmed) ----
+  completeExecution: (txSignature: string) => {
+    const trade = get().activeTrade;
+    if (!trade || trade.status !== "SIGNING") return;
+
+    const successTrade: TradeObject = {
+      ...trade,
+      status: "SUCCESS",
+      tx_signature: txSignature,
+      unsigned_tx: undefined,
+    };
+    updateLastTradeCard(get, set, successTrade);
+
+    // Collapse after 8s
+    const collapseData = {
+      market: trade.market,
+      side: trade.action,
+      collateral: trade.collateral_usd ?? 0,
+      leverage: trade.leverage ?? 0,
+      entry_price: trade.entry_price ?? 0,
+      tx_signature: txSignature,
+    };
+    setTimeout(() => {
+      const msgs = [...get().messages];
+      const last = [...msgs].reverse().find((m) => m.trade_card);
+      if (last && last.trade_card?.status === "SUCCESS") {
+        last.collapsed_trade = collapseData;
+        last.trade_card = undefined;
+        set({ messages: msgs });
+      }
+    }, 8000);
+
+    set({ activeTrade: null });
+    tradeLock = false;
+    get().refreshPositions();
+  },
+
+  // ---- Fail Execution (called by UI if wallet rejects or tx fails) ----
+  failExecution: (error: string) => {
+    const trade = get().activeTrade;
+    if (!trade) return;
+
+    const errorTrade: TradeObject = {
+      ...trade,
+      status: "ERROR",
+      error,
+      unsigned_tx: undefined,
+    };
+    updateLastTradeCard(get, set, errorTrade);
+    set({ activeTrade: errorTrade });
+    tradeLock = false;
   },
 
   // ---- Cancel Trade ----

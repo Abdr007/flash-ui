@@ -9,6 +9,7 @@ export type TradeStatus =
   | "READY"
   | "CONFIRMING"
   | "EXECUTING"
+  | "SIGNING"
   | "SUCCESS"
   | "ERROR";
 
@@ -28,6 +29,8 @@ export interface TradeObject {
   status: TradeStatus;
   error?: string;
   tx_signature?: string;
+  /** Base64-encoded unsigned transaction from Flash API — needs wallet signature */
+  unsigned_tx?: string;
   missing_fields: (keyof TradeObject)[];
 }
 
