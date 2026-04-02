@@ -36,6 +36,10 @@ export interface ParseResult {
   chain?: ParsedIntent[];
   /** Ambiguity: list of options to present to the user */
   ambiguityQuestion?: string;
+  /** Parse confidence: 1.0 = grammar match, 0.0 = unknown. AI fallback assigns its own. */
+  confidence?: number;
+  /** Parse source */
+  source?: "grammar" | "ai";
 }
 
 // ============================================
@@ -209,15 +213,21 @@ function splitChainedIntents(input: string): string[] {
 const MAX_INPUT_LENGTH = 500;
 const MAX_CHAIN_DEPTH = 3;
 
+/** Tag a raw parse result with confidence and source */
+function tagResult(result: Omit<ParseResult, "confidence" | "source">): ParseResult {
+  const confidence = result.type === "unknown" ? 0 : 1.0;
+  return { ...result, confidence, source: "grammar" as const };
+}
+
 export function parseCommand(input: string): ParseResult {
   const trimmed = input.trim();
   if (!trimmed) {
-    return { type: "unknown", intent: { type: "QUERY", raw: input } };
+    return tagResult({ type: "unknown", intent: { type: "QUERY", raw: input } });
   }
 
   // Input sanitization: reject oversized input
   if (trimmed.length > MAX_INPUT_LENGTH) {
-    return { type: "unknown", intent: { type: "QUERY", raw: trimmed.slice(0, 100) + "..." } };
+    return tagResult({ type: "unknown", intent: { type: "QUERY", raw: trimmed.slice(0, 100) + "..." } });
   }
 
   // ---- Check for chained intents (max 3 segments) ----
@@ -230,10 +240,10 @@ export function parseCommand(input: string): ParseResult {
       const sub = parseSingleIntent(capped[i]);
       chain.push(sub.intent);
     }
-    return { ...primary, chain };
+    return tagResult({ ...primary, chain });
   }
 
-  return parseSingleIntent(trimmed);
+  return tagResult(parseSingleIntent(trimmed));
 }
 
 function parseSingleIntent(input: string): ParseResult {
