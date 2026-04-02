@@ -316,51 +316,15 @@ export function validateTradeObject(
 // ---- Enrichment ----
 
 export async function enrichTradeWithQuote(
-  trade: TradeObject,
-  ownerPubkey?: string
+  trade: TradeObject
 ): Promise<TradeObject> {
   if (!trade.market || !trade.collateral_usd || !trade.leverage) {
     return trade;
   }
 
-  // Strategy 1: If wallet connected, use buildOpenPosition for exact quote
-  if (ownerPubkey) {
-    try {
-      const quote = await buildOpenPosition({
-        market: trade.market,
-        side: trade.action,
-        collateral: trade.collateral_usd,
-        leverage: trade.leverage,
-        owner: ownerPubkey,
-      });
-
-      // Validate all numeric fields from API response
-      if (
-        !Number.isFinite(quote.newEntryPrice) || quote.newEntryPrice <= 0 ||
-        !Number.isFinite(quote.newLiquidationPrice) || quote.newLiquidationPrice <= 0 ||
-        !Number.isFinite(quote.newLeverage) || quote.newLeverage < 1
-      ) {
-        throw new Error("API returned invalid quote data");
-      }
-
-      return {
-        ...trade,
-        entry_price: quote.newEntryPrice,
-        mark_price: quote.newEntryPrice,
-        liquidation_price: quote.newLiquidationPrice,
-        fees: Number.isFinite(quote.entryFee) ? quote.entryFee : 0,
-        fee_rate: Number.isFinite(quote.openPositionFeePercent) ? quote.openPositionFeePercent / 100 : 0.0008,
-        position_size: trade.collateral_usd * quote.newLeverage,
-        leverage: quote.newLeverage,
-        status: "READY",
-        missing_fields: [],
-      };
-    } catch (err) {
-      console.warn("Quote API failed, falling back to price estimation:", err);
-    }
-  }
-
-  // Strategy 2: Use live price + local calculation
+  // Use live price + local calculation for preview.
+  // buildOpenPosition is NOT called here — it builds a real transaction.
+  // Transaction building happens only in executeTrade after user confirms.
   try {
     const priceData = await getPrice(trade.market);
 

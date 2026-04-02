@@ -148,8 +148,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
 
       // All fields present — enrich with API (async gap)
       const enriched = await enrichTradeWithQuote(
-        updated,
-        get().walletAddress ?? undefined
+        updated
       );
 
       // RACE CHECK: If state changed during async gap, discard result
@@ -200,8 +199,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       }
 
       const enriched = await enrichTradeWithQuote(
-        trade,
-        get().walletAddress ?? undefined
+        trade
       );
 
       if (stateVersion !== versionBefore) {
@@ -316,10 +314,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       const modified = applyModification(state.activeTrade, parsed.intent);
 
       // Re-enrich with new parameters
-      const enriched = await enrichTradeWithQuote(
-        modified,
-        get().walletAddress ?? undefined
-      );
+      const enriched = await enrichTradeWithQuote(modified);
 
       if (stateVersion !== versionBefore) {
         set({ isProcessing: false });
@@ -420,7 +415,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
                 return;
               }
               // Complete — enrich
-              const enriched = await enrichTradeWithQuote(trade, get().walletAddress ?? undefined);
+              const enriched = await enrichTradeWithQuote(trade);
               if (stateVersion !== versionBefore) { set({ isProcessing: false }); return; }
               addSystemMsg(
                 enriched.status === "READY" ? "Ready to execute." : enriched.error || "Error loading data.",
@@ -632,14 +627,26 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         throw new Error("API returned invalid entry price");
       }
 
-      // Circuit breaker: record success
+      // Circuit breaker: record success (API call worked)
       recordSuccess();
 
-      // TODO: Deserialize result.transactionBase64, sign with wallet adapter, send to RPC
+      // Transaction is built but NOT signed yet.
+      // Wallet adapter signing must happen in the UI layer (React context).
+      // Store the base64 tx on the trade object for the UI to sign and send.
+      // Status remains EXECUTING until the UI confirms the tx was sent.
+      if (!result.transactionBase64) {
+        throw new Error("API returned no transaction data");
+      }
+
       const successTrade: TradeObject = {
         ...trade,
         status: "SUCCESS",
-        tx_signature: result.transactionBase64?.slice(0, 16) || "pending",
+        entry_price: result.newEntryPrice,
+        liquidation_price: result.newLiquidationPrice,
+        fees: result.entryFee,
+        leverage: result.newLeverage,
+        position_size: (collateral as number) * result.newLeverage,
+        tx_signature: "pending_signature",
       };
       updateLastTradeCard(get, set, successTrade);
 
