@@ -458,10 +458,8 @@ export function parseFieldResponse(input: string, currentTrade: TradeObject): Tr
   const lev = extractLeverage(trimmed);
   if (lev) updated.leverage = lev;
 
-  if (updated.collateral_usd && !updated.leverage) {
-    const pool = MARKETS[updated.market]?.pool;
-    updated.leverage = pool ? DEFAULT_LEVERAGE[pool] ?? 5 : 5;
-  }
+  // Don't auto-assign leverage in progressive flow — let getNextQuestion ask
+
   if (updated.collateral_usd && updated.leverage) {
     updated.position_size = updated.collateral_usd * updated.leverage;
   }
@@ -473,6 +471,7 @@ export function getNextQuestion(trade: TradeObject): string | null {
   if (!trade.market) return "Which market? (BTC, ETH, SOL...)";
   if (trade.missing_fields.includes("action")) return "Long or short?";
   if (!trade.collateral_usd) return "How much collateral? (USD)";
+  if (!trade.leverage) return "Leverage? (e.g. 2x, 5x, 10x)";
   return null;
 }
 

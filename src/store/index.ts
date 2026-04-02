@@ -131,12 +131,14 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       const question = getNextQuestion(updated);
 
       if (question) {
+        // Only show trade card when there's enough data (market + side + collateral minimum)
+        const showCard = !!(updated.market && updated.collateral_usd);
         const sysMsg: ChatMessage = {
           id: msgId(),
           role: "system",
           content: question,
           timestamp: Date.now(),
-          trade_card: updated,
+          trade_card: showCard ? updated : undefined,
         };
         set({
           messages: [...get().messages, sysMsg],
@@ -185,12 +187,13 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       const question = getNextQuestion(trade);
 
       if (question) {
+        const showCard = !!(trade.market && trade.collateral_usd);
         const sysMsg: ChatMessage = {
           id: msgId(),
           role: "system",
           content: question,
           timestamp: Date.now(),
-          trade_card: trade,
+          trade_card: showCard ? trade : undefined,
         };
         set({
           messages: [...get().messages, sysMsg],
