@@ -250,6 +250,11 @@ function parseSingleIntent(input: string): ParseResult {
   const trimmed = input.trim();
   const lower = trimmed.toLowerCase();
 
+  // ---- GREETING ----
+  if (/^(hi|hello|hey|yo|sup|gm|good\s*morning|what'?s?\s*up)\b/i.test(lower)) {
+    return { type: "query", intent: { type: "QUERY", raw: trimmed } };
+  }
+
   // ---- CANCEL ----
   if (/^(cancel|nevermind|nvm|abort|forget\s*it)\s*$/i.test(lower)) {
     return { type: "cancel", intent: { type: "CANCEL", raw: trimmed } };

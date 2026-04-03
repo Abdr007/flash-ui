@@ -362,6 +362,8 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       } else if (/positions?/i.test(trimmed)) {
         const count = state.positions.length;
         addSystemMsg(count > 0 ? `${count} open position${count > 1 ? "s" : ""}.` : "No open positions.");
+      } else if (/^(hi|hello|hey|yo|sup|gm|good\s*morning|what'?s?\s*up)\b/i.test(trimmed)) {
+        addSystemMsg("Ready. Type a trade command to begin.");
       } else {
         addSystemMsg('Try: "Long SOL 100 5x" or "Short BTC 50 3x"');
       }
@@ -436,9 +438,12 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
           }
 
           if (aiIntent.intent === "QUERY") {
-            const m = aiIntent.market;
+            const m = aiIntent.market as string | undefined;
+            const reply = aiIntent.reply as string | undefined;
             if (m && state.prices[m]) {
               addSystemMsg(`${m}: $${state.prices[m].price.toLocaleString("en-US", { minimumFractionDigits: 2 })}`);
+            } else if (reply) {
+              addSystemMsg(reply);
             } else {
               addSystemMsg('Try: "Long SOL 100 5x" or "Short BTC 50 3x"');
             }

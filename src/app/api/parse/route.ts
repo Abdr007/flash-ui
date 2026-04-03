@@ -40,6 +40,8 @@ Rules:
 - "half" → reduce_percent: 50
 - If uncertain about ANY field, set it to null
 - If the input is completely unclear, return: {"error": "ambiguous"}
+- For greetings or conversational inputs (hi, hello, how are you, etc.), return: {"intent": "QUERY", "reply": "Ready. Type a trade command."}
+- For questions about what you can do, return: {"intent": "QUERY", "reply": "I execute perp trades. Try: Long SOL 100 5x"}
 - Output ONLY the JSON object. No explanation. No markdown.`;
 
 // Simple IP rate limit for this endpoint
