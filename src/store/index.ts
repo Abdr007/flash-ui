@@ -362,8 +362,6 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       } else if (/positions?/i.test(trimmed)) {
         const count = state.positions.length;
         addSystemMsg(count > 0 ? `${count} open position${count > 1 ? "s" : ""}.` : "No open positions.");
-      } else if (/^(hi|hello|hey|yo|sup|gm|good\s*morning|what'?s?\s*up)\b/i.test(trimmed)) {
-        addSystemMsg("Ready. Type a trade command to begin.");
       } else {
         addSystemMsg('Try: "Long SOL 100 5x" or "Short BTC 50 3x"');
       }
