@@ -1,45 +1,47 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-bg-root: #080C12;
-  --color-bg-surface: #0F1318;
-  --color-bg-card: #141A22;
-  --color-bg-card-hover: #1A2230;
-  --color-bg-input: #111820;
-  --color-border-subtle: #1C2433;
-  --color-border-focus: #2A3A52;
-  --color-text-primary: #E8ECF1;
-  --color-text-secondary: #7B8A9E;
-  --color-text-tertiary: #4A5568;
-  --color-accent-long: #00D084;
-  --color-accent-short: #FF4D6A;
-  --color-accent-blue: #4A9EFF;
-  --color-accent-warn: #FFB020;
+  --color-bg-root: #06090D;
+  --color-bg-surface: #0A0E14;
+  --color-bg-card: #0F141B;
+  --color-bg-card-hover: #151C26;
+  --color-bg-input: #0C1017;
+  --color-border-subtle: #161E2A;
+  --color-border-focus: #1E2A3A;
+  --color-text-primary: #D4DBE5;
+  --color-text-secondary: #6B7A8E;
+  --color-text-tertiary: #3A4758;
+  --color-accent-long: #12C77E;
+  --color-accent-short: #F04058;
+  --color-accent-blue: #3B8EF0;
+  --color-accent-warn: #E8A020;
+  --font-mono: var(--font-geist-mono), 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   padding: 0;
   background: var(--color-bg-root);
   color: var(--color-text-primary);
-  font-family: var(--font-geist-sans), 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   height: 100%;
   overflow: hidden;
+  letter-spacing: -0.01em;
 }
 
-::-webkit-scrollbar { width: 6px; }
+/* Terminal scrollbar */
+::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border-subtle); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-border-focus); }
+::-webkit-scrollbar-thumb { background: var(--color-border-subtle); border-radius: 0; }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(12px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+/* Monospace numbers globally */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 @keyframes fadeIn {
@@ -47,9 +49,9 @@ html, body {
   to { opacity: 1; }
 }
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulseDot {
@@ -59,4 +61,10 @@ html, body {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Status dot pulse */
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(18, 199, 126, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(18, 199, 126, 0); }
 }

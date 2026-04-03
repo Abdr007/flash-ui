@@ -1,80 +1,80 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useFlashStore } from "@/store";
 
 export default function InputBar() {
   const [input, setInput] = useState("");
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIdx, setHistoryIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const sendMessage = useFlashStore((s) => s.sendMessage);
   const isProcessing = useFlashStore((s) => s.isProcessing);
   const activeTrade = useFlashStore((s) => s.activeTrade);
 
-  // Input is blocked during execution or confirmation
   const isLocked =
     isProcessing ||
     activeTrade?.status === "EXECUTING" ||
-    activeTrade?.status === "CONFIRMING";
+    activeTrade?.status === "CONFIRMING" ||
+    activeTrade?.status === "SIGNING";
 
   useEffect(() => {
-    if (!isLocked) {
-      inputRef.current?.focus();
-    }
+    if (!isLocked) inputRef.current?.focus();
   }, [isLocked]);
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed || isLocked) return;
+    setHistory((h) => [trimmed, ...h.slice(0, 49)]);
+    setHistoryIdx(-1);
     sendMessage(trimmed);
     setInput("");
-  };
+  }, [input, isLocked, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
+    // Command history: up/down arrows
+    if (e.key === "ArrowUp" && history.length > 0) {
+      e.preventDefault();
+      const nextIdx = Math.min(historyIdx + 1, history.length - 1);
+      setHistoryIdx(nextIdx);
+      setInput(history[nextIdx]);
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (historyIdx <= 0) {
+        setHistoryIdx(-1);
+        setInput("");
+      } else {
+        const nextIdx = historyIdx - 1;
+        setHistoryIdx(nextIdx);
+        setInput(history[nextIdx]);
+      }
+    }
   };
 
-  const hasInput = input.trim().length > 0;
-
   return (
-    <div
-      className="flex items-center h-14 px-5 bg-bg-input shrink-0 gap-3"
-      style={{
-        borderTop: hasInput && !isLocked
-          ? "1px solid rgba(74, 158, 255, 0.4)"
-          : "1px solid var(--color-border-subtle)",
-        transition: "border-color 150ms",
-      }}
-    >
-      <span className="text-text-tertiary text-base select-none">⌘</span>
-
+    <div className="flex items-center h-11 px-4 bg-bg-root border-t border-border-subtle shrink-0 gap-2">
+      <span className="text-text-tertiary text-[11px] font-mono select-none">{">"}</span>
       <input
         ref={inputRef}
         type="text"
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e) => { setInput(e.target.value); setHistoryIdx(-1); }}
         onKeyDown={handleKeyDown}
-        placeholder={
-          isLocked ? "Trade in progress..." : "Trade, ask, or command..."
-        }
-        className="flex-1 bg-transparent border-none outline-none text-[15px] text-text-primary placeholder:text-text-tertiary"
+        placeholder={isLocked ? "waiting..." : "command"}
+        className="flex-1 bg-transparent border-none outline-none text-[13px] text-text-primary placeholder:text-text-tertiary font-mono"
         style={{ caretColor: "var(--color-accent-blue)" }}
         disabled={isLocked}
+        autoComplete="off"
+        spellCheck={false}
       />
-
-      <button
-        onClick={handleSubmit}
-        disabled={!hasInput || isLocked}
-        className={`flex items-center justify-center w-8 h-8 rounded-lg text-white text-base font-semibold transition-all ${
-          hasInput && !isLocked
-            ? "bg-accent-blue hover:brightness-110 cursor-pointer"
-            : "bg-accent-blue/30 cursor-default"
-        }`}
-      >
-        ↵
-      </button>
+      {isLocked && (
+        <span className="w-2 h-2 border border-text-tertiary border-t-transparent rounded-full" style={{ animation: "spin 0.8s linear infinite" }} />
+      )}
     </div>
   );
 }

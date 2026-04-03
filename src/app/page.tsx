@@ -6,17 +6,16 @@ import ChatPanel from "@/components/chat/ChatPanel";
 import PositionPanel from "@/components/positions/PositionPanel";
 import InputBar from "@/components/layout/InputBar";
 import ConfirmOverlay from "@/components/trade/ConfirmOverlay";
+import SystemStatus from "@/components/layout/SystemStatus";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useWalletSign } from "@/hooks/useWalletSign";
 
-// Dynamic import to avoid SSR issues with wallet adapter
 const WalletProvider = dynamic(
   () => import("@/components/layout/WalletProvider"),
   { ssr: false }
 );
 
-/** Hosts the price stream + wallet signing — must be inside WalletProvider */
-function StreamHost({ children }: { children: React.ReactNode }) {
+function AppShell({ children }: { children: React.ReactNode }) {
   usePriceStream();
   useWalletSign();
   return <>{children}</>;
@@ -25,29 +24,30 @@ function StreamHost({ children }: { children: React.ReactNode }) {
 export default function Home() {
   return (
     <WalletProvider>
-      <StreamHost>
+      <AppShell>
         <div className="h-screen flex flex-col bg-bg-root overflow-hidden">
-          {/* Top: Market Ticker */}
-          <MarketTicker />
+          {/* System Status + Market Ticker */}
+          <div className="flex items-center border-b border-border-subtle shrink-0">
+            <SystemStatus />
+            <div className="w-px h-5 bg-border-subtle" />
+            <MarketTicker />
+          </div>
 
-          {/* Middle: Chat + Positions */}
+          {/* Main Content */}
           <div className="flex-1 flex min-h-0">
-            {/* Chat Column */}
+            {/* Chat + Input */}
             <div className="flex-1 flex flex-col min-w-0 bg-bg-surface">
               <ChatPanel />
+              <InputBar />
             </div>
 
-            {/* Position Panel */}
+            {/* Positions */}
             <PositionPanel />
           </div>
 
-          {/* Bottom: Input Bar */}
-          <InputBar />
-
-          {/* Confirmation overlay (renders over everything when CONFIRMING) */}
           <ConfirmOverlay />
         </div>
-      </StreamHost>
+      </AppShell>
     </WalletProvider>
   );
 }

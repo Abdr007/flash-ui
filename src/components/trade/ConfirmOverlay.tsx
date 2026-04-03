@@ -8,158 +8,80 @@ export default function ConfirmOverlay() {
   const executeTrade = useFlashStore((s) => s.executeTrade);
   const cancelTrade = useFlashStore((s) => s.cancelTrade);
 
-  // Show during CONFIRMING, EXECUTING, and SIGNING
   if (!trade || (trade.status !== "CONFIRMING" && trade.status !== "EXECUTING" && trade.status !== "SIGNING")) {
     return null;
   }
 
   const isLong = trade.action === "LONG";
-  const isExecuting = trade.status === "EXECUTING" || trade.status === "SIGNING";
-  const accentColor = isLong
-    ? "var(--color-accent-long)"
-    : "var(--color-accent-short)";
-  const liqDist =
-    trade.entry_price && trade.liquidation_price
-      ? liqDistancePct(trade.entry_price, trade.liquidation_price, trade.action)
-      : 0;
-  const liqDanger = liqDist < 10;
+  const isInFlight = trade.status === "EXECUTING" || trade.status === "SIGNING";
+  const accentColor = isLong ? "var(--color-accent-long)" : "var(--color-accent-short)";
+  const liqDist = trade.entry_price && trade.liquidation_price
+    ? liqDistancePct(trade.entry_price, trade.liquidation_price, trade.action) : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Dim overlay — only dismissible if not executing */}
-      <div
-        className="absolute inset-0 bg-bg-root/70 backdrop-blur-sm"
-        onClick={isExecuting ? undefined : cancelTrade}
-      />
+      <div className="absolute inset-0 bg-bg-root/80" onClick={isInFlight ? undefined : cancelTrade} />
 
-      {/* Card */}
-      <div
-        className="relative w-[400px] rounded-2xl p-7 border border-border-subtle"
-        style={{
-          background: "var(--color-bg-card)",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
-          animation: "fadeInUp 200ms cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
+      <div className="relative w-[380px] border border-border-subtle bg-bg-card" style={{ borderRadius: "2px", animation: "slideUp 150ms ease-out" }}>
         {/* Header */}
-        <div className="flex items-center gap-2.5 mb-5">
-          <span className="text-lg text-accent-warn">⚠</span>
-          <span className="text-base font-bold text-text-primary tracking-wide">
-            {isExecuting ? "EXECUTING" : "CONFIRM TRADE"}
+        <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
+          <span className="text-[12px] font-mono font-semibold text-text-primary tracking-wide">
+            {isInFlight ? (trade.status === "SIGNING" ? "SIGNING" : "BUILDING TX") : "CONFIRM TRADE"}
+          </span>
+          <span className="text-[10px] font-mono font-bold tracking-widest" style={{ color: accentColor }}>
+            {trade.action} {trade.market}
           </span>
         </div>
 
-        <p className="text-sm text-text-secondary mb-5">
-          {isExecuting ? (
-            trade.status === "SIGNING"
-              ? "Sign the transaction in your wallet..."
-              : "Building transaction..."
-          ) : (
-            <>
-              You are opening a{" "}
-              <span style={{ color: accentColor }} className="font-medium">
-                {trade.action}
-              </span>{" "}
-              position on{" "}
-              <span className="text-text-primary font-medium">
-                {trade.market}
-              </span>
-            </>
-          )}
-        </p>
-
         {/* High leverage warning */}
-        {(trade.leverage ?? 0) > 10 && !isExecuting && (
-          <div className="flex items-center gap-2 p-3 rounded-lg mb-4 text-xs border"
-            style={{
-              background: "rgba(255, 176, 32, 0.06)",
-              borderColor: "rgba(255, 176, 32, 0.2)",
-              color: "var(--color-accent-warn)",
-            }}>
-            <span>⚠</span>
-            <span>
-              High leverage ({trade.leverage}x). Liquidation is {liqDist.toFixed(1)}% from entry.
-              {(trade.collateral_usd ?? 0) >= 500 && " Large trade — verify before executing."}
-            </span>
+        {(trade.leverage ?? 0) > 10 && !isInFlight && (
+          <div className="px-4 py-2 text-[10px] font-mono border-b border-border-subtle" style={{ color: "var(--color-accent-warn)", background: "rgba(232, 160, 32, 0.04)" }}>
+            ⚠ {trade.leverage}x leverage — liquidation {liqDist.toFixed(1)}% from entry
+            {(trade.collateral_usd ?? 0) >= 500 && " · large trade"}
           </div>
         )}
 
         {/* Data */}
-        <div className="flex flex-col gap-2.5 mb-5">
-          <ConfirmRow
-            label="Collateral"
-            value={formatUsd(trade.collateral_usd)}
-          />
-          <ConfirmRow
-            label="Position Size"
-            value={formatUsd(trade.position_size)}
-          />
-          <ConfirmRow
-            label="Fees"
-            value={formatUsd(trade.fees)}
-          />
-          <ConfirmRow
-            label="Liquidation"
-            value={`${formatPrice(trade.liquidation_price)}  ←  ${liqDist.toFixed(1)}% away`}
-            color={
-              liqDanger
-                ? "var(--color-accent-short)"
-                : "var(--color-accent-warn)"
-            }
-          />
+        <div className="px-4 py-3 flex flex-col gap-1.5 text-[12px] font-mono">
+          <DataRow label="collateral" value={formatUsd(trade.collateral_usd)} />
+          <DataRow label="size" value={formatUsd(trade.position_size)} />
+          <DataRow label="fees" value={formatUsd(trade.fees)} />
+          <DataRow label="liquidation" value={`${formatPrice(trade.liquidation_price)} (${liqDist.toFixed(1)}%)`} color={liqDist < 10 ? "var(--color-accent-short)" : "var(--color-accent-warn)"} />
         </div>
 
-        {/* Execute / Progress */}
-        {isExecuting ? (
-          <div className="w-full py-3.5 rounded-[10px] text-sm font-semibold text-center text-text-tertiary bg-bg-card-hover mb-3">
-            <span className="inline-block w-3 h-3 border-2 border-text-tertiary border-t-transparent rounded-full mr-2" style={{ animation: "spin 0.8s linear infinite" }} />
-            {trade.status === "SIGNING" ? "Sign in wallet..." : "Building tx..."}
+        {/* Actions */}
+        {isInFlight ? (
+          <div className="px-4 py-3 border-t border-border-subtle flex items-center gap-2 text-[11px] font-mono text-text-tertiary">
+            <span className="w-2.5 h-2.5 border-2 border-text-tertiary border-t-transparent rounded-full" style={{ animation: "spin 0.8s linear infinite" }} />
+            {trade.status === "SIGNING" ? "sign in wallet..." : "building transaction..."}
           </div>
         ) : (
-          <button
-            onClick={executeTrade}
-            className="w-full py-3.5 rounded-[10px] text-sm font-semibold text-white mb-3 transition-all hover:brightness-110 cursor-pointer"
-            style={{ background: accentColor }}
-          >
-            Execute Trade
-          </button>
-        )}
-
-        {/* Cancel — hidden during execution */}
-        {!isExecuting && (
-          <button
-            onClick={cancelTrade}
-            className="w-full text-center text-[13px] font-medium text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
+          <div className="flex border-t border-border-subtle">
+            <button
+              onClick={executeTrade}
+              className="flex-1 py-3 text-[12px] font-mono font-semibold tracking-wide text-white transition-colors cursor-pointer"
+              style={{ background: accentColor }}
+            >
+              EXECUTE
+            </button>
+            <button
+              onClick={cancelTrade}
+              className="px-5 py-3 text-[12px] font-mono text-text-tertiary border-l border-border-subtle hover:text-text-secondary transition-colors cursor-pointer"
+            >
+              CANCEL
+            </button>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-function ConfirmRow({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color?: string;
-}) {
+function DataRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-[13px] text-text-tertiary">{label}</span>
-      <span
-        className="text-[13px] font-semibold"
-        style={{
-          color: color ?? "var(--color-text-primary)",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {value}
-      </span>
+    <div className="flex items-baseline justify-between">
+      <span className="text-text-tertiary">{label}</span>
+      <span className="num" style={{ color: color ?? "var(--color-text-primary)" }}>{value}</span>
     </div>
   );
 }
