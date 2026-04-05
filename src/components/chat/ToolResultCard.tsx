@@ -364,21 +364,15 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
       });
       const transaction = new VersionedTransaction(cleanMsg);
 
-      // Sign with wallet — use raw provider to bypass wallet instruction injection (Lighthouse)
+      // Sign with signTransaction (NOT signAndSendTransaction) — dApp submits
+      // This prevents wallet from injecting Lighthouse assertions
       setStatus("signing");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const win = window as any;
-      const rawProvider = win.solflare ?? win.phantom?.solana;
-      let signed: typeof transaction;
-      if (rawProvider?.signTransaction) {
-        signed = await rawProvider.signTransaction(transaction);
-      } else {
-        signed = await signTransaction(transaction);
-      }
+      const signed = await signTransaction(transaction);
 
-      // Send transaction
+      // dApp submits directly via RPC — wallet never touches submission
       setStatus("confirming");
-      const signature = await connection.sendRawTransaction(signed.serialize(), {
+      const rawTxBytes = signed.serialize();
+      const signature = await connection.sendRawTransaction(rawTxBytes, {
         skipPreflight: true,
         maxRetries: 5,
       });

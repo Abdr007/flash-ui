@@ -149,23 +149,35 @@ export async function fetchPositions(
 
   if (!Array.isArray(raw)) return [];
 
+  // Fetch current prices to fill mark_price (API doesn't return it)
+  let priceMap: Record<string, number> = {};
+  try {
+    const allPrices = await fetchAllPrices();
+    for (const [sym, p] of Object.entries(allPrices)) {
+      priceMap[sym] = p.price;
+    }
+  } catch {}
+
   return raw
-    .map((p) => ({
-      pubkey: String(p.key || p.pubkey || ""),
-      market: String(p.marketSymbol || p.market || ""),
-      collateral_token: String(p.collateralSymbol || p.marketSymbol || p.market || ""),
-      side: (String(p.sideUi || p.side || "").toUpperCase() === "SHORT" ? "SHORT" : "LONG") as "LONG" | "SHORT",
-      entry_price: safeFloat(p.entryPriceUi ?? p.entryPrice),
-      mark_price: safeFloat(p.markPriceUi ?? p.markPrice),
-      size_usd: safeFloat(p.sizeUsdUi ?? p.sizeUsd),
-      collateral_usd: safeFloat(p.collateralUsdUi ?? p.collateralUsd),
-      leverage: safeFloat(p.leverageUi ?? p.leverage),
-      unrealized_pnl: safeFloat(p.pnlWithFeeUsdUi ?? p.unrealizedPnl),
-      unrealized_pnl_pct: safeFloat(p.pnlPercentageWithFee ?? p.unrealizedPnlPercent),
-      liquidation_price: safeFloat(p.liquidationPriceUi ?? p.liquidationPrice),
-      fees: safeFloat(p.fees),
-      timestamp: safeFloat(p.timestamp, Date.now()),
-    }))
+    .map((p) => {
+      const market = String(p.marketSymbol || p.market || "");
+      return {
+        pubkey: String(p.key || p.pubkey || ""),
+        market,
+        collateral_token: String(p.collateralSymbol || p.marketSymbol || p.market || ""),
+        side: (String(p.sideUi || p.side || "").toUpperCase() === "SHORT" ? "SHORT" : "LONG") as "LONG" | "SHORT",
+        entry_price: safeFloat(p.entryPriceUi ?? p.entryPrice),
+        mark_price: safeFloat(p.markPriceUi ?? p.markPrice) || priceMap[market] || 0,
+        size_usd: safeFloat(p.sizeUsdUi ?? p.sizeUsd),
+        collateral_usd: safeFloat(p.collateralUsdUi ?? p.collateralUsd),
+        leverage: safeFloat(p.leverageUi ?? p.leverage),
+        unrealized_pnl: safeFloat(p.pnlWithFeeUsdUi ?? p.unrealizedPnl),
+        unrealized_pnl_pct: safeFloat(p.pnlPercentageWithFee ?? p.unrealizedPnlPercent),
+        liquidation_price: safeFloat(p.liquidationPriceUi ?? p.liquidationPrice),
+        fees: safeFloat(p.fees),
+        timestamp: safeFloat(p.timestamp, Date.now()),
+      };
+    })
     .filter((p) => p.market && p.size_usd > 0 && p.entry_price > 0);
 }
 

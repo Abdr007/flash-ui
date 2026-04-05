@@ -1,31 +1,56 @@
 "use client";
 
-// ============================================
-// Flash UI — Portfolio Hero (Galileo-Style)
-// ============================================
-// Centered hero: balance → token icons → action circles → trending bar
-// Action buttons send commands to the chat.
-
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
 import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS, TICKER_MARKETS, MARKETS } from "@/lib/constants";
 import { formatUsd, formatPnl, formatPrice } from "@/lib/format";
+
+const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const FSTATS = "https://fstats.io/api/v1";
 
 const TOKEN_COLORS: Record<string, string> = {
   SOL: "#9945FF", BTC: "#F7931A", ETH: "#627EEA",
   BONK: "#F59E0B", JUP: "#00D18C", WIF: "#A855F7",
 };
 
+interface OIMarket {
+  market: string;
+  long_oi: number;
+  short_oi: number;
+  total_oi: number;
+  long_positions: number;
+  short_positions: number;
+}
+
 interface PortfolioHeroProps {
   onAction: (command: string) => void;
   onFillInput?: (text: string) => void;
+}
+
+function formatCompact(n: number): string {
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`;
+  return `$${n.toFixed(0)}`;
 }
 
 export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroProps) {
   const positions = useFlashStore((s) => s.positions);
   const prices = useFlashStore((s) => s.prices);
   const walletConnected = useFlashStore((s) => s.walletConnected);
+  const walletAddress = useFlashStore((s) => s.walletAddress);
   const refreshPositions = useFlashStore((s) => s.refreshPositions);
+  const { connection } = useConnection();
+
+  const [solBalance, setSolBalance] = useState(0);
+  const [usdcBalance, setUsdcBalance] = useState(0);
+  const [volume7d, setVolume7d] = useState(0);
+  const [trades7d, setTrades7d] = useState(0);
+  const [fees7d, setFees7d] = useState(0);
+  const [oiMarkets, setOiMarkets] = useState<OIMarket[]>([]);
+  const [marketsExpanded, setMarketsExpanded] = useState(false);
 
   const refreshRef = useRef(refreshPositions);
   refreshRef.current = refreshPositions;
@@ -37,126 +62,166 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
     return () => clearInterval(interval);
   }, [walletConnected]);
 
-  let totalExposure = 0;
+  // Wallet balances
+  useEffect(() => {
+    if (!walletConnected || !walletAddress) return;
+    let cancelled = false;
+    async function fetch_() {
+      try {
+        const pubkey = new PublicKey(walletAddress!);
+        const lamports = await connection.getBalance(pubkey);
+        if (!cancelled) setSolBalance(lamports / 1e9);
+        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(pubkey, { mint: new PublicKey(USDC_MINT) });
+        let usdc = 0;
+        for (const acc of tokenAccounts.value) {
+          const amt = acc.account.data.parsed?.info?.tokenAmount?.uiAmount;
+          if (typeof amt === "number") usdc += amt;
+        }
+        if (!cancelled) setUsdcBalance(usdc);
+      } catch {}
+    }
+    fetch_();
+    const interval = setInterval(fetch_, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [walletConnected, walletAddress, connection]);
+
+  // fstats
+  useEffect(() => {
+    let cancelled = false;
+    async function fetch_() {
+      try {
+        const [statsR, oiR] = await Promise.all([
+          fetch(`/api/fstats?path=overview/stats&period=7d`),
+          fetch(`/api/fstats?path=positions/open-interest`),
+        ]);
+        if (statsR.ok) {
+          const s = await statsR.json();
+          if (!cancelled) {
+            setVolume7d(s.volume_usd ?? 0);
+            setTrades7d(s.trades ?? 0);
+            setFees7d(s.fees_usd ?? 0);
+          }
+        }
+        if (oiR.ok) {
+          const data = await oiR.json();
+          const markets: OIMarket[] = (data.markets ?? data ?? []);
+          if (!cancelled) setOiMarkets(markets.sort((a: OIMarket, b: OIMarket) => b.total_oi - a.total_oi));
+        }
+      } catch {}
+    }
+    fetch_();
+    const interval = setInterval(fetch_, 60_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
   let totalPnl = 0;
   let totalCollateral = 0;
   for (const pos of positions) {
-    totalExposure += pos.size_usd;
     totalPnl += pos.unrealized_pnl;
     totalCollateral += pos.collateral_usd;
   }
 
-  const activeMarkets = TICKER_MARKETS.filter((s) => prices[s]);
-  const balance = walletConnected ? totalExposure : 0;
+  const solPrice = prices["SOL"]?.price ?? 0;
+  const walletUsd = (solBalance * solPrice) + usdcBalance;
 
   return (
-    <div className="flex flex-col items-center pt-16 pb-8 px-6 w-full" style={{ animation: "fadeIn 500ms ease-out" }}>
+    <div className="flex flex-col items-center pt-12 pb-6 px-6 w-full" style={{ animation: "fadeIn 500ms ease-out" }}>
 
-      {/* ---- TOTAL BALANCE ---- */}
-      <div className="text-[12px] text-text-tertiary tracking-[0.2em] uppercase mb-4">
-        {walletConnected ? "Total Exposure" : "Total Balance"}
-      </div>
-      <div className="text-[56px] font-semibold text-text-primary tracking-tight leading-none num mb-4"
-        style={{ fontFamily: "var(--font-geist-sans), -apple-system, sans-serif" }}>
-        {formatUsd(balance)}
+      {/* ---- BALANCE ---- */}
+      <div className="text-[12px] text-text-tertiary tracking-[0.2em] uppercase mb-3">Total Balance</div>
+      <div className="text-[52px] font-semibold text-text-primary tracking-tight leading-none num mb-3">
+        {walletConnected ? formatUsd(walletUsd) : "$0.00"}
       </div>
 
-      {/* ---- PnL indicators ---- */}
-      {walletConnected && positions.length > 0 && (
-        <div className="flex items-center gap-4 mb-10">
-          <span className="flex items-center gap-1.5 text-[14px]"
-            style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-              {totalPnl >= 0 ? (
-                <path d="M4 15C7 10 10 7 16 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              ) : (
-                <path d="M4 5C7 10 10 13 16 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              )}
-            </svg>
-            <span className="num font-medium">{formatPnl(totalPnl)}</span>
-          </span>
-          <span className="text-[13px] text-text-tertiary">unrealized</span>
+      {walletConnected ? (
+        <div className="flex items-center gap-3 mb-8 text-[13px]">
+          <span className="num text-text-secondary">{solBalance.toFixed(2)} SOL</span>
           <span className="text-text-tertiary">·</span>
-          <span className="text-[13px] text-text-secondary num">{formatUsd(totalCollateral)} collateral</span>
+          <span className="num text-text-secondary">{formatUsd(usdcBalance)} USDC</span>
+          {positions.length > 0 && (
+            <>
+              <span className="text-text-tertiary">·</span>
+              <span className="num font-medium" style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+                {formatPnl(totalPnl)}
+              </span>
+            </>
+          )}
         </div>
-      )}
-
-      {!walletConnected && (
-        <div className="text-[14px] text-text-tertiary mb-10">Connect wallet to start trading</div>
-      )}
-
-      {/* ---- Token Icons Pill ---- */}
-      {activeMarkets.length > 0 && (
-        <div className="flex items-center gap-4 px-6 py-3.5 rounded-full mb-10"
-          style={{ background: "rgba(20,26,34,0.9)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="flex items-center" style={{ marginLeft: "4px" }}>
-            {activeMarkets.slice(0, 5).map((symbol, i) => (
-              <div key={symbol}
-                className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
-                style={{
-                  background: TOKEN_COLORS[symbol] ?? MARKETS[symbol]?.dotColor ?? "#444",
-                  border: "2.5px solid var(--color-bg-root)",
-                  marginLeft: i > 0 ? "-8px" : "0",
-                  zIndex: 10 - i,
-                  position: "relative",
-                }}>
-                {symbol.slice(0, 1)}
-              </div>
-            ))}
-          </div>
-          <span className="text-[14px] text-text-secondary">{activeMarkets.length} markets</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </div>
+      ) : (
+        <div className="text-[14px] text-text-tertiary mb-8">Connect wallet to start trading</div>
       )}
 
       {/* ---- Action Circles ---- */}
-      <div className="flex items-center gap-8 mb-10">
-        <ActionCircle
-          label="Long"
-          onClick={() => onFillInput?.("long SOL 5x $")}
-          icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>}
-        />
-        <ActionCircle
-          label="Short"
-          onClick={() => onFillInput?.("short SOL 5x $")}
-          icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12l7 7 7-7" /></svg>}
-        />
-        <ActionCircle
-          label="Portfolio"
-          onClick={() => onAction("portfolio")}
-          icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>}
-        />
-        <ActionCircle
-          label="Markets"
-          onClick={() => onAction("prices")}
-          icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>}
-        />
+      <div className="flex items-center gap-8 mb-8">
+        <ActionCircle label="Long" onClick={() => onFillInput?.("long SOL 5x $")}
+          icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>} />
+        <ActionCircle label="Short" onClick={() => onFillInput?.("short SOL 5x $")}
+          icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12l7 7 7-7" /></svg>} />
+        <ActionCircle label="Portfolio" onClick={() => onAction("show my positions")}
+          icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>} />
+        <ActionCircle label="Markets" onClick={() => onAction("show all prices")}
+          icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>} />
       </div>
 
-      {/* ---- Trending Markets Bar ---- */}
-      {activeMarkets.length > 0 && (
-        <div className="flex items-center gap-4 px-5 py-3 rounded-full"
+      {/* ---- Protocol Stats (fstats) ---- */}
+      {volume7d > 0 && (
+        <div className="flex items-center gap-5 px-6 py-3 rounded-full mb-6"
           style={{ background: "rgba(20,26,34,0.9)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <span className="text-[11px] text-text-tertiary tracking-wider font-medium flex items-center gap-1.5">
-            TRENDING
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-              <path d="M4 15C7 10 10 7 16 5" stroke="var(--color-accent-long)" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </span>
-          {activeMarkets.slice(0, 4).map((symbol, i) => {
-            const p = prices[symbol];
-            return (
-              <span key={symbol} className="flex items-center gap-2">
-                {i > 0 && <span className="w-px h-4" style={{ background: "rgba(255,255,255,0.06)" }} />}
-                <span className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ background: MARKETS[symbol]?.dotColor ?? "#444" }} />
-                <span className="text-[13px] font-medium text-text-primary">{symbol}</span>
-                <span className="text-[13px] num text-accent-long">{formatPrice(p?.price)}</span>
-              </span>
-            );
-          })}
+          <StatPill label="7d Vol" value={formatCompact(volume7d)} color="var(--color-accent-long)" />
+          <span className="w-px h-4" style={{ background: "rgba(255,255,255,0.08)" }} />
+          <StatPill label="Trades" value={trades7d.toLocaleString()} />
+          <span className="w-px h-4" style={{ background: "rgba(255,255,255,0.08)" }} />
+          <StatPill label="Fees" value={formatCompact(fees7d)} />
+        </div>
+      )}
+
+      {/* ---- Markets with OI (expandable) ---- */}
+      {oiMarkets.length > 0 && (
+        <div className="w-full max-w-[520px]">
+          <button
+            onClick={() => setMarketsExpanded(!marketsExpanded)}
+            className="w-full flex items-center justify-between px-5 py-3 rounded-full cursor-pointer transition-all hover:scale-[1.01]"
+            style={{ background: "rgba(20,26,34,0.9)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <span className="text-[12px] text-text-tertiary tracking-wider">TOP MARKETS BY OI</span>
+            <div className="flex items-center gap-3">
+              {oiMarkets.slice(0, 3).map((m) => (
+                <span key={m.market} className="text-[12px] num text-text-secondary">{m.market}</span>
+              ))}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round"
+                style={{ transform: marketsExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms" }}>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+          </button>
+
+          {marketsExpanded && (
+            <div className="mt-2 glass-card overflow-hidden" style={{ animation: "fadeIn 150ms ease-out" }}>
+              {oiMarkets.slice(0, 8).map((m) => {
+                const longPct = m.total_oi > 0 ? (m.long_oi / m.total_oi) * 100 : 50;
+                const p = prices[m.market];
+                return (
+                  <div key={m.market} className="flex items-center justify-between px-4 py-2.5"
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div className="flex items-center gap-2.5 w-16">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: MARKETS[m.market]?.dotColor ?? "#555" }} />
+                      <span className="text-[13px] font-medium text-text-primary">{m.market}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-1 mx-4">
+                      <span className="text-[10px] num text-accent-long">{longPct.toFixed(0)}%</span>
+                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(239,68,68,0.3)" }}>
+                        <div className="h-full rounded-full" style={{ width: `${longPct}%`, background: "var(--color-accent-long)" }} />
+                      </div>
+                      <span className="text-[10px] num text-accent-short">{(100 - longPct).toFixed(0)}%</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] num text-text-tertiary">{formatCompact(m.total_oi)}</span>
+                      {p && <span className="text-[12px] num text-text-secondary w-24 text-right">{formatPrice(p.price)}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -166,14 +231,18 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
 function ActionCircle({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
     <div className="flex flex-col items-center gap-2.5">
-      <button
-        onClick={onClick}
-        className="action-circle text-text-secondary hover:text-text-primary"
-        style={{ width: "64px", height: "64px" }}
-      >
-        {icon}
-      </button>
+      <button onClick={onClick} className="action-circle text-text-secondary hover:text-text-primary"
+        style={{ width: "64px", height: "64px" }}>{icon}</button>
       <span className="text-[12px] text-text-tertiary">{label}</span>
+    </div>
+  );
+}
+
+function StatPill({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[11px] text-text-tertiary">{label}</span>
+      <span className="text-[13px] font-medium num" style={{ color: color ?? "var(--color-text-primary)" }}>{value}</span>
     </div>
   );
 }
