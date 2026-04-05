@@ -4,7 +4,7 @@
 // Flash AI — Tool Result Card (Galileo-Style)
 // ============================================
 
-import { memo, useState, useMemo, useCallback } from "react";
+import { memo, useState, useEffect, useMemo, useCallback } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { validateTrade } from "@/lib/trade-firewall";
 import { getTradeConfidence, type TradeConfidence } from "@/lib/predictive-actions";
@@ -13,7 +13,7 @@ import { useNumberSpring, useBounceIn } from "@/hooks/useSpring";
 import {
   formatPrice, formatUsd, formatLeverage, formatPnl, formatPnlPct, formatPercent, liqDistancePct,
 } from "@/lib/format";
-import { HIGH_LEVERAGE_THRESHOLD } from "@/lib/constants";
+import { HIGH_LEVERAGE_THRESHOLD, MARKETS } from "@/lib/constants";
 
 // ---- Types ----
 
@@ -560,47 +560,263 @@ const PositionsCard = memo(function PositionsCard({ output }: { output: ToolOutp
   if (!data || !Array.isArray(data)) return <ToolError toolName="get_positions" error="No position data" />;
   if (data.length === 0) return <div className="text-[13px] text-text-secondary py-2">No open positions.</div>;
 
+  let totalPnl = 0;
+  let totalSize = 0;
+  for (const pos of data) { totalPnl += Number(pos.unrealized_pnl ?? 0); totalSize += Number(pos.size_usd ?? 0); }
+
   return (
     <div className="w-full max-w-[500px] glass-card overflow-hidden">
-      <div className="px-4 py-3 border-b border-border-subtle text-[14px] font-semibold text-text-primary">
-        {data.length} Open Position{data.length > 1 ? "s" : ""}
+      {/* Header with totals */}
+      <div className="px-5 py-4">
+        <div className="text-[11px] text-text-tertiary tracking-wider uppercase mb-1">Open Positions</div>
+        <div className="flex items-baseline gap-3">
+          <span className="text-[24px] font-semibold text-text-primary num">{formatUsd(totalSize)}</span>
+          <span className="text-[14px] font-medium num" style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+            {formatPnl(totalPnl)}
+          </span>
+        </div>
       </div>
-      {data.map((pos: Record<string, unknown>, i: number) => {
-        const pnl = Number(pos.unrealized_pnl ?? 0);
-        const side = String(pos.side ?? "");
-        const accent = side === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)";
-        return (
-          <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle last:border-b-0">
-            <div className="flex items-center gap-2.5">
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                style={{ color: accent, background: side === "LONG" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
-                {side}
-              </span>
-              <span className="text-[14px] font-medium text-text-primary">{String(pos.market ?? "")}</span>
-              <span className="text-[12px] text-text-tertiary num">{formatLeverage(Number(pos.leverage ?? 0))}</span>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        {data.map((pos: Record<string, unknown>, i: number) => {
+          const pnl = Number(pos.unrealized_pnl ?? 0);
+          const pnlPct = Number(pos.unrealized_pnl_pct ?? 0);
+          const side = String(pos.side ?? "");
+          const market = String(pos.market ?? "");
+          const leverage = Number(pos.leverage ?? 0);
+          const size = Number(pos.size_usd ?? 0);
+          const entry = Number(pos.entry_price ?? 0);
+          const mark = Number(pos.mark_price ?? 0);
+          const dotColor = (MARKETS as Record<string, { dotColor: string }>)[market]?.dotColor ?? "#555";
+          return (
+            <div key={i} className="px-5 py-3.5 flex items-center gap-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                style={{ background: dotColor }}>{market.slice(0, 1)}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[14px] font-semibold text-text-primary">{market}</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ color: side === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)",
+                      background: side === "LONG" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>{side}</span>
+                  <span className="text-[11px] text-text-tertiary num">{leverage.toFixed(1)}x</span>
+                </div>
+                <div className="flex items-center gap-3 text-[12px] text-text-tertiary num">
+                  <span>{formatUsd(size)}</span>
+                  <span>·</span>
+                  <span>Entry {formatPrice(entry)}</span>
+                  {mark > 0 && <><span>·</span><span>Mark {formatPrice(mark)}</span></>}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-[14px] font-semibold num" style={{ color: pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+                  {formatPnl(pnl)}
+                </div>
+                <div className="text-[11px] num" style={{ color: pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+                  {formatPnlPct(pnlPct)}
+                </div>
+              </div>
             </div>
-            <span className="text-[14px] font-semibold num" style={{ color: pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
-              {formatPnl(pnl)}
-            </span>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 });
 
 const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
+  const storePrices = useFlashStore((s) => s.prices);
+  const walletAddress = useFlashStore((s) => s.walletAddress);
+  const [walletUsd, setWalletUsd] = useState(0);
+  const [solBal, setSolBal] = useState(0);
+  const [usdcBal, setUsdcBal] = useState(0);
+  const [expanded, setExpanded] = useState(false);
+  const { connection } = useConnection();
+
+  const [allTokens, setAllTokens] = useState<{ symbol: string; amount: number; usdValue: number; color: string }[]>([]);
+
+  // Fetch ALL wallet token balances for NET WORTH
+  useEffect(() => {
+    if (!walletAddress) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { PublicKey } = await import("@solana/web3.js");
+        const pubkey = new PublicKey(walletAddress);
+
+        // SOL balance
+        const lamports = await connection.getBalance(pubkey);
+        const sol = lamports / 1e9;
+        if (!cancelled) setSolBal(sol);
+
+        // ALL SPL tokens
+        const tokenAccs = await connection.getParsedTokenAccountsByOwner(pubkey, {
+          programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+        });
+
+        const KNOWN_MINTS: Record<string, { symbol: string; color: string }> = {
+          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": { symbol: "USDC", color: "#2775CA" },
+          "So11111111111111111111111111111111111111112": { symbol: "WSOL", color: "#9945FF" },
+          "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn": { symbol: "JitoSOL", color: "#8B5CF6" },
+          "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN": { symbol: "JUP", color: "#00D18C" },
+          "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263": { symbol: "BONK", color: "#F59E0B" },
+          "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm": { symbol: "WIF", color: "#A855F7" },
+          "HZ1JovNiVvGrGNiiYvEozBSTU8diLqkABee1dSbGfmus": { symbol: "PYTH", color: "#7142CF" },
+          "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL": { symbol: "JTO", color: "#4E7CFF" },
+        };
+
+        const tokens: { symbol: string; amount: number; usdValue: number; color: string }[] = [];
+        let totalUsd = 0;
+
+        // Add SOL
+        const solPrice = storePrices["SOL"]?.price ?? 0;
+        const solUsd = sol * solPrice;
+        tokens.push({ symbol: "SOL", amount: sol, usdValue: solUsd, color: "#9945FF" });
+        totalUsd += solUsd;
+
+        for (const acc of tokenAccs.value) {
+          const info = acc.account.data.parsed?.info;
+          const mint = info?.mint as string;
+          const uiAmount = info?.tokenAmount?.uiAmount as number;
+          if (!uiAmount || uiAmount <= 0) continue;
+
+          const known = KNOWN_MINTS[mint];
+          if (known) {
+            const price = storePrices[known.symbol]?.price ?? (known.symbol === "USDC" ? 1 : 0);
+            const usd = uiAmount * price;
+            tokens.push({ symbol: known.symbol, amount: uiAmount, usdValue: usd, color: known.color });
+            totalUsd += usd;
+            if (known.symbol === "USDC") { if (!cancelled) setUsdcBal(uiAmount); }
+          }
+        }
+
+        // Sort by USD value
+        tokens.sort((a, b) => b.usdValue - a.usdValue);
+
+        if (!cancelled) {
+          setAllTokens(tokens);
+          setWalletUsd(totalUsd);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [walletAddress, connection, storePrices]);
+
   if (!d) return null;
+
   const pnl = Number(d.total_unrealized_pnl ?? 0);
+  const exposure = Number(d.total_exposure ?? 0);
+  const collateral = Number(d.total_collateral ?? 0);
+  const positions = (d.positions as Record<string, unknown>[]) ?? [];
+  const netWorth = walletUsd + collateral;
+
   return (
-    <div className="w-full max-w-[420px] glass-card overflow-hidden">
-      <div className="px-4 py-3 border-b border-border-subtle text-[14px] font-semibold text-text-primary">Portfolio</div>
-      <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
-        <Cell label="Positions" value={String(d.position_count ?? 0)} />
-        <Cell label="Exposure" value={formatUsd(Number(d.total_exposure ?? 0))} />
-        <Cell label="Collateral" value={formatUsd(Number(d.total_collateral ?? 0))} />
-        <Cell label="Unrealized" value={formatPnl(pnl)} color={pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)"} />
+    <div className="w-full max-w-[520px] overflow-hidden" style={{
+      background: "linear-gradient(135deg, rgba(17,24,32,0.95), rgba(20,30,40,0.85))",
+      borderRadius: "20px",
+      border: "1px solid rgba(255,255,255,0.06)",
+    }}>
+      {/* NET WORTH */}
+      <div className="px-6 pt-6 pb-4">
+        <div className="text-[12px] font-medium tracking-wider mb-2" style={{ color: "var(--color-accent-long)" }}>
+          NET WORTH
+        </div>
+        <div className="text-[40px] font-semibold text-text-primary tracking-tight leading-none num">
+          {formatUsd(netWorth)}
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="mx-6" style={{ height: "1px", background: "linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))" }} />
+
+      {/* Wallet token balances — all tokens */}
+      <div className="px-6 py-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          {allTokens.filter((t) => t.usdValue >= 0.01).map((t, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                style={{ background: t.color }}>{t.symbol.slice(0, 1)}</div>
+              <span className="text-[14px] font-medium text-text-primary num">{formatUsd(t.usdValue)}</span>
+            </div>
+          ))}
+          {collateral > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#3B82F6" }}>P</div>
+              <span className="text-[14px] font-medium text-text-primary num">{formatUsd(collateral)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="mx-6" style={{ height: "1px", background: "linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))" }} />
+
+      {/* Positions section */}
+      <div className="px-6 py-4">
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-[12px] text-text-tertiary tracking-wider">POSITIONS</span>
+          <span className="text-[14px] font-semibold text-text-primary num">{formatUsd(exposure)}</span>
+          <span className="text-[13px] num font-medium" style={{ color: pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+            {formatPnl(pnl)}
+          </span>
+        </div>
+
+        {positions.map((pos, i) => {
+          const side = String(pos.side ?? "");
+          const market = String(pos.market ?? "");
+          const posPnl = Number(pos.unrealized_pnl ?? 0);
+          const pnlPct = Number(pos.unrealized_pnl_pct ?? 0);
+          const leverage = Number(pos.leverage ?? 0);
+          const entry = Number(pos.entry_price ?? 0);
+          const dotColor = (MARKETS as Record<string, { dotColor: string }>)[market]?.dotColor ?? "#555";
+          return (
+            <div key={i} className="flex items-center gap-3 py-2">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                style={{ background: dotColor }}>{market.slice(0, 1)}</div>
+              <div className="flex-1">
+                <span className="text-[14px] font-medium text-text-primary">{market}</span>
+                <span className="text-[11px] text-text-tertiary ml-2 num">{leverage.toFixed(1)}x · {formatPrice(entry)}</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full mr-2"
+                style={{ color: side === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)",
+                  background: side === "LONG" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>{side}</span>
+              <div className="text-right">
+                <div className="text-[13px] num font-medium" style={{ color: posPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+                  {formatPnl(posPnl)}
+                </div>
+                <div className="text-[10px] num" style={{ color: posPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+                  {formatPnlPct(pnlPct)}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* View More */}
+      <div className="px-6 pb-5">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="px-5 py-2 text-[13px] font-semibold rounded-lg cursor-pointer transition-all hover:brightness-110"
+          style={{ background: "var(--color-accent-lime)", color: "#0A0E13" }}>
+          {expanded ? "Show Less" : "View More"}
+        </button>
+        {expanded && (
+          <div className="mt-3 space-y-2">
+            {allTokens.filter((t) => t.amount > 0).map((t, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                  style={{ background: t.color }}>{t.symbol.slice(0, 1)}</div>
+                <span className="text-[13px] text-text-primary flex-1">{t.symbol}</span>
+                <span className="text-[12px] text-text-secondary num">{t.amount < 1 ? t.amount.toFixed(6) : t.amount.toFixed(2)}</span>
+                <span className="text-[12px] text-text-primary num w-16 text-right">{formatUsd(t.usdValue)}</span>
+              </div>
+            ))}
+            <div className="pt-2 text-[12px] text-text-tertiary" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              <div>In Positions: {formatUsd(collateral)}</div>
+              <div>Exposure: {formatUsd(exposure)} · PnL: {formatPnl(pnl)}</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -609,25 +825,67 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
 const PriceCard = memo(function PriceCard({ toolName, output }: { toolName: string; output: ToolOutput }) {
   const data = output.data;
   if (toolName === "get_all_prices" && data && typeof data === "object") {
-    const prices = Object.values(data as Record<string, Record<string, unknown>>);
+    const allPrices = Object.values(data as Record<string, Record<string, unknown>>)
+      .filter((p) => Number(p.price ?? 0) > 0)
+      .sort((a, b) => Number(b.price ?? 0) - Number(a.price ?? 0));
+
+    // Group into categories
+    const crypto = allPrices.filter((p) => ["SOL", "BTC", "ETH", "BNB", "ZEC", "BONK", "WIF", "JUP", "PYTH", "JTO", "RAY", "PENGU", "FARTCOIN", "ORE", "HYPE", "KMNO", "PUMP"].includes(String(p.symbol ?? "")));
+    const other = allPrices.filter((p) => !crypto.includes(p));
+
     return (
-      <div className="w-full max-w-[420px] glass-card overflow-hidden">
-        <div className="px-4 py-3 border-b border-border-subtle text-[14px] font-semibold text-text-primary">Markets</div>
-        {prices.slice(0, 10).map((p, i) => (
-          <div key={i} className="flex justify-between px-4 py-2 border-b border-border-subtle last:border-b-0">
-            <span className="text-[14px] font-medium text-text-primary">{String(p.symbol ?? "")}</span>
-            <span className="text-[14px] text-text-secondary num">{formatPrice(Number(p.price ?? 0))}</span>
-          </div>
-        ))}
+      <div className="w-full max-w-[500px] glass-card overflow-hidden">
+        <div className="px-5 py-4">
+          <div className="text-[11px] text-text-tertiary tracking-wider uppercase mb-1">Markets</div>
+          <div className="text-[20px] font-semibold text-text-primary">{allPrices.length} active</div>
+        </div>
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          {crypto.slice(0, 8).map((p, i) => {
+            const sym = String(p.symbol ?? "");
+            const price = Number(p.price ?? 0);
+            const dotColor = (MARKETS as Record<string, { dotColor: string }>)[sym]?.dotColor ?? "#555";
+            return (
+              <div key={i} className="flex items-center gap-3 px-5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
+                  style={{ background: dotColor }}>{sym.slice(0, 1)}</div>
+                <span className="text-[14px] font-medium text-text-primary flex-1">{sym}</span>
+                <span className="text-[14px] num text-text-secondary">{formatPrice(price)}</span>
+              </div>
+            );
+          })}
+        </div>
+        {other.length > 0 && (
+          <>
+            <div className="px-5 py-2 text-[10px] text-text-tertiary tracking-wider uppercase" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              Commodities & Equities
+            </div>
+            {other.slice(0, 6).map((p, i) => {
+              const sym = String(p.symbol ?? "");
+              const price = Number(p.price ?? 0);
+              return (
+                <div key={i} className="flex items-center gap-3 px-5 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  <span className="w-6 h-6 rounded-full bg-bg-elevated flex items-center justify-center text-[9px] font-bold text-text-tertiary">{sym.slice(0, 1)}</span>
+                  <span className="text-[13px] font-medium text-text-primary flex-1">{sym}</span>
+                  <span className="text-[13px] num text-text-secondary">{formatPrice(price)}</span>
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
     );
   }
   if (data && typeof data === "object") {
     const p = data as Record<string, unknown>;
+    const sym = String(p.symbol ?? "");
+    const price = Number(p.price ?? 0);
+    const dotColor = (MARKETS as Record<string, { dotColor: string }>)[sym]?.dotColor ?? "#555";
     return (
-      <div className="inline-flex items-baseline gap-2.5 text-[14px] py-1.5">
-        <span className="text-text-primary font-semibold">{String(p.symbol ?? "")}</span>
-        <span className="text-text-secondary num">{formatPrice(Number(p.price ?? 0))}</span>
+      <div className="inline-flex items-center gap-3 py-2">
+        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+          style={{ background: dotColor }}>{sym.slice(0, 1)}</div>
+        <span className="text-[15px] font-semibold text-text-primary">{sym}</span>
+        <span className="text-[15px] num text-text-secondary">{formatPrice(price)}</span>
       </div>
     );
   }
