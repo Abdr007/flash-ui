@@ -282,6 +282,45 @@ export async function buildClosePosition(
   );
 }
 
+// ---- Collateral Management ----
+
+export interface BuildAddCollateralParams {
+  positionKey: string;
+  depositAmountUi: string;
+  depositTokenSymbol: string;
+  owner: string;
+}
+
+export interface CollateralResult {
+  existingCollateralUsd: string;
+  newCollateralUsd: string;
+  existingLeverage: string;
+  newLeverage: string;
+  existingLiquidationPrice: string;
+  newLiquidationPrice: string;
+  transactionBase64?: string;
+  err: string | null;
+}
+
+export async function buildAddCollateral(
+  params: BuildAddCollateralParams
+): Promise<CollateralResult> {
+  return apiPost<CollateralResult>("/transaction-builder/add-collateral", { ...params });
+}
+
+export interface BuildRemoveCollateralParams {
+  positionKey: string;
+  withdrawAmountUsdUi: string;
+  withdrawTokenSymbol: string;
+  owner: string;
+}
+
+export async function buildRemoveCollateral(
+  params: BuildRemoveCollateralParams
+): Promise<CollateralResult> {
+  return apiPost<CollateralResult>("/transaction-builder/remove-collateral", { ...params });
+}
+
 // ---- Trade Validation ----
 
 import { MIN_COLLATERAL, MAX_LEVERAGE, MARKETS } from "./constants";

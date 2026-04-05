@@ -20,55 +20,64 @@ export default function ConfirmOverlay() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-bg-root/80" onClick={isInFlight ? undefined : cancelTrade} />
+      <div className="absolute inset-0 bg-bg-root/80 backdrop-blur-sm" onClick={isInFlight ? undefined : cancelTrade} />
 
-      <div className="relative w-[380px] border border-border-subtle bg-bg-card" style={{ borderRadius: "2px", animation: "slideUp 150ms ease-out" }}>
+      <div className="relative w-[440px] glass-card overflow-hidden" style={{ animation: "slideUp 200ms ease-out" }}>
         {/* Header */}
-        <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
-          <span className="text-[12px] font-mono font-semibold text-text-primary tracking-wide">
-            {isInFlight ? (trade.status === "SIGNING" ? "SIGNING" : "BUILDING TX") : "CONFIRM TRADE"}
+        <div className="px-6 py-5 flex items-center justify-between"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <span className="text-[16px] font-semibold text-text-primary">
+            {isInFlight ? (trade.status === "SIGNING" ? "Signing" : "Building Transaction") : "Confirm Trade"}
           </span>
-          <span className="text-[10px] font-mono font-bold tracking-widest" style={{ color: accentColor }}>
+          <span className="text-[12px] font-bold px-3 py-1 rounded-full"
+            style={{ color: accentColor, background: isLong ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
             {trade.action} {trade.market}
           </span>
         </div>
 
         {/* High leverage warning */}
         {(trade.leverage ?? 0) > 10 && !isInFlight && (
-          <div className="px-4 py-2 text-[10px] font-mono border-b border-border-subtle" style={{ color: "var(--color-accent-warn)", background: "rgba(232, 160, 32, 0.04)" }}>
-            ⚠ {trade.leverage}x leverage — liquidation {liqDist.toFixed(1)}% from entry
-            {(trade.collateral_usd ?? 0) >= 500 && " · large trade"}
+          <div className="px-6 py-3 text-[13px] flex items-center gap-2"
+            style={{ color: "var(--color-accent-warn)", background: "rgba(245,158,11,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+            <span>⚠</span>
+            <span>{trade.leverage}x leverage — liquidation {liqDist.toFixed(1)}% from entry{(trade.collateral_usd ?? 0) >= 500 ? " · large trade" : ""}</span>
           </div>
         )}
 
         {/* Data */}
-        <div className="px-4 py-3 flex flex-col gap-1.5 text-[12px] font-mono">
-          <DataRow label="collateral" value={formatUsd(trade.collateral_usd)} />
-          <DataRow label="size" value={formatUsd(trade.position_size)} />
-          <DataRow label="fees" value={formatUsd(trade.fees)} />
-          <DataRow label="liquidation" value={`${formatPrice(trade.liquidation_price)} (${liqDist.toFixed(1)}%)`} color={liqDist < 10 ? "var(--color-accent-short)" : "var(--color-accent-warn)"} />
+        <div className="px-6 py-5 flex flex-col gap-3 text-[14px]">
+          <DataRow label="Collateral" value={formatUsd(trade.collateral_usd)} />
+          <DataRow label="Size" value={formatUsd(trade.position_size)} />
+          <DataRow label="Fees" value={formatUsd(trade.fees)} />
+          <DataRow
+            label="Liquidation"
+            value={`${formatPrice(trade.liquidation_price)} (${liqDist.toFixed(1)}%)`}
+            color={liqDist < 10 ? "var(--color-accent-short)" : "var(--color-accent-warn)"}
+          />
         </div>
 
         {/* Actions */}
         {isInFlight ? (
-          <div className="px-4 py-3 border-t border-border-subtle flex items-center gap-2 text-[11px] font-mono text-text-tertiary">
-            <span className="w-2.5 h-2.5 border-2 border-text-tertiary border-t-transparent rounded-full" style={{ animation: "spin 0.8s linear infinite" }} />
-            {trade.status === "SIGNING" ? "sign in wallet..." : "building transaction..."}
+          <div className="px-6 py-4 flex items-center gap-3 text-[14px] text-text-tertiary"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <span className="w-3.5 h-3.5 border-2 border-text-tertiary border-t-transparent rounded-full" style={{ animation: "spin 0.8s linear infinite" }} />
+            {trade.status === "SIGNING" ? "Sign in wallet..." : "Building transaction..."}
           </div>
         ) : (
-          <div className="flex border-t border-border-subtle">
+          <div className="flex" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <button
               onClick={executeTrade}
-              className="flex-1 py-3 text-[12px] font-mono font-semibold tracking-wide text-white transition-colors cursor-pointer"
-              style={{ background: accentColor }}
+              className="flex-1 py-4 text-[14px] font-bold tracking-wide text-white transition-colors cursor-pointer"
+              style={{ background: accentColor, borderRadius: "0 0 0 16px" }}
             >
-              EXECUTE
+              Execute
             </button>
             <button
               onClick={cancelTrade}
-              className="px-5 py-3 text-[12px] font-mono text-text-tertiary border-l border-border-subtle hover:text-text-secondary transition-colors cursor-pointer"
+              className="px-8 py-4 text-[14px] text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer"
+              style={{ borderLeft: "1px solid rgba(255,255,255,0.06)", borderRadius: "0 0 16px 0" }}
             >
-              CANCEL
+              Cancel
             </button>
           </div>
         )}
@@ -81,7 +90,7 @@ function DataRow({ label, value, color }: { label: string; value: string; color?
   return (
     <div className="flex items-baseline justify-between">
       <span className="text-text-tertiary">{label}</span>
-      <span className="num" style={{ color: color ?? "var(--color-text-primary)" }}>{value}</span>
+      <span className="num font-medium" style={{ color: color ?? "var(--color-text-primary)" }}>{value}</span>
     </div>
   );
 }

@@ -32,6 +32,23 @@ import { logExecution, logTrace, logSystemEvent, genExecutionId, withLatency } f
 import { checkCircuit, recordSuccess, recordFailure, getCircuitState } from "@/lib/circuit-breaker";
 import { evaluateCertification } from "@/lib/certification";
 import { checkWalletExecLimit } from "@/lib/rate-limiter";
+import { validateTrade, type TradePreview } from "@/lib/trade-firewall";
+import { logInfo, logError } from "@/lib/logger";
+import {
+  resolveTradeModification,
+  type TradePreviewData,
+  type PositionData,
+  type PortfolioData,
+  type ClosePreviewData,
+} from "@/lib/tool-result-handler";
+import { validatePrice, isVolatilitySpike, trackVolatility } from "@/lib/price-validator";
+import { transitionTo, resetExecution } from "@/lib/execution-state";
+
+// ---- Trade Expiry ----
+const TRADE_EXPIRY_MS = 30_000;
+
+// ---- TOCTOU: Max acceptable price drift at execution time ----
+const MAX_EXECUTION_DRIFT_PCT = 3.0;
 
 function msgId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -44,7 +61,21 @@ let closeLock = false;
 // ---- Monotonic version counter for async race detection ----
 let stateVersion = 0;
 
+// ---- Context Memory (multi-turn conversation support) ----
+export interface ContextMemory {
+  lastIntent: ParsedIntent | null;
+  lastTradeDraft: TradePreviewData | null;
+  portfolioSnapshot: {
+    positions: Position[];
+    balance: number;
+    totalExposure: number;
+    timestamp: number;
+  } | null;
+  recentMarkets: string[];
+}
+
 export interface FlashStore {
+  // ---- Existing State (UNTOUCHED) ----
   messages: ChatMessage[];
   isProcessing: boolean;
   activeTrade: TradeObject | null;
@@ -55,6 +86,19 @@ export interface FlashStore {
   walletConnected: boolean;
   streamStatus: "connected" | "reconnecting" | "disconnected";
 
+  // ---- AI Chat State (NEW) ----
+  isStreaming: boolean;
+  isExecuting: boolean;
+  traceId: string;
+  currentTrade: TradePreviewData | null;
+  lastTradeDraft: TradePreviewData | null;
+  tradeCreatedAt: number | null;
+  closePreview: ClosePreviewData | null;
+  contextMemory: ContextMemory;
+  loadingStates: Record<string, boolean>;
+  lastError: { tool: string; message: string } | null;
+
+  // ---- Existing Actions (UNTOUCHED) ----
   sendMessage: (input: string) => Promise<void>;
   confirmTrade: () => void;
   executeTrade: () => Promise<void>;
@@ -69,6 +113,26 @@ export interface FlashStore {
   setWallet: (address: string | null) => void;
   selectMarket: (symbol: string) => void;
   clearChat: () => void;
+
+  // ---- AI Actions (NEW) ----
+  setTradeFromAI: (raw: unknown, wallet: string, positions: Position[]) => boolean;
+  modifyTrade: (modification: Partial<TradePreviewData>) => boolean;
+  setClosePreview: (data: ClosePreviewData) => void;
+  updatePositionsFromAI: (positions: PositionData[]) => void;
+  updatePortfolioFromAI: (portfolio: PortfolioData) => void;
+  setAIError: (tool: string, error: string) => void;
+  setStreaming: (streaming: boolean) => void;
+  setTraceId: (id: string) => void;
+  updateContextMemory: (update: Partial<ContextMemory>) => void;
+  setToolLoading: (tool: string, loading: boolean) => void;
+  clearAITrade: () => void;
+  getContextForAPI: () => {
+    lastIntent: ParsedIntent | null;
+    lastTradeDraft: TradePreviewData | null;
+    portfolioSnapshot: ContextMemory["portfolioSnapshot"];
+    recentMarkets: string[];
+    positions: Position[];
+  };
 }
 
 // ---- Helper: update the last trade card in chat messages ----
@@ -86,6 +150,7 @@ function updateLastTradeCard(
 }
 
 export const useFlashStore = create<FlashStore>((set, get) => ({
+  // ---- Existing State ----
   messages: [],
   isProcessing: false,
   activeTrade: null,
@@ -95,6 +160,23 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
   walletAddress: null,
   walletConnected: false,
   streamStatus: "disconnected" as const,
+
+  // ---- AI Chat State (NEW) ----
+  isStreaming: false,
+  isExecuting: false,
+  traceId: "",
+  currentTrade: null,
+  lastTradeDraft: null,
+  tradeCreatedAt: null,
+  closePreview: null,
+  contextMemory: {
+    lastIntent: null,
+    lastTradeDraft: null,
+    portfolioSnapshot: null,
+    recentMarkets: [],
+  },
+  loadingStates: {},
+  lastError: null,
 
   // ---- Send Message (core state machine) ----
   sendMessage: async (input: string) => {
@@ -476,7 +558,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
     }
   },
 
-  // ---- Confirm Trade (step 1: validation + show overlay) ----
+  // ---- Confirm Trade (step 1: validation + expiry check + show overlay) ----
   confirmTrade: () => {
     const trade = get().activeTrade;
     if (!trade || trade.status !== "READY") return;
@@ -493,6 +575,36 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       return;
     }
 
+    // TRADE EXPIRY: reject if preview is older than 30s
+    const createdAt = get().tradeCreatedAt;
+    if (createdAt && Date.now() - createdAt > TRADE_EXPIRY_MS) {
+      logError("execution", {
+        wallet,
+        data: { action: "trade_expired", market: trade.market, age_ms: Date.now() - createdAt },
+      });
+      const errorTrade: TradeObject = {
+        ...trade,
+        status: "ERROR",
+        error: "Trade preview expired (>30s). Request a new quote.",
+      };
+      updateLastTradeCard(get, set, errorTrade);
+      set({ activeTrade: errorTrade, currentTrade: null });
+      return;
+    }
+
+    // REVALIDATION: re-check with current live price before confirming
+    const livePrice = get().prices[trade.market];
+    if (livePrice && trade.entry_price) {
+      const priceDrift = Math.abs(livePrice.price - trade.entry_price) / trade.entry_price;
+      if (priceDrift > 0.02) {
+        // Price moved >2% since preview — warn but don't block (slippage handles it)
+        logInfo("execution", {
+          wallet,
+          data: { action: "price_drift_warning", market: trade.market, drift_pct: (priceDrift * 100).toFixed(2) },
+        });
+      }
+    }
+
     // Validation gate — checks collateral, leverage, prices
     const validation = validateTradeObject(trade);
     if (!validation.valid) {
@@ -500,6 +612,36 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         ...trade,
         status: "ERROR",
         error: validation.error,
+      };
+      updateLastTradeCard(get, set, errorTrade);
+      set({ activeTrade: errorTrade });
+      return;
+    }
+
+    // FIREWALL REVALIDATION: run trade firewall again with current positions
+    const firewallResult = validateTrade(
+      {
+        market: trade.market,
+        side: trade.action,
+        collateral_usd: trade.collateral_usd,
+        leverage: trade.leverage,
+        entry_price: trade.entry_price,
+        liquidation_price: trade.liquidation_price,
+        fees: trade.fees,
+        position_size: trade.position_size,
+      },
+      wallet,
+      get().positions,
+    );
+    if (!firewallResult.valid) {
+      logError("firewall", {
+        wallet,
+        data: { action: "confirm_revalidation_failed", errors: firewallResult.errors },
+      });
+      const errorTrade: TradeObject = {
+        ...trade,
+        status: "ERROR",
+        error: `Revalidation failed: ${firewallResult.errors.join("; ")}`,
       };
       updateLastTradeCard(get, set, errorTrade);
       set({ activeTrade: errorTrade });
@@ -544,6 +686,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
     // EXECUTION LOCK: prevent double-click (separate from close lock)
     if (tradeLock) return;
     tradeLock = true;
+    set({ isExecuting: true });
 
     // CERTIFICATION GATE: block if system is not certified
     const cert = evaluateCertification(get().streamStatus);
@@ -551,7 +694,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       logSystemEvent("circuit_open", { wallet, market: trade.market, reason: cert.reason, status: cert.status });
       const errorTrade: TradeObject = { ...trade, status: "ERROR", error: cert.reason };
       updateLastTradeCard(get, set, errorTrade);
-      set({ activeTrade: errorTrade });
+      set({ activeTrade: errorTrade, isExecuting: false });
       tradeLock = false;
       return;
     }
@@ -562,7 +705,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       logSystemEvent("rate_limited", { wallet, market: trade.market, remaining: 0 });
       const errorTrade: TradeObject = { ...trade, status: "ERROR", error: "Rate limit: max 5 trades per minute. Wait and retry." };
       updateLastTradeCard(get, set, errorTrade);
-      set({ activeTrade: errorTrade });
+      set({ activeTrade: errorTrade, isExecuting: false });
       tradeLock = false;
       return;
     }
@@ -584,7 +727,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         error: "Invalid trade parameters. Cancel and retry.",
       };
       updateLastTradeCard(get, set, errorTrade);
-      set({ activeTrade: errorTrade });
+      set({ activeTrade: errorTrade, isExecuting: false });
       tradeLock = false;
       return;
     }
@@ -598,7 +741,120 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
     const execId = (trade as TradeObject & { _execId?: string })._execId ?? genExecutionId();
     const circuitState = checkCircuit().allowed ? "closed" : "open";
 
+    // Persist execution state (survives page refresh)
+    transitionTo("executing", {
+      execution_id: execId,
+      market: trade.market,
+      side: trade.action,
+      collateral_usd: collateral,
+      leverage,
+    });
+
     try {
+      // ---- TOCTOU PROTECTION: Re-validate at execution time ----
+      // Between confirmTrade() and now, price/positions may have changed.
+      // Re-fetch live price from store and cross-validate.
+
+      const livePrice = get().prices[trade.market];
+      const previewPrice = trade.entry_price;
+
+      if (livePrice && previewPrice && Number.isFinite(livePrice.price) && livePrice.price > 0) {
+        // Cross-validate: store price (Pyth SSE) vs preview price (Flash API)
+        const priceCheck = validatePrice(previewPrice, livePrice.price, trade.market);
+        if (!priceCheck.valid) {
+          logError("execution", {
+            wallet,
+            data: { action: "toctou_price_rejected", market: trade.market, error: priceCheck.error },
+          });
+          transitionTo("failed", { error: priceCheck.error ?? "Price validation failed" });
+          const errorTrade: TradeObject = {
+            ...trade,
+            status: "ERROR",
+            error: priceCheck.error ?? "Price sources diverged — request new quote",
+          };
+          updateLastTradeCard(get, set, errorTrade);
+          set({ activeTrade: errorTrade, isExecuting: false });
+          tradeLock = false;
+          return;
+        }
+
+        // Check for excessive drift since preview was built
+        const drift = Math.abs(livePrice.price - previewPrice) / previewPrice * 100;
+        if (drift > MAX_EXECUTION_DRIFT_PCT) {
+          logError("execution", {
+            wallet,
+            data: { action: "toctou_drift_blocked", market: trade.market, drift_pct: drift.toFixed(2) },
+          });
+          transitionTo("failed", { error: `Price drifted ${drift.toFixed(1)}%` });
+          const errorTrade: TradeObject = {
+            ...trade,
+            status: "ERROR",
+            error: `Price moved ${drift.toFixed(1)}% since preview — request new quote`,
+          };
+          updateLastTradeCard(get, set, errorTrade);
+          set({ activeTrade: errorTrade, isExecuting: false });
+          tradeLock = false;
+          return;
+        }
+
+        // Feed to volatility tracker
+        trackVolatility(trade.market, livePrice.price, livePrice.timestamp);
+      }
+
+      // Volatility circuit breaker
+      const volCheck = isVolatilitySpike(trade.market);
+      if (volCheck.spiked) {
+        logError("execution", {
+          wallet,
+          data: { action: "volatility_circuit_breaker", market: trade.market, range_pct: volCheck.range_pct.toFixed(1) },
+        });
+        transitionTo("failed", { error: `Volatility spike: ${volCheck.range_pct.toFixed(1)}%` });
+        const errorTrade: TradeObject = {
+          ...trade,
+          status: "ERROR",
+          error: `${trade.market} volatility spike (${volCheck.range_pct.toFixed(1)}% range) — trading paused. Retry shortly.`,
+        };
+        updateLastTradeCard(get, set, errorTrade);
+        set({ activeTrade: errorTrade, isExecuting: false });
+        tradeLock = false;
+        return;
+      }
+
+      // Re-run firewall with CURRENT positions (may have changed since confirm)
+      const currentPositions = get().positions;
+      const toctouFirewall = validateTrade(
+        {
+          market: trade.market,
+          side: trade.action,
+          collateral_usd: collateral,
+          leverage,
+          entry_price: trade.entry_price,
+          liquidation_price: trade.liquidation_price,
+          fees: trade.fees,
+          position_size: trade.position_size,
+        },
+        wallet,
+        currentPositions,
+      );
+      if (!toctouFirewall.valid) {
+        logError("firewall", {
+          wallet,
+          data: { action: "toctou_firewall_blocked", errors: toctouFirewall.errors },
+        });
+        transitionTo("failed", { error: toctouFirewall.errors.join("; ") });
+        const errorTrade: TradeObject = {
+          ...trade,
+          status: "ERROR",
+          error: `Execution blocked: ${toctouFirewall.errors.join("; ")}`,
+        };
+        updateLastTradeCard(get, set, errorTrade);
+        set({ activeTrade: errorTrade, isExecuting: false });
+        tradeLock = false;
+        return;
+      }
+
+      // ---- TOCTOU COMPLETE — proceed to API call ----
+
       const { buildOpenPosition } = await import("@/lib/api");
 
       logTrace({
@@ -639,21 +895,34 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         throw new Error("API returned no transaction data");
       }
 
+      // Validate ALL numeric fields from API response before state mutation
+      const apiLeverage = result.newLeverage;
+      const apiLiqPrice = result.newLiquidationPrice;
+      const apiFee = result.entryFee;
+      if (
+        !Number.isFinite(apiLeverage) || apiLeverage < 1 ||
+        !Number.isFinite(apiLiqPrice) || apiLiqPrice <= 0 ||
+        !Number.isFinite(apiFee) || apiFee < 0
+      ) {
+        throw new Error("API returned invalid numeric fields");
+      }
+
       // Transaction built — move to SIGNING state.
-      // The UI layer (useWalletSign hook) will pick this up,
-      // ask the wallet to sign, send to RPC, and call completeExecution().
       const signingTrade: TradeObject = {
         ...trade,
         status: "SIGNING",
         entry_price: result.newEntryPrice,
-        liquidation_price: result.newLiquidationPrice,
-        fees: result.entryFee,
-        leverage: result.newLeverage,
-        position_size: (collateral as number) * result.newLeverage,
+        liquidation_price: apiLiqPrice,
+        fees: apiFee,
+        leverage: apiLeverage,
+        position_size: (collateral as number) * apiLeverage,
         unsigned_tx: result.transactionBase64,
       };
       updateLastTradeCard(get, set, signingTrade);
       set({ activeTrade: signingTrade });
+
+      // Persist signing state (survives page refresh)
+      transitionTo("signing", { entry_price: result.newEntryPrice });
 
       logTrace({
         execution_id: execId,
@@ -679,6 +948,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         : errorMsg.includes("timeout") || errorMsg.includes("abort") ? "timeout"
         : "execution";
       recordFailure(failureType);
+      transitionTo("failed", { error: errorMsg });
 
       logTrace({
         execution_id: execId,
@@ -703,6 +973,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       set({ activeTrade: errorTrade });
     } finally {
       tradeLock = false;
+      set({ isExecuting: false });
     }
   },
 
@@ -710,6 +981,9 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
   completeExecution: (txSignature: string) => {
     const trade = get().activeTrade;
     if (!trade || trade.status !== "SIGNING") return;
+
+    // Persist completion
+    transitionTo("completed", { tx_signature: txSignature });
 
     const successTrade: TradeObject = {
       ...trade,
@@ -738,8 +1012,9 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       }
     }, 8000);
 
-    set({ activeTrade: null });
+    set({ activeTrade: null, isExecuting: false });
     tradeLock = false;
+    resetExecution(); // Clear persisted execution state
     get().refreshPositions();
   },
 
@@ -748,6 +1023,9 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
     const trade = get().activeTrade;
     if (!trade) return;
 
+    // Persist failure
+    transitionTo("failed", { error });
+
     const errorTrade: TradeObject = {
       ...trade,
       status: "ERROR",
@@ -755,7 +1033,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       unsigned_tx: undefined,
     };
     updateLastTradeCard(get, set, errorTrade);
-    set({ activeTrade: errorTrade });
+    set({ activeTrade: errorTrade, isExecuting: false });
     tradeLock = false;
   },
 
@@ -933,6 +1211,254 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
   clearChat: () => {
     if (tradeLock || closeLock) return;
     stateVersion++;
-    set({ messages: [], activeTrade: null });
+    set({ messages: [], activeTrade: null, currentTrade: null, lastTradeDraft: null, closePreview: null });
+  },
+
+  // ============================================
+  // AI Actions (NEW) — Phase 2
+  // ============================================
+
+  // ---- FIREWALLED: Set trade from AI tool output ----
+  // Returns true if accepted, false if rejected.
+  // This is the ONLY path for AI trade data into the store.
+  setTradeFromAI: (raw: unknown, wallet: string, positions: Position[]): boolean => {
+    // EXECUTION LOCK: block new trades during execution
+    if (get().isExecuting) {
+      logError("firewall", {
+        data: { action: "setTradeFromAI_blocked_during_execution" },
+        wallet,
+      });
+      return false;
+    }
+
+    // FIREWALL: validate before ANY state mutation
+    const result = validateTrade(raw, wallet, positions);
+
+    if (!result.valid) {
+      logError("firewall", {
+        data: {
+          action: "setTradeFromAI_rejected",
+          errors: result.errors,
+        },
+        wallet,
+      });
+      set({
+        lastError: {
+          tool: "build_trade",
+          message: `Trade rejected: ${result.errors.join("; ")}`,
+        },
+      });
+      return false;
+    }
+
+    const trade = result.trade as unknown as TradePreviewData;
+
+    logInfo("firewall", {
+      data: {
+        action: "setTradeFromAI_accepted",
+        market: trade.market,
+        side: trade.side,
+        warnings: result.warnings,
+      },
+      wallet,
+    });
+
+    // Convert AI preview to TradeObject for the execution pipeline
+    const tradeObject: TradeObject = {
+      id: `trade_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      action: trade.side,
+      market: trade.market,
+      collateral_usd: trade.collateral_usd,
+      leverage: trade.leverage,
+      position_size: trade.position_size,
+      entry_price: trade.entry_price,
+      mark_price: trade.entry_price,
+      liquidation_price: trade.liquidation_price,
+      fees: trade.fees,
+      fee_rate: trade.fee_rate ?? 0.0008,
+      slippage_bps: trade.slippage_bps ?? 80,
+      status: "READY",
+      missing_fields: [],
+    };
+
+    // Update context memory
+    const recentMarkets = [...get().contextMemory.recentMarkets];
+    if (!recentMarkets.includes(trade.market)) {
+      recentMarkets.unshift(trade.market);
+      if (recentMarkets.length > 5) recentMarkets.pop();
+    }
+
+    set({
+      currentTrade: trade,
+      lastTradeDraft: trade,
+      tradeCreatedAt: Date.now(),
+      activeTrade: tradeObject,
+      lastError: null,
+      contextMemory: {
+        ...get().contextMemory,
+        lastTradeDraft: trade,
+        recentMarkets,
+      },
+    });
+
+    return true;
+  },
+
+  // ---- Multi-turn trade modification ----
+  modifyTrade: (modification: Partial<TradePreviewData>): boolean => {
+    // EXECUTION LOCK: block modifications during execution
+    if (get().isExecuting) {
+      logError("firewall", {
+        data: { action: "modifyTrade_blocked_during_execution" },
+      });
+      return false;
+    }
+
+    const prev = get().lastTradeDraft;
+    if (!prev) {
+      logError("firewall", {
+        data: { action: "modifyTrade_no_previous" },
+      });
+      return false;
+    }
+
+    const wallet = get().walletAddress ?? "";
+    const positions = get().positions;
+
+    const result = resolveTradeModification(prev, modification, wallet, positions);
+
+    if (!result) {
+      set({
+        lastError: {
+          tool: "modify_trade",
+          message: "Modification produces invalid trade",
+        },
+      });
+      return false;
+    }
+
+    // Re-run setTradeFromAI with the merged result (goes through firewall again)
+    return get().setTradeFromAI(result.trade, wallet, positions);
+  },
+
+  // ---- Close preview (from AI) ----
+  setClosePreview: (data: ClosePreviewData) => {
+    set({ closePreview: data });
+  },
+
+  // ---- Update positions from AI tool ----
+  updatePositionsFromAI: (posData: PositionData[]) => {
+    // Convert to existing Position type and enrich with live prices
+    const prices = get().prices;
+    const positions: Position[] = posData.map((p) => {
+      const livePrice = prices[p.market];
+      return {
+        pubkey: p.pubkey,
+        market: p.market,
+        side: p.side,
+        entry_price: p.entry_price,
+        mark_price: livePrice?.price ?? p.mark_price,
+        size_usd: p.size_usd,
+        collateral_usd: p.collateral_usd,
+        leverage: p.leverage,
+        unrealized_pnl: p.unrealized_pnl,
+        unrealized_pnl_pct: p.unrealized_pnl_pct,
+        liquidation_price: p.liquidation_price,
+        fees: p.fees,
+        timestamp: p.timestamp,
+      };
+    });
+
+    set({ positions });
+
+    // Update portfolio snapshot in context memory
+    let totalExposure = 0;
+    for (const p of positions) {
+      totalExposure += p.size_usd;
+    }
+
+    set({
+      contextMemory: {
+        ...get().contextMemory,
+        portfolioSnapshot: {
+          positions,
+          balance: 0, // Wallet balance not available here
+          totalExposure,
+          timestamp: Date.now(),
+        },
+      },
+    });
+  },
+
+  // ---- Update portfolio from AI tool ----
+  updatePortfolioFromAI: (portfolio: PortfolioData) => {
+    // Also updates positions
+    if (portfolio.positions.length > 0) {
+      get().updatePositionsFromAI(portfolio.positions);
+    }
+
+    set({
+      contextMemory: {
+        ...get().contextMemory,
+        portfolioSnapshot: {
+          positions: get().positions,
+          balance: portfolio.total_collateral,
+          totalExposure: portfolio.total_exposure,
+          timestamp: Date.now(),
+        },
+      },
+    });
+  },
+
+  // ---- Error handling ----
+  setAIError: (tool: string, error: string) => {
+    set({ lastError: { tool, message: error } });
+  },
+
+  // ---- Streaming state ----
+  setStreaming: (streaming: boolean) => {
+    set({ isStreaming: streaming });
+  },
+
+  // ---- Trace ID ----
+  setTraceId: (id: string) => {
+    set({ traceId: id });
+  },
+
+  // ---- Context memory updates ----
+  updateContextMemory: (update: Partial<ContextMemory>) => {
+    set({
+      contextMemory: { ...get().contextMemory, ...update },
+    });
+  },
+
+  // ---- Tool loading states ----
+  setToolLoading: (tool: string, loading: boolean) => {
+    const current = get().loadingStates;
+    if (loading) {
+      set({ loadingStates: { ...current, [tool]: true } });
+    } else {
+      const next = { ...current };
+      delete next[tool];
+      set({ loadingStates: next });
+    }
+  },
+
+  // ---- Clear AI trade (without cancelling execution pipeline) ----
+  clearAITrade: () => {
+    set({ currentTrade: null, closePreview: null, lastError: null });
+  },
+
+  // ---- Get context for API request body ----
+  // Includes full context memory + live positions for AI system prompt
+  getContextForAPI: () => {
+    const ctx = get().contextMemory;
+    return {
+      lastIntent: ctx.lastIntent,
+      lastTradeDraft: ctx.lastTradeDraft,
+      portfolioSnapshot: ctx.portfolioSnapshot,
+      recentMarkets: ctx.recentMarkets,
+      positions: get().positions,
+    };
   },
 }));

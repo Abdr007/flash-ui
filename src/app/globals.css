@@ -1,21 +1,27 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-bg-root: #06090D;
-  --color-bg-surface: #0A0E14;
-  --color-bg-card: #0F141B;
-  --color-bg-card-hover: #151C26;
-  --color-bg-input: #0C1017;
-  --color-border-subtle: #161E2A;
-  --color-border-focus: #1E2A3A;
-  --color-text-primary: #D4DBE5;
-  --color-text-secondary: #6B7A8E;
-  --color-text-tertiary: #3A4758;
-  --color-accent-long: #12C77E;
-  --color-accent-short: #F04058;
-  --color-accent-blue: #3B8EF0;
-  --color-accent-warn: #E8A020;
+  --color-bg-root: #0A0E13;
+  --color-bg-surface: #0E1319;
+  --color-bg-card: #141A22;
+  --color-bg-card-hover: #1A222E;
+  --color-bg-input: #141A22;
+  --color-bg-elevated: #1A222E;
+  --color-border-subtle: #1E2A36;
+  --color-border-focus: #2A3A4E;
+  --color-text-primary: #E8ECF2;
+  --color-text-secondary: #7A8B9E;
+  --color-text-tertiary: #445160;
+  --color-accent-long: #10B981;
+  --color-accent-short: #EF4444;
+  --color-accent-blue: #3B82F6;
+  --color-accent-warn: #F59E0B;
+  --color-accent-purple: #8B5CF6;
+  --color-accent-lime: #C8F547;
   --font-mono: var(--font-geist-mono), 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+  --radius-card: 16px;
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
 }
 
 * { box-sizing: border-box; }
@@ -25,23 +31,100 @@ html, body {
   padding: 0;
   background: var(--color-bg-root);
   color: var(--color-text-primary);
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   height: 100%;
   overflow: hidden;
   letter-spacing: -0.01em;
 }
 
-/* Terminal scrollbar */
-::-webkit-scrollbar { width: 4px; }
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border-subtle); border-radius: 0; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-subtle);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-border-focus); }
 
-/* Monospace numbers globally */
+/* ---- Monospace Numbers ---- */
 .num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+}
+
+/* ---- Focus ---- */
+input:focus-visible { outline: none; }
+
+/* ---- Glass Card ---- */
+.glass-card {
+  background: linear-gradient(145deg, rgba(20, 26, 34, 0.9), rgba(26, 34, 46, 0.7));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-card);
+}
+
+/* ---- Dotted Grid Background ---- */
+.dot-grid {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ---- Action Circle (Galileo-style) ---- */
+.action-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+.action-circle:hover {
+  transform: translateY(-2px);
+  background: var(--color-bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.action-circle:active {
+  transform: scale(0.95);
+  transition-duration: 60ms;
+}
+
+/* ---- Gradient accents ---- */
+.gradient-long {
+  background: linear-gradient(135deg, #10B981, #059669);
+}
+.gradient-short {
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+}
+.gradient-blue {
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+}
+
+/* ============================================
+   ANIMATION SYSTEM (GPU-accelerated)
+   All animations use transform + opacity ONLY.
+   ============================================ */
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes cardIn {
+  0% { opacity: 0; transform: translate3d(0, 16px, 0) scale(0.96); }
+  60% { opacity: 1; transform: translate3d(0, -2px, 0) scale(1.01); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes chipIn {
+  from { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.94); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
 @keyframes fadeIn {
@@ -50,8 +133,13 @@ html, body {
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translate3d(0, -10px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 @keyframes pulseDot {
@@ -63,8 +151,194 @@ html, body {
   to { transform: rotate(360deg); }
 }
 
-/* Status dot pulse */
 @keyframes livePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(18, 199, 126, 0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(18, 199, 126, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes numTick {
+  0% { opacity: 0.5; transform: translate3d(0, -3px, 0); }
+  40% { opacity: 1; transform: translate3d(0, 0, 0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes numFlashUp {
+  0% { color: var(--color-accent-long); }
+  100% { color: inherit; }
+}
+
+@keyframes numFlashDown {
+  0% { color: var(--color-accent-short); }
+  100% { color: inherit; }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.008); }
+}
+
+@keyframes successGlow {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.3); }
+  50% { box-shadow: 0 0 16px 4px rgba(16, 185, 129, 0.15); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes anticipateIn {
+  0% { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.98); }
+  15% { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.98); }
+  60% { opacity: 1; transform: translate3d(0, -1px, 0) scale(1.01); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes focusDim {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ============================================
+   INTERACTION SYSTEM
+   ============================================ */
+
+.skel {
+  background: linear-gradient(90deg, var(--color-bg-card) 25%, var(--color-bg-card-hover) 50%, var(--color-bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.chip {
+  will-change: transform, opacity;
+  transition: transform 120ms cubic-bezier(0.2, 0, 0, 1),
+              border-color 150ms ease-out,
+              color 150ms ease-out,
+              background-color 150ms ease-out,
+              box-shadow 150ms ease-out;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: var(--radius-pill);
+}
+.chip:hover {
+  transform: translate3d(0, -1px, 0) scale(1.03);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.chip:active {
+  transform: translate3d(0, 0, 0) scale(0.97);
+  transition-duration: 50ms;
+}
+
+.btn-primary {
+  will-change: transform, opacity;
+  transition: transform 100ms cubic-bezier(0.2, 0, 0, 1),
+              filter 100ms ease-out;
+  backface-visibility: hidden;
+  border-radius: var(--radius-card);
+}
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+.btn-primary:active {
+  transform: scale(0.97);
+  transition-duration: 40ms;
+}
+.btn-primary:disabled {
+  transform: none;
+  filter: none;
+}
+
+.btn-secondary {
+  will-change: transform;
+  transition: transform 100ms cubic-bezier(0.2, 0, 0, 1),
+              color 120ms ease-out;
+}
+.btn-secondary:active {
+  transform: scale(0.97);
+  transition-duration: 40ms;
+}
+
+.card-anim {
+  will-change: transform, opacity;
+  animation: cardIn 200ms cubic-bezier(0.2, 0, 0, 1) both;
+  backface-visibility: hidden;
+}
+
+.msg-anim {
+  will-change: transform, opacity;
+  animation: msgIn 180ms cubic-bezier(0.2, 0, 0, 1) both;
+  backface-visibility: hidden;
+}
+
+.chip-stagger:nth-child(1) { animation: chipIn 150ms cubic-bezier(0.2, 0, 0, 1) 0ms both; }
+.chip-stagger:nth-child(2) { animation: chipIn 150ms cubic-bezier(0.2, 0, 0, 1) 40ms both; }
+.chip-stagger:nth-child(3) { animation: chipIn 150ms cubic-bezier(0.2, 0, 0, 1) 80ms both; }
+.chip-stagger:nth-child(4) { animation: chipIn 150ms cubic-bezier(0.2, 0, 0, 1) 120ms both; }
+.chip-stagger:nth-child(5) { animation: chipIn 150ms cubic-bezier(0.2, 0, 0, 1) 160ms both; }
+.chip-stagger:nth-child(6) { animation: chipIn 150ms cubic-bezier(0.2, 0, 0, 1) 200ms both; }
+
+.num-tick { animation: numTick 250ms cubic-bezier(0.2, 0, 0, 1); }
+.num-flash-up { animation: numFlashUp 600ms ease-out; }
+.num-flash-down { animation: numFlashDown 600ms ease-out; }
+
+.breathe { animation: breathe 4s ease-in-out infinite; }
+
+.success-glow { animation: successGlow 1s ease-out; }
+
+.anticipate-in {
+  will-change: transform, opacity;
+  animation: anticipateIn 300ms cubic-bezier(0.2, 0, 0, 1) both;
+  backface-visibility: hidden;
+}
+
+.focus-dim {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 9, 13, 0.6);
+  z-index: 40;
+  animation: focusDim 200ms ease-out both;
+  pointer-events: none;
+}
+
+.magnetic {
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform 0ms;
+}
+
+.scroll-smooth {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.autocomplete-item {
+  transition: background-color 80ms ease-out, color 80ms ease-out;
+}
+
+.risk-bar-fill {
+  transition: width 400ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: width;
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 768px) {
+  .panel-transition {
+    transition: opacity 150ms ease-out;
+  }
+}
+
+/* ---- Reduced motion preference ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
