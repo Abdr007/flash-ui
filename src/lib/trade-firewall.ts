@@ -195,8 +195,14 @@ export function validateTrade(
     }
   }
 
-  // 10. TP/SL directional validation
+  // 10. TP/SL validation: direction + range (anti-nonsense: ±50% of entry)
+  const tpslRangeLow = t.entry_price * 0.5;
+  const tpslRangeHigh = t.entry_price * 2.0;
+
   if (t.take_profit_price != null && t.entry_price > 0) {
+    if (t.take_profit_price < tpslRangeLow || t.take_profit_price > tpslRangeHigh) {
+      errors.push(`Take profit $${t.take_profit_price} outside reasonable range for $${t.entry_price} entry`);
+    }
     if (t.side === "LONG" && t.take_profit_price <= t.entry_price) {
       errors.push(`LONG take profit $${t.take_profit_price} must be above entry $${t.entry_price}`);
     }
@@ -205,6 +211,9 @@ export function validateTrade(
     }
   }
   if (t.stop_loss_price != null && t.entry_price > 0) {
+    if (t.stop_loss_price < tpslRangeLow || t.stop_loss_price > tpslRangeHigh) {
+      errors.push(`Stop loss $${t.stop_loss_price} outside reasonable range for $${t.entry_price} entry`);
+    }
     if (t.side === "LONG" && t.stop_loss_price >= t.entry_price) {
       errors.push(`LONG stop loss $${t.stop_loss_price} must be below entry $${t.entry_price}`);
     }

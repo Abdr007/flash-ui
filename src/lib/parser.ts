@@ -284,8 +284,9 @@ function parseSingleIntent(input: string): ParseResult {
     return { type: "cancel", intent: { type: "CANCEL", raw: trimmed } };
   }
 
-  // ---- QUERY ----
-  if (/\b(show\s+)?(my\s+)?(price|positions?|portfolio|balance|status|help|all\s*prices?|markets?)\b/i.test(lower)) {
+  // ---- QUERY (only if no trade side keyword present) ----
+  const hasTradeKeyword = /\b(long|short|buy|sell)\b/i.test(lower);
+  if (!hasTradeKeyword && /\b(show\s+)?(my\s+)?(price|positions?|portfolio|balance|status|help|all\s*prices?|markets?)\b/i.test(lower)) {
     return {
       type: "query",
       intent: { type: "QUERY", market: extractMarket(trimmed) ?? undefined, raw: trimmed },
@@ -389,30 +390,53 @@ function parseSingleIntent(input: string): ParseResult {
   }
 
   // ---- OPEN POSITION ----
+  // TOKEN EXTRACTION ORDER (strict — prevents number collision):
+  //   1. Side + Market (keyword-based, no number ambiguity)
+  //   2. TP/SL prices (keyword + number — strip from input after extraction)
+  //   3. Limit price (keyword + number — strip from input after extraction)
+  //   4. Leverage (number + "x" — strip from input after extraction)
+  //   5. Collateral (remaining number or $-prefixed)
+
   const side = extractSide(trimmed);
   const market = extractMarket(trimmed);
-  const collateral = extractCollateral(trimmed);
-  const leverage = extractLeverage(trimmed);
+
+  // Step 2: Extract TP/SL first — these are unambiguous (keyword + number)
   const inlineSLPct = extractPercent(trimmed, "(?:sl|stop\\s*loss)");
   const inlineTPPct = extractPercent(trimmed, "(?:tp|take\\s*profit)");
   const inlineSLPrice = extractPrice(trimmed, "(?:sl|stop\\s*loss)");
   const inlineTPPrice = extractPrice(trimmed, "(?:tp|take\\s*profit)");
 
-  // ---- Order Type + Limit Price extraction ----
-  const isLimit = /\blimit\b/i.test(lower);
-  const isMarketExplicit = /\bmarket\b/i.test(lower);
+  // Strip TP/SL tokens + their values so they don't interfere with collateral/leverage
+  let cleaned = trimmed;
+  cleaned = cleaned.replace(/\b(?:tp|take\s*profit)\s+(?:at\s+)?\$?\d+(?:\.\d+)?/gi, "");
+  cleaned = cleaned.replace(/\b(?:sl|stop\s*loss)\s+(?:at\s+)?\$?\d+(?:\.\d+)?/gi, "");
+  cleaned = cleaned.replace(/\d+(?:\.\d+)?\s*%\s*(?:tp|take\s*profit|sl|stop\s*loss)/gi, "");
+  cleaned = cleaned.replace(/\b(?:tp|take\s*profit|sl|stop\s*loss)\s+(?:at\s+)?\d+(?:\.\d+)?\s*%/gi, "");
+
+  // Step 3: Extract limit/market order type
+  const isLimit = /\blimit\b/i.test(cleaned);
   let orderType: "market" | "limit" = "market";
   let limitPrice: number | null = null;
 
   if (isLimit) {
     orderType = "limit";
-    // Extract price after "limit" keyword: "limit 65000", "limit at $65000"
-    const limitPriceMatch = lower.match(/\blimit\s+(?:at\s+)?\$?(\d+(?:\.\d+)?)/i);
+    const limitPriceMatch = cleaned.match(/\blimit\s+(?:at\s+)?\$?(\d+(?:\.\d+)?)/i);
     if (limitPriceMatch) {
       const n = parseFloat(limitPriceMatch[1]);
       if (Number.isFinite(n) && n > 0) limitPrice = n;
     }
+    // Strip limit token + value
+    cleaned = cleaned.replace(/\blimit\s+(?:at\s+)?\$?\d+(?:\.\d+)?/gi, "");
+    cleaned = cleaned.replace(/\blimit\b/gi, "");
   }
+  // Strip explicit "market" keyword
+  cleaned = cleaned.replace(/\bmarket\b/gi, "");
+
+  // Step 4: Extract leverage from cleaned input
+  const leverage = extractLeverage(cleaned);
+
+  // Step 5: Extract collateral from cleaned input
+  const collateral = extractCollateral(cleaned);
 
   if (!side && !market) {
     return { type: "unknown", intent: { type: "QUERY", raw: trimmed } };

@@ -445,43 +445,62 @@ export async function enrichTradeWithQuote(
       };
     }
 
+    // ---- Limit order validation ----
+    // Flash Trade API only supports market orders for position opening.
+    // Limit orders are not yet available on-chain. Reject clearly.
+    if (trade.order_type === "limit") {
+      return { ...trade, status: "ERROR", error: "Limit orders are not yet supported. Use market orders with TP/SL instead. Example: long SOL 5x $100 tp 200 sl 50" };
+    }
+    if (trade.limit_price) {
+      return { ...trade, status: "ERROR", error: "Limit price is not supported. Use TP/SL for price targets." };
+    }
+
+    // ---- Range validation (anti-nonsense): price bounds = 50%-200% of market price ----
+    const RANGE_LOW = entry * 0.5;
+    const RANGE_HIGH = entry * 2.0;
+
+    if (trade.limit_price != null && Number.isFinite(trade.limit_price)) {
+      if (trade.limit_price < RANGE_LOW || trade.limit_price > RANGE_HIGH) {
+        return { ...trade, status: "ERROR", error: `Limit price $${trade.limit_price} is unreasonable (${entry.toFixed(2)} ±50%)` };
+      }
+    }
+
+    // ---- Reference price: always market price (limit orders rejected above) ----
+    const refPrice = entry;
+
     // ---- Resolve %-based TP/SL to absolute prices ----
     let tpPrice = trade.take_profit_price ?? null;
     let slPrice = trade.stop_loss_price ?? null;
 
-    // Chained intents may have set percent-based TP/SL — resolve now that we have entry
-    // (Percent-based TP/SL are stored as intent data, but we also accept them on trade object
-    //  for the deterministic parser path that sets them inline)
-
-    // ---- Validate TP/SL against entry price ----
-    if (tpPrice != null && Number.isFinite(tpPrice) && tpPrice > 0) {
-      if (trade.action === "LONG" && tpPrice <= entry) {
-        return { ...trade, status: "ERROR", error: `Take profit ($${tpPrice}) must be above entry ($${entry.toFixed(2)}) for LONG` };
+    // ---- Validate TP/SL: positive, finite, within range, directionally correct ----
+    if (tpPrice != null) {
+      if (!Number.isFinite(tpPrice) || tpPrice <= 0) {
+        return { ...trade, status: "ERROR", error: "Take profit price must be a positive number" };
       }
-      if (trade.action === "SHORT" && tpPrice >= entry) {
-        return { ...trade, status: "ERROR", error: `Take profit ($${tpPrice}) must be below entry ($${entry.toFixed(2)}) for SHORT` };
+      if (tpPrice < RANGE_LOW || tpPrice > RANGE_HIGH) {
+        return { ...trade, status: "ERROR", error: `Take profit $${tpPrice} is unreasonable (market ~$${entry.toFixed(2)})` };
       }
-    } else {
-      tpPrice = null; // Clean invalid
+      if (trade.action === "LONG" && tpPrice <= refPrice) {
+        return { ...trade, status: "ERROR", error: `Take profit ($${tpPrice}) must be above entry price ($${refPrice.toFixed(2)}) for LONG` };
+      }
+      if (trade.action === "SHORT" && tpPrice >= refPrice) {
+        return { ...trade, status: "ERROR", error: `Take profit ($${tpPrice}) must be below entry price ($${refPrice.toFixed(2)}) for SHORT` };
+      }
     }
 
-    if (slPrice != null && Number.isFinite(slPrice) && slPrice > 0) {
-      if (trade.action === "LONG" && slPrice >= entry) {
-        return { ...trade, status: "ERROR", error: `Stop loss ($${slPrice}) must be below entry ($${entry.toFixed(2)}) for LONG` };
+    if (slPrice != null) {
+      if (!Number.isFinite(slPrice) || slPrice <= 0) {
+        return { ...trade, status: "ERROR", error: "Stop loss price must be a positive number" };
       }
-      if (trade.action === "SHORT" && slPrice <= entry) {
-        return { ...trade, status: "ERROR", error: `Stop loss ($${slPrice}) must be above entry ($${entry.toFixed(2)}) for SHORT` };
+      if (slPrice < RANGE_LOW || slPrice > RANGE_HIGH) {
+        return { ...trade, status: "ERROR", error: `Stop loss $${slPrice} is unreasonable (market ~$${entry.toFixed(2)})` };
       }
-    } else {
-      slPrice = null; // Clean invalid
-    }
-
-    // ---- Limit order validation ----
-    if (trade.order_type === "limit" && !trade.limit_price) {
-      return { ...trade, status: "ERROR", error: "Limit order requires a price. Example: limit 65000" };
-    }
-    if (trade.order_type === "market" && trade.limit_price) {
-      return { ...trade, status: "ERROR", error: "Market order cannot include a limit price" };
+      if (trade.action === "LONG" && slPrice >= refPrice) {
+        return { ...trade, status: "ERROR", error: `Stop loss ($${slPrice}) must be below entry price ($${refPrice.toFixed(2)}) for LONG` };
+      }
+      if (trade.action === "SHORT" && slPrice <= refPrice) {
+        return { ...trade, status: "ERROR", error: `Stop loss ($${slPrice}) must be above entry price ($${refPrice.toFixed(2)}) for SHORT` };
+      }
     }
 
     return {

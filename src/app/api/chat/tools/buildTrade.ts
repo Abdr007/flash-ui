@@ -164,8 +164,14 @@ export function createBuildTradeTool(wallet: string) {
             ? entry_price - entry_price / leverage
             : entry_price + entry_price / leverage;
 
-        // ---- STEP 6b: Validate TP/SL against entry price ----
+        // ---- STEP 6b: Validate TP/SL — range + direction ----
+        const rangeLow = entry_price * 0.5;
+        const rangeHigh = entry_price * 2.0;
+
         if (take_profit_price != null) {
+          if (take_profit_price < rangeLow || take_profit_price > rangeHigh) {
+            return { status: "error", data: null, error: `Take profit $${take_profit_price} is unreasonable (market ~$${entry_price.toFixed(2)})`, request_id: requestId, latency_ms };
+          }
           if (side === "LONG" && take_profit_price <= entry_price) {
             return { status: "error", data: null, error: `Take profit ($${take_profit_price}) must be above entry ($${entry_price.toFixed(2)}) for LONG`, request_id: requestId, latency_ms };
           }
@@ -174,6 +180,9 @@ export function createBuildTradeTool(wallet: string) {
           }
         }
         if (stop_loss_price != null) {
+          if (stop_loss_price < rangeLow || stop_loss_price > rangeHigh) {
+            return { status: "error", data: null, error: `Stop loss $${stop_loss_price} is unreasonable (market ~$${entry_price.toFixed(2)})`, request_id: requestId, latency_ms };
+          }
           if (side === "LONG" && stop_loss_price >= entry_price) {
             return { status: "error", data: null, error: `Stop loss ($${stop_loss_price}) must be below entry ($${entry_price.toFixed(2)}) for LONG`, request_id: requestId, latency_ms };
           }
