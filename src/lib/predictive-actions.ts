@@ -21,6 +21,9 @@ import {
   leverageProximityBoost,
   getTopMarkets,
   getDominantSide,
+  getUserPatterns,
+  getUnifiedProfile,
+  getGuidanceLevel,
 } from "./user-patterns";
 import {
   getMarketBiasBoost,
@@ -214,6 +217,28 @@ export function getSuggestedActionGroups(state: PredictionState): ActionGroup[] 
     });
   }
 
+  // ---- Inject predicted next action (highest priority) ----
+  const predicted = predictNextAction(state);
+  if (predicted) {
+    if (predicted.category === "manage" || predicted.category === "close") {
+      manageActions.push(predicted);
+    } else {
+      tradeActions.push(predicted);
+    }
+  }
+
+  // ---- Combined risk warning (inject as manage action) ----
+  const risk = getCombinedRisk(state.positions);
+  if (risk.message && getGuidanceLevel() !== "none") {
+    manageActions.push({
+      label: risk.riskLevel === "high" ? "⚠ High exposure" : "Diversify exposure",
+      intent: "show my portfolio",
+      priority: risk.riskLevel === "high" ? 95 : 55,
+      category: "manage",
+      icon: "warning",
+    });
+  }
+
   // ---- Build Groups ----
   const groups: ActionGroup[] = [];
 
@@ -361,4 +386,120 @@ export function getAutocompleteSuggestions(
   }
 
   return results;
+}
+
+// ============================================
+// Intent Prediction + Combined Risk
+// ============================================
+
+/**
+ * Predict the user's next likely action based on recent behavior.
+ * Returns null if no prediction is confident enough.
+ */
+export function predictNextAction(state: PredictionState): SuggestedAction | null {
+  const p = getUserPatterns();
+  const profile = getUnifiedProfile();
+
+  // Experts don't need predictions unless position-critical
+  if (profile.confidence === "expert" && state.positions.length === 0) return null;
+
+  const recent = p.lastActions.slice(0, 3);
+  if (recent.length === 0) return null;
+
+  const last = recent[0];
+
+  // Pattern: user just opened a trade → likely wants to check it
+  if (last.side !== "CLOSE" && state.positions.length > 0) {
+    const pos = state.positions.find((pos) => pos.market === last.market);
+    if (pos && Math.abs(pos.unrealized_pnl_pct) > 3) {
+      return {
+        label: pos.unrealized_pnl_pct > 0
+          ? `Take profit ${pos.market} +${pos.unrealized_pnl_pct.toFixed(1)}%`
+          : `Check ${pos.market} ${pos.unrealized_pnl_pct.toFixed(1)}%`,
+        intent: pos.unrealized_pnl_pct > 5
+          ? `close ${pos.market} ${pos.side}`
+          : `price ${pos.market}`,
+        priority: 85,
+        category: "manage",
+        icon: pos.unrealized_pnl_pct > 0 ? "close" : "info",
+      };
+    }
+  }
+
+  // Pattern: user closed a trade → likely wants to re-enter or check portfolio
+  if (last.side === "CLOSE" && state.positions.length === 0) {
+    const prevTrade = recent.find((a) => a.side !== "CLOSE");
+    if (prevTrade) {
+      return {
+        label: `Re-enter ${prevTrade.side} ${prevTrade.market}`,
+        intent: `${prevTrade.side.toLowerCase()} ${prevTrade.market} ${prevTrade.leverage}x $${prevTrade.collateral}`,
+        priority: 65,
+        category: "trade",
+        icon: "open",
+      };
+    }
+  }
+
+  // Pattern: user deposited into earn → suggest checking positions or trading
+  if (profile.isEarner && !profile.isTrader && state.positions.length === 0) {
+    return {
+      label: "Try trading — Long SOL 5x $50",
+      intent: "long SOL 5x $50",
+      priority: 40,
+      category: "trade",
+      icon: "open",
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Combined risk assessment across ALL user exposure.
+ * Reads positions (leveraged trading) + earn deposits (yield exposure).
+ */
+export interface CombinedRisk {
+  totalExposure: number;     // sum of all position sizes + earn deposits
+  tradingExposure: number;   // leveraged position sizes
+  earnExposure: number;      // estimated earn deposit value
+  riskLevel: "low" | "moderate" | "elevated" | "high";
+  message: string | null;    // contextual warning (null = no warning)
+}
+
+export function getCombinedRisk(positions: Position[]): CombinedRisk {
+  const p = getUserPatterns();
+  const profile = getUnifiedProfile();
+
+  let tradingExposure = 0;
+  for (const pos of positions) {
+    tradingExposure += pos.size_usd;
+  }
+
+  // Earn exposure estimated from deposit count × average
+  const earnExposure = p.earnDeposits * p.earnAvgDeposit;
+  const totalExposure = tradingExposure + earnExposure;
+
+  // Risk level based on concentration and leverage
+  let riskLevel: CombinedRisk["riskLevel"] = "low";
+  if (tradingExposure > 0 && earnExposure > 0) {
+    const tradeRatio = tradingExposure / totalExposure;
+    // >80% in leveraged trades = elevated
+    if (tradeRatio > 0.8 && p.avgLeverage > 5) riskLevel = "elevated";
+    // High leverage + big earn = high
+    if (p.avgLeverage > 10 && earnExposure > 500) riskLevel = "high";
+    // Balanced = moderate
+    if (tradeRatio > 0.3 && tradeRatio < 0.7) riskLevel = "moderate";
+  } else if (tradingExposure > 0 && p.avgLeverage > 10) {
+    riskLevel = "elevated";
+  }
+
+  // Generate message only for non-experts at elevated+ risk
+  let message: string | null = null;
+  if (profile.confidence !== "expert" && riskLevel === "high") {
+    message = "High combined exposure — consider reducing leverage or earn position.";
+  } else if (profile.confidence !== "expert" && riskLevel === "elevated") {
+    message = "Most capital in leveraged trades. Earn can diversify your exposure.";
+  }
+
+  return { totalExposure, tradingExposure, earnExposure, riskLevel, message };
 }
