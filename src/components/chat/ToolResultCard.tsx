@@ -14,7 +14,7 @@ import {
   formatPrice, formatUsd, formatLeverage, formatPnl, formatPnlPct, formatPercent, liqDistancePct, safe,
 } from "@/lib/format";
 import { HIGH_LEVERAGE_THRESHOLD, MARKETS } from "@/lib/constants";
-import { getPreferredSlDistance, getPreferredTpDistance, getRiskProfile, getPostTradeInsight, getUserPatterns, getCrossFeatureHint, getGuidanceLevel, type TradeInsight } from "@/lib/user-patterns";
+import { getPreferredSlDistance, getPreferredTpDistance, getRiskProfile, getPostTradeInsight, getUserPatterns, getCrossFeatureHint, getGuidanceLevel, shouldBoostSlSuggestion, getOutcomeInsight, recordSuggestionShown, recordSuggestionAccepted, type TradeInsight } from "@/lib/user-patterns";
 
 // ---- Types ----
 
@@ -195,6 +195,13 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
             <span className="text-[11px] font-medium" style={{ color: postTradeInsight.color }}>{postTradeInsight.message}</span>
           </div>
         )}
+        {(() => {
+          try { const oi = getOutcomeInsight(); if (oi && (!postTradeInsight || oi.message !== postTradeInsight.message)) return (
+            <div className="mt-1 flex items-center gap-2 px-1 msg-anim">
+              <span className="text-[10px]" style={{ color: oi.color }}>{oi.message}</span>
+            </div>
+          ); } catch {} return null;
+        })()}
       </div>
     );
   }
@@ -381,12 +388,13 @@ const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) 
   const tpDistPct = getPreferredTpDistance();  // learned or default 10%
   const riskProfile = getRiskProfile();
 
-  // No SL → suggest adding one (using user's preferred distance)
+  // No SL → suggest adding one (boosted if outcome data shows SL helps)
   if (!trade.stop_loss_price) {
     const slMul = trade.side === "LONG" ? (1 - slDistPct / 100) : (1 + slDistPct / 100);
     const suggestedSl = Math.round(trade.entry_price * slMul * 100) / 100;
+    const boost = shouldBoostSlSuggestion();
     hints.push({
-      label: `Add SL ~$${suggestedSl.toLocaleString()}`,
+      label: boost ? `Add SL ~$${suggestedSl.toLocaleString()} (improves your win rate)` : `Add SL ~$${suggestedSl.toLocaleString()}`,
       intent: `${trade.side.toLowerCase()} ${trade.market} $${trade.collateral_usd} ${trade.leverage}x sl ${suggestedSl}`,
       color: "var(--color-accent-short)",
     });
@@ -435,6 +443,9 @@ const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) 
 
   if (hints.length === 0) return null;
 
+  // Record that suggestions were shown (deduped by trade market+side)
+  try { recordSuggestionShown(`${trade.market}:${trade.side}:${hints.length}`); } catch {}
+
   return (
     <div className="px-4 py-2.5 flex flex-wrap gap-1.5 border-t border-border-subtle" style={{ animation: "fadeIn 200ms ease-out" }}>
       {hints.slice(0, 3).map((h, i) => (
@@ -442,7 +453,9 @@ const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) 
           key={i}
           onClick={() => {
             setDismissed(true);
-            // Copy intent to clipboard and focus input — user can paste or we auto-fill
+            // Record suggestion acceptance for learning
+            try { recordSuggestionAccepted(); } catch {}
+            // Fill input with suggested command
             try {
               const input = document.querySelector<HTMLTextAreaElement>("textarea");
               if (input) {
@@ -734,6 +747,16 @@ const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { output: To
       setReceivedUsd(apiResult.receiveTokenAmountUsdUi ?? "");
       setStatus("success");
       refreshPositions();
+
+      // Record outcome for learning (fire-and-forget)
+      try {
+        import("@/lib/user-patterns").then(({ recordTradeOutcome }) => {
+          const pnlPct = sizeUsd > 0 ? (netPnl / sizeUsd) * 100 : 0;
+          // Check if original position had SL by looking at the trade data
+          const hadSl = !!(d as Record<string, unknown> | null)?.stop_loss_price;
+          recordTradeOutcome(pnlPct, hadSl);
+        }).catch(() => {});
+      } catch {}
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed";
       setErrorMsg(msg.includes("rejected") ? "Transaction rejected by wallet." : msg);

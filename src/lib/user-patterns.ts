@@ -46,12 +46,29 @@ export interface UserPatterns {
   bestSlStreak: number;     // all-time best SL streak
   sessionTrades: number;    // trades in current session (since last page load)
   // ---- Earn behavior ----
-  earnDeposits: number;              // total successful deposits
-  earnWithdraws: number;             // total successful withdrawals
-  earnErrors: Record<string, number>; // error type → count (for adaptive suggestions)
-  earnPreferredPool: string;         // most-used pool alias
-  earnAvgDeposit: number;            // rolling avg deposit size
-  earnLastSlippageError: number;     // timestamp of last slippage error
+  earnDeposits: number;
+  earnWithdraws: number;
+  earnErrors: Record<string, number>;
+  earnPreferredPool: string;
+  earnAvgDeposit: number;
+  earnLastSlippageError: number;
+  // ---- Outcome tracking ----
+  outcomes: {
+    totalClosed: number;       // positions closed
+    profitable: number;        // closed in profit
+    withSlSet: number;         // closed with SL was set on open
+    profitableWithSl: number;  // profitable closes that had SL
+    avgPnlPct: number;         // rolling avg PnL % on close
+    winRate: number;           // profitable / totalClosed (0-1)
+    slWinRate: number;         // profitableWithSl / withSlSet (0-1)
+  };
+  // ---- Suggestion effectiveness ----
+  suggestions: {
+    shown: number;             // total suggestions displayed
+    accepted: number;          // suggestions the user clicked
+    acceptRate: number;        // accepted / shown (0-1)
+    lastShownId: string;       // dedup: don't count same suggestion twice
+  };
 }
 
 // ---- Storage Key ----
@@ -81,6 +98,21 @@ function defaultPatterns(): UserPatterns {
     earnPreferredPool: "",
     earnAvgDeposit: 0,
     earnLastSlippageError: 0,
+    outcomes: {
+      totalClosed: 0,
+      profitable: 0,
+      withSlSet: 0,
+      profitableWithSl: 0,
+      avgPnlPct: 0,
+      winRate: 0,
+      slWinRate: 0,
+    },
+    suggestions: {
+      shown: 0,
+      accepted: 0,
+      acceptRate: 0,
+      lastShownId: "",
+    },
   };
 }
 
@@ -564,5 +596,115 @@ export function getGuidanceLevel(): "full" | "minimal" | "none" {
   const profile = getUnifiedProfile();
   if (profile.confidence === "new" || profile.confidence === "learning") return "full";
   if (profile.confidence === "experienced") return "minimal";
-  return "none"; // experts don't need hand-holding
+  return "none";
+}
+
+// ============================================
+// Outcome-Driven Learning
+// ============================================
+
+/**
+ * Record the outcome of a closed position.
+ * Called when a position is closed (from store completeExecution for close trades).
+ * This is the feedback signal that drives adaptive suggestions.
+ */
+export function recordTradeOutcome(pnlPct: number, hadSl: boolean): void {
+  const p = getUserPatterns();
+  const o = p.outcomes;
+
+  o.totalClosed++;
+  const isProfit = pnlPct >= 0;
+  if (isProfit) o.profitable++;
+  if (hadSl) {
+    o.withSlSet++;
+    if (isProfit) o.profitableWithSl++;
+  }
+
+  // Rolling average PnL %
+  const alpha = Math.min(0.2, 2 / (o.totalClosed + 1));
+  o.avgPnlPct = o.avgPnlPct * (1 - alpha) + pnlPct * alpha;
+
+  // Win rates
+  o.winRate = o.totalClosed > 0 ? o.profitable / o.totalClosed : 0;
+  o.slWinRate = o.withSlSet > 0 ? o.profitableWithSl / o.withSlSet : 0;
+
+  persist(p);
+}
+
+/**
+ * Record that a suggestion was shown to the user.
+ * Dedupes by suggestion ID to avoid overcounting.
+ */
+export function recordSuggestionShown(suggestionId: string): void {
+  const p = getUserPatterns();
+  if (p.suggestions.lastShownId === suggestionId) return; // Dedup
+  p.suggestions.shown++;
+  p.suggestions.lastShownId = suggestionId;
+  p.suggestions.acceptRate = p.suggestions.shown > 0
+    ? p.suggestions.accepted / p.suggestions.shown : 0;
+  persist(p);
+}
+
+/** Record that a user clicked/accepted a suggestion */
+export function recordSuggestionAccepted(): void {
+  const p = getUserPatterns();
+  p.suggestions.accepted++;
+  p.suggestions.acceptRate = p.suggestions.shown > 0
+    ? p.suggestions.accepted / p.suggestions.shown : 0;
+  persist(p);
+}
+
+/**
+ * Get outcome-driven insight for post-trade feedback.
+ * Uses actual win rate data to give meaningful, personalized feedback.
+ */
+export function getOutcomeInsight(): TradeInsight | null {
+  const p = getUserPatterns();
+  const o = p.outcomes;
+
+  if (o.totalClosed < 3) return null; // Not enough data
+
+  // SL improves win rate → reinforce
+  if (o.withSlSet >= 3 && o.slWinRate > o.winRate + 0.1) {
+    return {
+      message: `Trades with SL: ${Math.round(o.slWinRate * 100)}% win rate vs ${Math.round(o.winRate * 100)}% overall`,
+      type: "progress",
+      color: "var(--color-accent-long)",
+    };
+  }
+
+  // Win rate improving → encourage
+  if (o.totalClosed >= 5 && o.winRate > 0.6) {
+    return {
+      message: `${Math.round(o.winRate * 100)}% win rate over ${o.totalClosed} trades`,
+      type: "progress",
+      color: "var(--color-accent-long)",
+    };
+  }
+
+  // Win rate declining → gentle nudge
+  if (o.totalClosed >= 5 && o.winRate < 0.35 && o.avgPnlPct < -2) {
+    return {
+      message: `Consider smaller positions — avg outcome ${o.avgPnlPct.toFixed(1)}%`,
+      type: "tip",
+      color: "var(--color-accent-warn)",
+    };
+  }
+
+  return null;
+}
+
+/** Should the system boost SL suggestions? Based on outcome data. */
+export function shouldBoostSlSuggestion(): boolean {
+  const p = getUserPatterns();
+  const o = p.outcomes;
+  // Boost if: user doesn't use SL much AND their SL trades perform better
+  if (o.withSlSet >= 2 && o.totalClosed >= 5) {
+    return o.slWinRate > o.winRate && p.slUsageRate < 0.5;
+  }
+  // Boost if: user has poor outcomes without SL
+  if (o.totalClosed >= 3 && o.winRate < 0.4 && p.slUsageRate < 0.3) {
+    return true;
+  }
+  return false;
 }
