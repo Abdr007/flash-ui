@@ -22,6 +22,7 @@ import {
   DEFAULT_LEVERAGE,
   DEFAULT_SLIPPAGE_BPS,
 } from "./constants";
+import { getTypicalLeverage } from "./user-patterns";
 
 let nextId = 0;
 function genId(): string {
@@ -439,8 +440,11 @@ function parseSingleIntent(input: string): ParseResult {
   if (!market) missing.push("market");
   if (!collateral) missing.push("collateral_usd");
 
+  // Use learned leverage if user has enough history, else fall back to pool default
+  const learnedLev = getTypicalLeverage();
   const pool = market ? MARKETS[market]?.pool : undefined;
-  const defaultLev = pool ? DEFAULT_LEVERAGE[pool] ?? 5 : 5;
+  const poolDefault = pool ? DEFAULT_LEVERAGE[pool] ?? 5 : 5;
+  const defaultLev = learnedLev > 0 ? learnedLev : poolDefault;
 
   const trade: TradeObject = {
     id: genId(),

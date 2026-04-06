@@ -1042,6 +1042,26 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       }
     }, 8000);
 
+    // Record trade action for user pattern learning (fire-and-forget)
+    try {
+      import("@/lib/user-patterns").then(({ recordTradeAction }) => {
+        const entry = trade.entry_price ?? 0;
+        recordTradeAction({
+          market: trade.market,
+          side: trade.action,
+          leverage: trade.leverage ?? 0,
+          collateral: trade.collateral_usd ?? 0,
+          timestamp: Date.now(),
+          hasTp: !!trade.take_profit_price,
+          hasSl: !!trade.stop_loss_price,
+          tpDistancePct: trade.take_profit_price && entry > 0
+            ? Math.abs(trade.take_profit_price - entry) / entry * 100 : undefined,
+          slDistancePct: trade.stop_loss_price && entry > 0
+            ? Math.abs(trade.stop_loss_price - entry) / entry * 100 : undefined,
+        });
+      }).catch(() => {});
+    } catch {}
+
     set({ activeTrade: null, isExecuting: false });
     tradeLock = false;
     resetExecution(); // Clear persisted execution state

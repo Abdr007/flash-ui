@@ -14,6 +14,7 @@ import {
   formatPrice, formatUsd, formatLeverage, formatPnl, formatPnlPct, formatPercent, liqDistancePct, safe,
 } from "@/lib/format";
 import { HIGH_LEVERAGE_THRESHOLD, MARKETS } from "@/lib/constants";
+import { getPreferredSlDistance, getPreferredTpDistance, getRiskProfile } from "@/lib/user-patterns";
 
 // ---- Types ----
 
@@ -350,11 +351,15 @@ const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) 
 
   const hints: { label: string; intent: string; color: string }[] = [];
 
-  // No SL → suggest adding one
+  // Learned preferences (adapts to user behavior over time)
+  const slDistPct = getPreferredSlDistance();  // learned or default 5%
+  const tpDistPct = getPreferredTpDistance();  // learned or default 10%
+  const riskProfile = getRiskProfile();
+
+  // No SL → suggest adding one (using user's preferred distance)
   if (!trade.stop_loss_price) {
-    const suggestedSl = trade.side === "LONG"
-      ? Math.round(trade.entry_price * 0.95 * 100) / 100
-      : Math.round(trade.entry_price * 1.05 * 100) / 100;
+    const slMul = trade.side === "LONG" ? (1 - slDistPct / 100) : (1 + slDistPct / 100);
+    const suggestedSl = Math.round(trade.entry_price * slMul * 100) / 100;
     hints.push({
       label: `Add SL ~$${suggestedSl.toLocaleString()}`,
       intent: `${trade.side.toLowerCase()} ${trade.market} $${trade.collateral_usd} ${trade.leverage}x sl ${suggestedSl}`,
@@ -362,11 +367,10 @@ const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) 
     });
   }
 
-  // No TP → suggest adding one
+  // No TP → suggest adding one (using user's preferred distance)
   if (!trade.take_profit_price) {
-    const suggestedTp = trade.side === "LONG"
-      ? Math.round(trade.entry_price * 1.1 * 100) / 100
-      : Math.round(trade.entry_price * 0.9 * 100) / 100;
+    const tpMul = trade.side === "LONG" ? (1 + tpDistPct / 100) : (1 - tpDistPct / 100);
+    const suggestedTp = Math.round(trade.entry_price * tpMul * 100) / 100;
     hints.push({
       label: `Add TP ~$${suggestedTp.toLocaleString()}`,
       intent: `${trade.side.toLowerCase()} ${trade.market} $${trade.collateral_usd} ${trade.leverage}x tp ${suggestedTp}`,
@@ -374,8 +378,9 @@ const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) 
     });
   }
 
-  // High leverage → warn
-  if (trade.leverage >= 20) {
+  // High leverage → warn (stricter for conservative users)
+  const levThreshold = riskProfile === "conservative" ? 10 : riskProfile === "aggressive" ? 30 : 20;
+  if (trade.leverage >= levThreshold) {
     const safeLev = Math.max(5, Math.floor(trade.leverage / 2));
     hints.push({
       label: `Reduce to ${safeLev}x?`,
