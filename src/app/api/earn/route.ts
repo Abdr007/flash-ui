@@ -5,6 +5,7 @@
 // Caches for 30s to prevent API spam.
 // NO custom math — all APY/TVL from protocol.
 
+// Flash official earn data API
 const EARN_API = "https://api.prod.flash.trade/earn-page/data";
 const CACHE_TTL_MS = 30_000;
 
