@@ -1,15 +1,9 @@
 // ============================================
-// Flash UI — Deterministic Earn Parser (Strict Compiler)
+// Flash UI — Deterministic Earn Compiler (Hardened)
 // ============================================
-// Converts natural language earn commands into validated instructions.
-// ZERO guessing. ZERO inference. ZERO ambiguity.
-//
-// Valid: "deposit 100 USDC into crypto pool"
-// Valid: "withdraw 50% from defi"
-// Invalid: "put money in earn" (missing pool + amount)
-// Invalid: "withdraw everything" (not deterministic)
-//
-// Output: { status, errors, earn } — execution-safe or rejected.
+// Strict financial intent parser. No AI. No inference.
+// Order-agnostic token extraction. Unit-mandatory.
+// Rejects anything that isn't 100% unambiguous.
 
 // ---- Types ----
 
@@ -27,101 +21,80 @@ export interface EarnParseResult {
   earn: EarnInstruction | null;
 }
 
-// ---- Supported Pools (strict match only) ----
+// ---- Enums (strict) ----
 
-const VALID_POOLS: Record<string, string> = {
-  crypto: "crypto",
-  defi: "defi",
-  gold: "gold",
-  meme: "meme",
-  wif: "wif",
-  fart: "fart",
-  ore: "ore",
-  stable: "stable",
-};
+const VALID_POOLS = new Set(["crypto", "defi", "gold", "meme", "wif", "fart", "ore", "stable"]);
+const VALID_TOKENS = new Set(["usdc", "usd"]);
+const FILLER_WORDS = new Set(["into", "from", "in", "to", "the", "pool", "earn", "of", "my"]);
 
-// ---- Action Synonyms (strict) ----
+const DEPOSIT_WORDS = new Set(["deposit", "add", "supply"]);
+const WITHDRAW_WORDS = new Set(["withdraw", "remove", "redeem"]);
+const ALL_ACTION_WORDS = new Set([...DEPOSIT_WORDS, ...WITHDRAW_WORDS]);
 
-const DEPOSIT_WORDS = /^(deposit|add|supply)$/i;
-const WITHDRAW_WORDS = /^(withdraw|remove|redeem)$/i;
+const VAGUE_WORDS = /\b(some|everything|all|max|best|safe|good|high|low|a\s*lot|a\s*bit|much)\b/i;
+const MAX_USDC_DECIMALS = 2; // USDC: 6 on-chain, but UI caps at 2 for sanity
 
-// ---- Main Parser ----
+// ---- Main Compiler ----
 
 export function parseEarnCommand(input: string): EarnParseResult {
   const trimmed = input.trim();
-  if (!trimmed) {
-    return { status: "invalid", errors: ["Empty input"], earn: null };
-  }
-
-  // Reject oversized input
-  if (trimmed.length > 200) {
-    return { status: "invalid", errors: ["Input too long"], earn: null };
-  }
+  if (!trimmed) return reject(["Empty input"]);
+  if (trimmed.length > 200) return reject(["Input too long"]);
 
   const lower = trimmed.toLowerCase();
-  const tokens = lower.split(/\s+/);
+  const tokens = lower.split(/\s+/).filter(Boolean);
   const errors: string[] = [];
 
-  // ---- 1. Extract Action ----
+  // ---- PHASE 0: Reject multiple actions ----
+  let actionCount = 0;
+  for (const t of tokens) {
+    if (ALL_ACTION_WORDS.has(t)) actionCount++;
+  }
+  if (actionCount > 1) return reject(["Multiple actions detected — one command at a time"]);
+
+  // ---- PHASE 1: Extract Action (order-agnostic) ----
   let action: "deposit" | "withdraw" | null = null;
   for (const t of tokens) {
-    if (DEPOSIT_WORDS.test(t)) { action = "deposit"; break; }
-    if (WITHDRAW_WORDS.test(t)) { action = "withdraw"; break; }
+    if (DEPOSIT_WORDS.has(t)) { action = "deposit"; break; }
+    if (WITHDRAW_WORDS.has(t)) { action = "withdraw"; break; }
   }
-  if (!action) {
-    errors.push("Missing action (deposit or withdraw)");
-  }
+  if (!action) errors.push("Missing action (deposit or withdraw)");
 
-  // ---- 2. Extract Pool ----
+  // ---- PHASE 2: Extract Pool (order-agnostic, strict enum) ----
   let pool: string | null = null;
   for (const t of tokens) {
-    const resolved = VALID_POOLS[t];
-    if (resolved) { pool = resolved; break; }
+    if (VALID_POOLS.has(t)) { pool = t; break; }
   }
-  // Also check "crypto pool", "defi pool" patterns
-  if (!pool) {
-    for (const [name, resolved] of Object.entries(VALID_POOLS)) {
-      if (lower.includes(name)) { pool = resolved; break; }
-    }
-  }
-  if (!pool) {
-    errors.push("Missing or unknown pool (crypto, defi, gold, meme, wif, fart, ore, stable)");
+  if (!pool) errors.push("Missing or unknown pool (crypto, defi, gold, meme, wif, fart, ore, stable)");
+
+  // ---- PHASE 3: Reject negative numbers ----
+  if (/[-]\d/.test(trimmed)) {
+    errors.push("Amount must be positive");
+    return reject(errors);
   }
 
-  // ---- 3. Extract Amount / Percent / Shares ----
+  // ---- PHASE 4: Extract Amount with MANDATORY unit ----
   let amount: number | null = null;
   let amountType: "USD" | "percent" | null = null;
   let shares: number | null = null;
 
-  // Percent: "50%", "100%"
+  // 4a. Percent: "50%"
   const pctMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*%/);
   if (pctMatch) {
     const pct = parseFloat(pctMatch[1]);
-    if (Number.isFinite(pct) && pct > 0 && pct <= 100) {
+    if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+      errors.push("Percent must be between 0 and 100");
+    } else {
       amount = pct;
       amountType = "percent";
-    } else {
-      errors.push("Percent must be between 0 and 100");
     }
   }
 
-  // USD: "$100", "100 USDC", "100 usd", "100"
+  // 4b. Dollar sign: "$100", "$100.50"
   if (!amountType) {
-    const usdMatch = trimmed.match(/\$\s*(\d+(?:\.\d+)?)/);
-    if (usdMatch) {
-      const val = parseFloat(usdMatch[1]);
-      if (Number.isFinite(val) && val > 0) {
-        amount = val;
-        amountType = "USD";
-      } else {
-        errors.push("Amount must be a positive number");
-      }
-    }
-  }
-  if (!amountType) {
-    const usdcMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*(?:usdc|usd|dollars?)/i);
-    if (usdcMatch) {
-      const val = parseFloat(usdcMatch[1]);
+    const dollarMatch = trimmed.match(/\$\s*(\d+(?:\.\d+)?)/);
+    if (dollarMatch) {
+      const val = parseFloat(dollarMatch[1]);
       if (Number.isFinite(val) && val > 0) {
         amount = val;
         amountType = "USD";
@@ -129,7 +102,19 @@ export function parseEarnCommand(input: string): EarnParseResult {
     }
   }
 
-  // Shares: "10 shares"
+  // 4c. Token-qualified: "100 USDC", "50.5 usd"
+  if (!amountType) {
+    const tokenMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*(usdc|usd|dollars?)/i);
+    if (tokenMatch) {
+      const val = parseFloat(tokenMatch[1]);
+      if (Number.isFinite(val) && val > 0) {
+        amount = val;
+        amountType = "USD";
+      }
+    }
+  }
+
+  // 4d. Shares: "10 shares"
   if (!amountType) {
     const sharesMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*shares?/i);
     if (sharesMatch) {
@@ -140,27 +125,52 @@ export function parseEarnCommand(input: string): EarnParseResult {
     }
   }
 
-  // Bare number (only if no other match and action exists)
+  // 4e. NO bare numbers — reject unqualified numbers
+  // A bare number like "deposit 50 crypto" is AMBIGUOUS (50 what?)
   if (!amountType && shares === null && action) {
-    // Strip action word, pool word, filler words — find remaining number
-    let cleaned = lower;
-    cleaned = cleaned.replace(/\b(deposit|add|supply|withdraw|remove|redeem)\b/gi, "");
-    cleaned = cleaned.replace(/\b(into|from|in|to|the|pool|earn)\b/gi, "");
-    for (const p of Object.keys(VALID_POOLS)) cleaned = cleaned.replace(new RegExp(`\\b${p}\\b`, "gi"), "");
-    const bareMatch = cleaned.match(/(\d+(?:\.\d+)?)/);
-    if (bareMatch) {
-      const val = parseFloat(bareMatch[1]);
-      if (Number.isFinite(val) && val > 0) {
-        amount = val;
-        amountType = "USD";
-      }
+    // Check if there's a bare number that wasn't captured
+    const remaining = tokens.filter((t) =>
+      !ALL_ACTION_WORDS.has(t) && !VALID_POOLS.has(t) && !FILLER_WORDS.has(t)
+      && !t.includes("%") && !t.startsWith("$")
+    );
+    const hasBareNumber = remaining.some((t) => /^\d+(\.\d+)?$/.test(t));
+    if (hasBareNumber) {
+      errors.push("Amount requires a unit — use $100, 100 USDC, 50%, or 10 shares");
     }
   }
 
-  // ---- 4. Validate amount requirements ----
+  // ---- PHASE 5: Reject unknown tokens ----
+  // If user wrote "50 SOL crypto" — SOL is not a supported earn token
+  const unknownTokens = tokens.filter((t) => {
+    if (ALL_ACTION_WORDS.has(t) || VALID_POOLS.has(t) || FILLER_WORDS.has(t)) return false;
+    if (VALID_TOKENS.has(t) || t === "dollars" || t === "dollar") return false;
+    if (/^\d/.test(t) || t.includes("%") || t.includes("$") || t === "shares" || t === "share") return false;
+    if (t === "pool") return false;
+    // Remaining alphabetic tokens that look like token symbols
+    return /^[a-z]{2,5}$/.test(t) && !FILLER_WORDS.has(t);
+  });
+  // Only flag as unknown token if it looks like a crypto symbol (3-5 chars, not a pool or filler)
+  for (const t of unknownTokens) {
+    if (t.length >= 3 && t.length <= 5 && !VALID_POOLS.has(t)) {
+      errors.push(`Unknown token "${t.toUpperCase()}" — earn uses USDC`);
+      break; // One error is enough
+    }
+  }
+
+  // ---- PHASE 6: Decimal precision ----
+  if (amount !== null && amountType === "USD") {
+    const decMatch = String(amount).match(/\.(\d+)/);
+    if (decMatch && decMatch[1].length > MAX_USDC_DECIMALS) {
+      errors.push(`Too many decimals — USDC supports up to ${MAX_USDC_DECIMALS}`);
+    }
+  }
+
+  // ---- PHASE 7: Action-specific validation ----
   if (action === "deposit") {
     if (amount === null || amountType === null) {
-      errors.push("Deposit requires an amount (e.g. $100, 100 USDC)");
+      if (!errors.some((e) => e.includes("Amount"))) {
+        errors.push("Deposit requires an amount (e.g. $100, 100 USDC)");
+      }
     }
     if (amountType === "percent") {
       errors.push("Deposit cannot use percent — specify USD amount");
@@ -168,29 +178,22 @@ export function parseEarnCommand(input: string): EarnParseResult {
     if (shares !== null) {
       errors.push("Deposit cannot specify shares — use USD amount");
     }
-    // Force shares null for deposit
     shares = null;
   }
 
   if (action === "withdraw") {
     if (amount === null && shares === null) {
-      errors.push("Withdraw requires amount, percent, or shares");
+      if (!errors.some((e) => e.includes("requires") || e.includes("Amount"))) {
+        errors.push("Withdraw requires amount, percent, or shares");
+      }
     }
-    // Must have exactly one
     const specified = [amount !== null, shares !== null].filter(Boolean).length;
     if (specified > 1) {
       errors.push("Specify only one: amount, percent, or shares");
     }
   }
 
-  // ---- 5. Reject negative signs in input ----
-  if (/[-][\d]/.test(trimmed) && amount !== null) {
-    errors.push("Amount must be positive");
-    amount = null;
-    amountType = null;
-  }
-
-  // ---- 5b. Numeric safety ----
+  // ---- PHASE 8: Numeric safety ----
   if (amount !== null && (!Number.isFinite(amount) || amount <= 0)) {
     errors.push("Amount must be a positive finite number");
     amount = null;
@@ -200,16 +203,13 @@ export function parseEarnCommand(input: string): EarnParseResult {
     shares = null;
   }
 
-  // ---- 6. Reject ambiguous inputs ----
-  const vagueWords = /\b(some|everything|all|max|best|safe|good|high|low|a lot|a bit)\b/i;
-  if (vagueWords.test(trimmed) && amount === null && shares === null) {
+  // ---- PHASE 9: Reject vague language ----
+  if (VAGUE_WORDS.test(trimmed) && amount === null && shares === null) {
     errors.push("Ambiguous amount — specify exact value (e.g. $100, 50%, 10 shares)");
   }
 
   // ---- Build result ----
-  if (errors.length > 0) {
-    return { status: "invalid", errors, earn: null };
-  }
+  if (errors.length > 0) return reject(errors);
 
   return {
     status: "valid",
@@ -222,4 +222,8 @@ export function parseEarnCommand(input: string): EarnParseResult {
       shares,
     },
   };
+}
+
+function reject(errors: string[]): EarnParseResult {
+  return { status: "invalid", errors, earn: null };
 }
