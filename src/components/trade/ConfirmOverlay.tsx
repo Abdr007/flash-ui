@@ -56,6 +56,24 @@ export default function ConfirmOverlay() {
           />
         </div>
 
+        {/* TP/SL */}
+        {(trade.take_profit_price || trade.stop_loss_price) && !isInFlight && (
+          <div className="flex items-center gap-3 px-6 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            {trade.take_profit_price && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold tracking-wider" style={{ color: "var(--color-accent-long)" }}>TP</span>
+                <span className="text-[13px] num font-medium text-text-primary">{formatPrice(trade.take_profit_price)}</span>
+              </div>
+            )}
+            {trade.stop_loss_price && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold tracking-wider" style={{ color: "var(--color-accent-short)" }}>SL</span>
+                <span className="text-[13px] num font-medium text-text-primary">{formatPrice(trade.stop_loss_price)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Actions */}
         {isInFlight ? (
           <div className="px-6 py-4 flex items-center gap-3 text-[14px] text-text-tertiary"

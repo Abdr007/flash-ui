@@ -21,6 +21,8 @@ export default function TradeFlow({ side, onComplete, onCancel }: TradeFlowProps
   const [step, setStep] = useState<Step>("market");
   const [market, setMarket] = useState("");
   const [leverage, setLeverage] = useState(0);
+  const [tpInput, setTpInput] = useState("");
+  const [slInput, setSlInput] = useState("");
   const prices = useFlashStore((s) => s.prices);
 
   const accent = side === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)";
@@ -38,7 +40,11 @@ export default function TradeFlow({ side, onComplete, onCancel }: TradeFlowProps
   }
 
   function selectCollateral(c: number) {
-    const cmd = `${side.toLowerCase()} ${market} ${leverage}x $${c}`;
+    let cmd = `${side.toLowerCase()} ${market} ${leverage}x $${c}`;
+    const tp = parseFloat(tpInput);
+    const sl = parseFloat(slInput);
+    if (Number.isFinite(tp) && tp > 0) cmd += ` tp ${tp}`;
+    if (Number.isFinite(sl) && sl > 0) cmd += ` sl ${sl}`;
     onComplete(cmd);
   }
 
@@ -163,8 +169,27 @@ export default function TradeFlow({ side, onComplete, onCancel }: TradeFlowProps
               }} />
           </div>
 
+          {/* TP/SL inputs (optional) */}
+          <div className="mt-4 flex items-center gap-3 justify-center">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold tracking-wider" style={{ color: "var(--color-accent-long)" }}>TP</span>
+              <input type="number" min={0} step="any" placeholder="—"
+                value={tpInput} onChange={(e) => setTpInput(e.target.value)}
+                className="w-24 text-center text-[13px] num bg-transparent border rounded-lg px-2 py-1.5 text-text-primary outline-none"
+                style={{ borderColor: tpInput ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.08)" }} />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold tracking-wider" style={{ color: "var(--color-accent-short)" }}>SL</span>
+              <input type="number" min={0} step="any" placeholder="—"
+                value={slInput} onChange={(e) => setSlInput(e.target.value)}
+                className="w-24 text-center text-[13px] num bg-transparent border rounded-lg px-2 py-1.5 text-text-primary outline-none"
+                style={{ borderColor: slInput ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.08)" }} />
+            </div>
+          </div>
+          <div className="text-[11px] text-text-tertiary text-center mt-1.5">Optional — leave blank for none</div>
+
           {/* Summary */}
-          <div className="mt-4 px-4 py-3 rounded-xl flex items-center justify-between text-[12px]"
+          <div className="mt-3 px-4 py-3 rounded-xl flex items-center justify-between text-[12px]"
             style={{ background: accentBg, border: `1px solid ${accentBorder}` }}>
             <span style={{ color: accent }}>{side} {market} {leverage}x</span>
             <span className="text-text-tertiary">Select amount to execute</span>

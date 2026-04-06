@@ -39,7 +39,9 @@ export function createBuildTradeTool(wallet: string) {
   return tool({
     description:
       "Build a trade preview with entry price, liquidation price, fees, and size. " +
-      "Does NOT execute the trade — returns a preview for the user to confirm.",
+      "Does NOT execute the trade — returns a preview for the user to confirm. " +
+      "Supports take profit (tp) and stop loss (sl) prices. " +
+      "Example: 'long SOL 5x $100 tp 200 sl 50'",
     inputSchema: z.object({
       market: z.string().describe("Market symbol (e.g., SOL, BTC)"),
       side: z.enum(["LONG", "SHORT"]).describe("Trade direction"),
@@ -52,12 +54,24 @@ export function createBuildTradeTool(wallet: string) {
         .min(1)
         .max(MAX_LEVERAGE)
         .describe("Leverage multiplier"),
+      take_profit_price: z
+        .number()
+        .positive()
+        .optional()
+        .describe("Take profit price — must be above entry for LONG, below for SHORT"),
+      stop_loss_price: z
+        .number()
+        .positive()
+        .optional()
+        .describe("Stop loss price — must be below entry for LONG, above for SHORT"),
     }),
     execute: async ({
       market,
       side,
       collateral_usd,
       leverage,
+      take_profit_price,
+      stop_loss_price,
     }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 
@@ -150,6 +164,24 @@ export function createBuildTradeTool(wallet: string) {
             ? entry_price - entry_price / leverage
             : entry_price + entry_price / leverage;
 
+        // ---- STEP 6b: Validate TP/SL against entry price ----
+        if (take_profit_price != null) {
+          if (side === "LONG" && take_profit_price <= entry_price) {
+            return { status: "error", data: null, error: `Take profit ($${take_profit_price}) must be above entry ($${entry_price.toFixed(2)}) for LONG`, request_id: requestId, latency_ms };
+          }
+          if (side === "SHORT" && take_profit_price >= entry_price) {
+            return { status: "error", data: null, error: `Take profit ($${take_profit_price}) must be below entry ($${entry_price.toFixed(2)}) for SHORT`, request_id: requestId, latency_ms };
+          }
+        }
+        if (stop_loss_price != null) {
+          if (side === "LONG" && stop_loss_price >= entry_price) {
+            return { status: "error", data: null, error: `Stop loss ($${stop_loss_price}) must be below entry ($${entry_price.toFixed(2)}) for LONG`, request_id: requestId, latency_ms };
+          }
+          if (side === "SHORT" && stop_loss_price <= entry_price) {
+            return { status: "error", data: null, error: `Stop loss ($${stop_loss_price}) must be above entry ($${entry_price.toFixed(2)}) for SHORT`, request_id: requestId, latency_ms };
+          }
+        }
+
         const tradePreview = {
           market: resolved,
           side,
@@ -161,6 +193,8 @@ export function createBuildTradeTool(wallet: string) {
           fees,
           fee_rate,
           slippage_bps,
+          ...(take_profit_price != null && { take_profit_price }),
+          ...(stop_loss_price != null && { stop_loss_price }),
         };
 
         // ---- STEP 7: Firewall validation ----

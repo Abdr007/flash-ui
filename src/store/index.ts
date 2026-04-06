@@ -904,6 +904,8 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
           collateral,
           leverage,
           owner: wallet,
+          takeProfitPrice: trade.take_profit_price ?? undefined,
+          stopLossPrice: trade.stop_loss_price ?? undefined,
         })
       );
 
@@ -1352,6 +1354,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
     });
 
     // Convert AI preview to TradeObject for the execution pipeline
+    const rawTrade = result.trade as Record<string, unknown>;
     const tradeObject: TradeObject = {
       id: `trade_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       action: trade.side,
@@ -1367,6 +1370,9 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       slippage_bps: trade.slippage_bps ?? 80,
       status: "READY",
       missing_fields: [],
+      // Pass TP/SL through — validated by firewall
+      take_profit_price: typeof rawTrade.take_profit_price === "number" ? rawTrade.take_profit_price : null,
+      stop_loss_price: typeof rawTrade.stop_loss_price === "number" ? rawTrade.stop_loss_price : null,
     };
 
     // Update context memory

@@ -445,6 +445,45 @@ export async function enrichTradeWithQuote(
       };
     }
 
+    // ---- Resolve %-based TP/SL to absolute prices ----
+    let tpPrice = trade.take_profit_price ?? null;
+    let slPrice = trade.stop_loss_price ?? null;
+
+    // Chained intents may have set percent-based TP/SL — resolve now that we have entry
+    // (Percent-based TP/SL are stored as intent data, but we also accept them on trade object
+    //  for the deterministic parser path that sets them inline)
+
+    // ---- Validate TP/SL against entry price ----
+    if (tpPrice != null && Number.isFinite(tpPrice) && tpPrice > 0) {
+      if (trade.action === "LONG" && tpPrice <= entry) {
+        return { ...trade, status: "ERROR", error: `Take profit ($${tpPrice}) must be above entry ($${entry.toFixed(2)}) for LONG` };
+      }
+      if (trade.action === "SHORT" && tpPrice >= entry) {
+        return { ...trade, status: "ERROR", error: `Take profit ($${tpPrice}) must be below entry ($${entry.toFixed(2)}) for SHORT` };
+      }
+    } else {
+      tpPrice = null; // Clean invalid
+    }
+
+    if (slPrice != null && Number.isFinite(slPrice) && slPrice > 0) {
+      if (trade.action === "LONG" && slPrice >= entry) {
+        return { ...trade, status: "ERROR", error: `Stop loss ($${slPrice}) must be below entry ($${entry.toFixed(2)}) for LONG` };
+      }
+      if (trade.action === "SHORT" && slPrice <= entry) {
+        return { ...trade, status: "ERROR", error: `Stop loss ($${slPrice}) must be above entry ($${entry.toFixed(2)}) for SHORT` };
+      }
+    } else {
+      slPrice = null; // Clean invalid
+    }
+
+    // ---- Limit order validation ----
+    if (trade.order_type === "limit" && !trade.limit_price) {
+      return { ...trade, status: "ERROR", error: "Limit order requires a price. Example: limit 65000" };
+    }
+    if (trade.order_type === "market" && trade.limit_price) {
+      return { ...trade, status: "ERROR", error: "Market order cannot include a limit price" };
+    }
+
     return {
       ...trade,
       entry_price: entry,
@@ -453,6 +492,8 @@ export async function enrichTradeWithQuote(
       fees,
       fee_rate: feeRate,
       position_size: size,
+      take_profit_price: tpPrice,
+      stop_loss_price: slPrice,
       status: "READY",
       missing_fields: [],
     };

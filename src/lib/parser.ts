@@ -398,6 +398,22 @@ function parseSingleIntent(input: string): ParseResult {
   const inlineSLPrice = extractPrice(trimmed, "(?:sl|stop\\s*loss)");
   const inlineTPPrice = extractPrice(trimmed, "(?:tp|take\\s*profit)");
 
+  // ---- Order Type + Limit Price extraction ----
+  const isLimit = /\blimit\b/i.test(lower);
+  const isMarketExplicit = /\bmarket\b/i.test(lower);
+  let orderType: "market" | "limit" = "market";
+  let limitPrice: number | null = null;
+
+  if (isLimit) {
+    orderType = "limit";
+    // Extract price after "limit" keyword: "limit 65000", "limit at $65000"
+    const limitPriceMatch = lower.match(/\blimit\s+(?:at\s+)?\$?(\d+(?:\.\d+)?)/i);
+    if (limitPriceMatch) {
+      const n = parseFloat(limitPriceMatch[1]);
+      if (Number.isFinite(n) && n > 0) limitPrice = n;
+    }
+  }
+
   if (!side && !market) {
     return { type: "unknown", intent: { type: "QUERY", raw: trimmed } };
   }
@@ -425,6 +441,10 @@ function parseSingleIntent(input: string): ParseResult {
     slippage_bps: DEFAULT_SLIPPAGE_BPS,
     status: "INCOMPLETE",
     missing_fields: missing,
+    order_type: orderType,
+    limit_price: limitPrice,
+    take_profit_price: inlineTPPrice,
+    stop_loss_price: inlineSLPrice,
   };
 
   if (trade.collateral_usd && trade.leverage) {
@@ -434,13 +454,13 @@ function parseSingleIntent(input: string): ParseResult {
     trade.missing_fields = [];
   }
 
-  // Build chained SL/TP intents if inline
+  // Build chained SL/TP intents if inline (percent-based — resolved at enrichment time)
   const chain: ParsedIntent[] = [];
-  if (inlineSLPct || inlineSLPrice) {
-    chain.push({ type: "SET_SL", stop_loss_pct: inlineSLPct ?? undefined, stop_loss_price: inlineSLPrice ?? undefined, raw: trimmed });
+  if (inlineSLPct) {
+    chain.push({ type: "SET_SL", stop_loss_pct: inlineSLPct, raw: trimmed });
   }
-  if (inlineTPPct || inlineTPPrice) {
-    chain.push({ type: "SET_TP", take_profit_pct: inlineTPPct ?? undefined, take_profit_price: inlineTPPrice ?? undefined, raw: trimmed });
+  if (inlineTPPct) {
+    chain.push({ type: "SET_TP", take_profit_pct: inlineTPPct, raw: trimmed });
   }
 
   return {

@@ -52,6 +52,8 @@ export const TradePreviewSchema = z.object({
   position_size: z.number().finite().positive(),
   slippage_bps: z.number().finite().min(0).max(500).optional().default(80),
   fee_rate: z.number().finite().min(0).max(0.05).optional(),
+  take_profit_price: z.number().finite().positive().optional(),
+  stop_loss_price: z.number().finite().positive().optional(),
 }).strict(); // [STRICT] Reject unknown fields — no AI-injected extras
 
 export type TradePreview = z.infer<typeof TradePreviewSchema>;
@@ -193,7 +195,25 @@ export function validateTrade(
     }
   }
 
-  // 10. Position conflict detection (warn only)
+  // 10. TP/SL directional validation
+  if (t.take_profit_price != null && t.entry_price > 0) {
+    if (t.side === "LONG" && t.take_profit_price <= t.entry_price) {
+      errors.push(`LONG take profit $${t.take_profit_price} must be above entry $${t.entry_price}`);
+    }
+    if (t.side === "SHORT" && t.take_profit_price >= t.entry_price) {
+      errors.push(`SHORT take profit $${t.take_profit_price} must be below entry $${t.entry_price}`);
+    }
+  }
+  if (t.stop_loss_price != null && t.entry_price > 0) {
+    if (t.side === "LONG" && t.stop_loss_price >= t.entry_price) {
+      errors.push(`LONG stop loss $${t.stop_loss_price} must be below entry $${t.entry_price}`);
+    }
+    if (t.side === "SHORT" && t.stop_loss_price <= t.entry_price) {
+      errors.push(`SHORT stop loss $${t.stop_loss_price} must be above entry $${t.entry_price}`);
+    }
+  }
+
+  // 11. Position conflict detection (warn only)
   const existing = positions.find((p) => p.market === t.market && p.side === t.side);
   if (existing) {
     warnings.push(`Existing ${t.side} ${t.market} position — this will average into it`);

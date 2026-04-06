@@ -72,6 +72,8 @@ export interface TradePreviewData {
   fees: number;
   fee_rate: number;
   slippage_bps: number;
+  take_profit_price?: number;
+  stop_loss_price?: number;
 }
 
 export interface ClosePreviewData {

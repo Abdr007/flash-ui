@@ -13,6 +13,8 @@ export type TradeStatus =
   | "SUCCESS"
   | "ERROR";
 
+export type OrderType = "market" | "limit";
+
 export interface TradeObject {
   id: string;
   action: Side;
@@ -32,6 +34,14 @@ export interface TradeObject {
   /** Base64-encoded unsigned transaction from Flash API — needs wallet signature */
   unsigned_tx?: string;
   missing_fields: (keyof TradeObject)[];
+  /** Order type: market (default) or limit */
+  order_type?: OrderType;
+  /** Limit order price — required when order_type is "limit" */
+  limit_price?: number | null;
+  /** Take profit price — passed to Flash API */
+  take_profit_price?: number | null;
+  /** Stop loss price — passed to Flash API */
+  stop_loss_price?: number | null;
 }
 
 export interface Position {

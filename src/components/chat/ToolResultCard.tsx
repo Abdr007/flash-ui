@@ -227,6 +227,24 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
         <Cell label="Fees" value={t.fee_rate != null ? `${formatUsd(t.fees)} (${formatPercent(t.fee_rate)})` : formatUsd(t.fees)} />
       </div>
 
+      {/* TP/SL badges */}
+      {(t.take_profit_price || t.stop_loss_price) && (
+        <div className="flex items-center gap-3 px-5 py-2.5 border-t border-border-subtle">
+          {t.take_profit_price && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: "rgba(16,185,129,0.08)" }}>
+              <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent-long)" }}>TP</span>
+              <span className="text-[12px] num font-medium" style={{ color: "var(--color-accent-long)" }}>{formatPrice(t.take_profit_price)}</span>
+            </div>
+          )}
+          {t.stop_loss_price && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: "rgba(239,68,68,0.08)" }}>
+              <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent-short)" }}>SL</span>
+              <span className="text-[12px] num font-medium" style={{ color: "var(--color-accent-short)" }}>{formatPrice(t.stop_loss_price)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Risk bar */}
       {liqDist > 0 && (
         <div className="px-5 py-3 border-t border-border-subtle">

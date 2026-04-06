@@ -101,6 +101,24 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
           <Cell label="Fees" value={trade.fees != null && trade.fee_rate != null ? `${formatUsd(trade.fees)} (${formatPercent(trade.fee_rate)})` : "—"} />
         </div>
 
+        {/* TP/SL badges */}
+        {(trade.take_profit_price || trade.stop_loss_price) && (
+          <div className="flex items-center gap-3 px-5 py-2.5 border-t border-border-subtle">
+            {trade.take_profit_price && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: "rgba(16,185,129,0.08)" }}>
+                <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent-long)" }}>TP</span>
+                <span className="text-[12px] num font-medium" style={{ color: "var(--color-accent-long)" }}>{formatPrice(trade.take_profit_price)}</span>
+              </div>
+            )}
+            {trade.stop_loss_price && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: "rgba(239,68,68,0.08)" }}>
+                <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent-short)" }}>SL</span>
+                <span className="text-[12px] num font-medium" style={{ color: "var(--color-accent-short)" }}>{formatPrice(trade.stop_loss_price)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Risk Bar */}
         {isReady && liqDist > 0 && (
           <div className="px-5 py-3 border-t border-border-subtle">
