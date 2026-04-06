@@ -342,6 +342,23 @@ export async function buildClosePositionTx(
   );
 }
 
+// ---- Reverse Position ----
+
+export interface BuildReverseParams {
+  positionKey: string;
+  owner: string;
+  slippagePercentage?: string;
+}
+
+export async function buildReversePosition(
+  params: BuildReverseParams
+): Promise<{ transactionBase64?: string; err: string | null; newEntryPrice?: string; newLeverage?: string; newCollateralUsd?: string }> {
+  return apiPost<{ transactionBase64?: string; err: string | null; newEntryPrice?: string; newLeverage?: string; newCollateralUsd?: string }>(
+    "/transaction-builder/reverse-position",
+    { ...params },
+  );
+}
+
 // ---- Trade Validation ----
 
 import { MIN_COLLATERAL, MAX_LEVERAGE, MARKETS } from "./constants";

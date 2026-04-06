@@ -338,42 +338,14 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
       const txBytes = Uint8Array.from(atob(cleanData.txBase64), (c) => c.charCodeAt(0));
       const transaction = VersionedTransaction.deserialize(txBytes);
 
-      // Sign with signTransaction (NOT signAndSendTransaction) — dApp submits
-      // This prevents wallet from injecting Lighthouse assertions
       setStatus("signing");
       const signed = await signTransaction(transaction);
 
-      // dApp submits directly via RPC — wallet never touches submission
+      // Execute via shared FlashEdge engine (multi-broadcast + WS/HTTP + rebroadcast)
       setStatus("confirming");
-      const rawTxBytes = signed.serialize();
-      const signature = await connection.sendRawTransaction(rawTxBytes, {
-        skipPreflight: true,
-        maxRetries: 5,
-      });
-
-      // Resend for better landing rate
-      for (let i = 0; i < 2; i++) {
-        await new Promise((r) => setTimeout(r, 1500));
-        try { await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true }); } catch {}
-      }
-
-      // Poll for confirmation
-      let confirmed = false;
-      const start = Date.now();
-      while (Date.now() - start < 60_000) {
-        const { value } = await connection.getSignatureStatuses([signature]);
-        const s = value[0];
-        if (s?.err) throw new Error(`Transaction failed on-chain: ${JSON.stringify(s.err)}`);
-        if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") {
-          confirmed = true;
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-
-      if (!confirmed) {
-        throw new Error("Transaction sent but not confirmed within 60s. Check your wallet for the result.");
-      }
+      const { executeSignedTransaction } = await import("@/lib/tx-executor");
+      const signedBase64 = Buffer.from(signed.serialize()).toString("base64");
+      const signature = await executeSignedTransaction(signedBase64, connection);
 
       setTxSig(signature);
       refreshPositions();
@@ -565,23 +537,9 @@ const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { output: To
       const signed = await signTransaction(transaction);
 
       setStatus("confirming");
-      const signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true, maxRetries: 5 });
-
-      for (let i = 0; i < 2; i++) {
-        await new Promise((r) => setTimeout(r, 1500));
-        try { await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true }); } catch {}
-      }
-
-      let confirmed = false;
-      const start = Date.now();
-      while (Date.now() - start < 60_000) {
-        const { value } = await connection.getSignatureStatuses([signature]);
-        const s = value[0];
-        if (s?.err) throw new Error(`Transaction failed: ${JSON.stringify(s.err)}`);
-        if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") { confirmed = true; break; }
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-      if (!confirmed) throw new Error("Transaction not confirmed in 60s");
+      const { executeSignedTransaction } = await import("@/lib/tx-executor");
+      const signedBase64 = Buffer.from(signed.serialize()).toString("base64");
+      const signature = await executeSignedTransaction(signedBase64, connection);
 
       setTxSig(signature);
       setReceivedUsd(apiResult.receiveTokenAmountUsdUi ?? "");
