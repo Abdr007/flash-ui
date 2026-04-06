@@ -20,7 +20,6 @@
 import { useEffect, useRef } from "react";
 import { useFlashStore } from "@/store";
 import { computePositionPnl } from "@/lib/pnl";
-import type { MarketPrice } from "@/lib/types";
 
 // ---- Adaptive Interval: smooth decay curve ----
 // After a volatility spike, interval starts at FAST and decays exponentially

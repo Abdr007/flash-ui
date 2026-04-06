@@ -27,7 +27,7 @@ import {
   getAllPrices,
   validateTradeObject,
 } from "@/lib/api";
-import { recomputeAllPnl } from "@/lib/pnl";
+import { computePositionPnl } from "@/lib/pnl";
 import { logExecution, logTrace, logSystemEvent, genExecutionId, withLatency } from "@/lib/execution-log";
 import { checkCircuit, recordSuccess, recordFailure, getCircuitState } from "@/lib/circuit-breaker";
 import { evaluateCertification } from "@/lib/certification";
@@ -1245,36 +1245,50 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
   },
 
   // ---- Stream Price Handler (called by PriceStream on each SSE tick) ----
+  // Single-pass: filter → update prices → selective PnL recompute → one batched set()
   handleStreamPrices: (updates: MarketPrice[]) => {
     const current = get().prices;
     let pricesChanged = false;
     const next: Record<string, MarketPrice> = { ...current };
 
+    // Track which markets actually changed (for selective PnL)
+    const changedMarkets = new Set<string>();
+
     for (const p of updates) {
       if (!Number.isFinite(p.price) || p.price <= 0) continue;
 
       const existing = current[p.symbol];
-      // Only accept if newer timestamp or new symbol
+      // Timestamp guard: older data NEVER overrides newer
       if (existing && existing.timestamp >= p.timestamp) continue;
 
       next[p.symbol] = p;
       pricesChanged = true;
+      changedMarkets.add(p.symbol);
     }
 
     if (!pricesChanged) return;
 
-    // Update prices — SSE stream working, clear any price errors
-    set({ prices: next });
-    if (get().dataStatus.pricesError) get().setDataError("prices", null);
-
-    // Recompute PnL for open positions
+    // Selective PnL: only recompute positions whose market price changed
     const positions = get().positions;
-    if (positions.length > 0) {
-      const { positions: updated, changed } = recomputeAllPnl(positions, next);
-      if (changed) {
-        set({ positions: updated });
-      }
+    let positionsUpdated = false;
+    let updatedPositions = positions;
+
+    if (positions.length > 0 && changedMarkets.size > 0) {
+      updatedPositions = positions.map((pos) => {
+        if (!changedMarkets.has(pos.market)) return pos; // Market didn't change — skip
+        const livePrice = next[pos.market];
+        if (!livePrice || pos.mark_price === livePrice.price) return pos;
+        positionsUpdated = true;
+        return computePositionPnl(pos, livePrice.price);
+      });
     }
+
+    // Single batched store update — one set(), one re-render
+    const patch: Partial<FlashStore> = { prices: next };
+    if (positionsUpdated) patch.positions = updatedPositions;
+
+    set(patch);
+    if (get().dataStatus.pricesError) get().setDataError("prices", null);
   },
 
   setStreamStatus: (status: "connected" | "reconnecting" | "disconnected") => {
