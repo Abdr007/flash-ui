@@ -24,6 +24,51 @@ interface EarnModalProps {
 
 type Status = "input" | "building" | "simulating" | "signing" | "confirming" | "success" | "error";
 
+// ---- Simulation log parser: extracts precise failure reason ----
+function parseSimulationError(errJson: string, logs: string[]): string {
+  // Join last N logs for pattern matching
+  const tail = logs.slice(-5).join(" ");
+  const allLogs = logs.join(" ");
+
+  // Balance-specific: extract amounts if present
+  const balMatch = allLogs.match(/insufficient.*?(\d[\d,.]*)/i);
+  if (balMatch) return `Insufficient balance — need ${balMatch[1]} more`;
+  if (tail.includes("insufficient") || tail.includes("Insufficient")) return "Insufficient balance for this transaction";
+
+  // Slippage
+  if (tail.includes("SlippageExceeded") || tail.includes("slippage") || tail.includes("Slippage")) {
+    const slipMatch = allLogs.match(/expected.*?(\d[\d,.]*?).*?got.*?(\d[\d,.]*)/i);
+    if (slipMatch) return `Slippage exceeded — expected ${slipMatch[1]}, got ${slipMatch[2]}. Price moved too fast.`;
+    return "Slippage exceeded — pool price moved. Try again or increase tolerance.";
+  }
+
+  // Pool capacity
+  if (tail.includes("ExceededMaxEntries") || tail.includes("MaxEntriesExceeded")) return "Pool is at maximum capacity";
+
+  // Account errors
+  if (tail.includes("AccountNotFound") || tail.includes("account not found")) return "Token account not found — you may need to create an FLP token account first";
+  if (tail.includes("OwnerMismatch")) return "Token account ownership error — contact support";
+
+  // Instruction index extraction
+  const ixMatch = errJson.match(/InstructionError.*?(\d+)/);
+  const ixNum = ixMatch ? ` (instruction #${ixMatch[1]})` : "";
+
+  // Custom program error code
+  const codeMatch = errJson.match(/Custom.*?(\d+)/);
+  if (codeMatch) {
+    const code = parseInt(codeMatch[1]);
+    // Common Flash program error codes
+    if (code === 6000) return "Invalid pool state" + ixNum;
+    if (code === 6001) return "Math overflow in pool calculation" + ixNum;
+    if (code === 6006) return "Slippage tolerance exceeded" + ixNum;
+    return `Program error ${code}${ixNum}`;
+  }
+
+  // Fallback
+  if (errJson.length > 100) return `Simulation failed${ixNum}: ${errJson.slice(0, 80)}...`;
+  return `Simulation failed${ixNum}: ${errJson}`;
+}
+
 // ---- User-friendly error mapping ----
 function friendlyError(msg: string): string {
   if (msg.includes("rejected")) return "Transaction rejected by wallet.";
@@ -52,9 +97,11 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
   const [errorMsg, setErrorMsg] = useState("");
   const [txSig, setTxSig] = useState("");
   const [receivedInfo, setReceivedInfo] = useState("");
+  const [latencyInfo, setLatencyInfo] = useState("");
 
   // Execution lock — prevents double-submit
   const executingRef = useRef(false);
+  const retryCountRef = useRef(0);
 
   const { connection } = useConnection();
   const { publicKey, signTransaction, connected } = useWallet();
@@ -81,6 +128,10 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
     executingRef.current = true;
     setStatus("building");
     setErrorMsg("");
+    setLatencyInfo("");
+
+    const t0 = performance.now();
+    let tBuild = 0, tSim = 0, tConfirm = 0;
 
     try {
       const { buildEarnDeposit, buildEarnWithdraw } = await import("@/lib/earn-sdk");
@@ -130,26 +181,21 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
         transaction.sign(result.additionalSigners);
       }
 
+      tBuild = Math.round(performance.now() - t0);
+
       // ---- PRE-BROADCAST SIMULATION ----
-      // Catch program errors before asking user to sign.
-      // Saves wallet popups and gas on doomed transactions.
       setStatus("simulating");
+      const tSimStart = performance.now();
       const simResult = await connection.simulateTransaction(transaction, {
-        sigVerify: false, // Don't verify sigs — wallet hasn't signed yet
+        sigVerify: false,
         replaceRecentBlockhash: true,
       });
+      tSim = Math.round(performance.now() - tSimStart);
+
       if (simResult.value.err) {
-        // Parse program error for user-friendly message
         const simErr = JSON.stringify(simResult.value.err);
-        const logs = simResult.value.logs?.slice(-3)?.join(" ") ?? "";
-        if (simErr.includes("InstructionError") || logs.includes("Error")) {
-          const reason = logs.includes("insufficient") ? "Insufficient balance"
-            : logs.includes("SlippageExceeded") || logs.includes("slippage") ? "Slippage exceeded — price moved"
-            : logs.includes("ExceededMaxEntries") ? "Pool is full"
-            : `Simulation failed: ${simErr.slice(0, 80)}`;
-          throw new Error(reason);
-        }
-        throw new Error(`Transaction would fail: ${simErr.slice(0, 100)}`);
+        const logs = simResult.value.logs ?? [];
+        throw new Error(parseSimulationError(simErr, logs));
       }
 
       // Wallet signs (only after successful simulation)
@@ -158,9 +204,11 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
 
       // Broadcast via existing tx-executor
       setStatus("confirming");
+      const tConfirmStart = performance.now();
       const { executeSignedTransaction } = await import("@/lib/tx-executor");
       const signedBase64 = Buffer.from(signed.serialize()).toString("base64");
       const signature = await executeSignedTransaction(signedBase64, connection);
+      tConfirm = Math.round(performance.now() - tConfirmStart);
 
       // Build success info
       setTxSig(signature);
@@ -169,12 +217,33 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
       } else {
         setReceivedInfo(`≈ ${formatUsd(previewUsdc)} USDC received`);
       }
+      const totalMs = Math.round(performance.now() - t0);
+      setLatencyInfo(`Build ${tBuild}ms · Sim ${tSim}ms · Confirm ${tConfirm}ms · Total ${totalMs}ms`);
       setStatus("success");
+      retryCountRef.current = 0;
       onSuccess();
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : "Transaction failed";
-      setErrorMsg(friendlyError(raw));
+      const friendly = friendlyError(raw);
+
+      // ---- SMART RETRY: transient failures get one automatic retry ----
+      const isTransient = raw.includes("blockhash") || raw.includes("Blockhash")
+        || raw.includes("timeout") || raw.includes("Timeout")
+        || raw.includes("socket") || raw.includes("ECONNREFUSED");
+
+      if (isTransient && retryCountRef.current < 1) {
+        retryCountRef.current++;
+        executingRef.current = false;
+        setStatus("input");
+        setErrorMsg("");
+        // Small delay then auto-retry
+        setTimeout(() => handleExecute(), 500);
+        return;
+      }
+
+      setErrorMsg(friendly);
       setStatus("error");
+      retryCountRef.current = 0;
     } finally {
       executingRef.current = false;
     }
@@ -213,9 +282,14 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
                 )}
               </div>
             </div>
-            {txSig && (
-              <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noopener noreferrer"
-                className="text-[12px] text-accent-blue underline">View on Solscan →</a>
+            <div className="flex items-center gap-3 mt-1">
+              {txSig && (
+                <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noopener noreferrer"
+                  className="text-[12px] text-accent-blue underline">View on Solscan →</a>
+              )}
+            </div>
+            {latencyInfo && (
+              <div className="mt-3 text-[10px] num text-text-tertiary">{latencyInfo}</div>
             )}
             <button
               onClick={onClose}
