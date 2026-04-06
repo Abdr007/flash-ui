@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS, TICKER_MARKETS, MARKETS } from "@/lib/constants";
-import { formatUsd, formatPnl, formatPrice, safe } from "@/lib/format";
+import { formatUsd, formatPnl, formatPrice, safe, formatAgo } from "@/lib/format";
 import TradeFlow from "./TradeFlow";
 const FSTATS = "https://fstats.io/api/v1";
 
@@ -49,6 +49,10 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
   const [fees7d, setFees7d] = useState(0);
   const [oiMarkets, setOiMarkets] = useState<OIMarket[]>([]);
   const [marketsExpanded, setMarketsExpanded] = useState(false);
+  const [fstatsLastOk, setFstatsLastOk] = useState(0);
+  const [fstatsFromCache, setFstatsFromCache] = useState(false);
+  const [walletDataLoading, setWalletDataLoading] = useState(false);
+  const [walletDataError, setWalletDataError] = useState(false);
 
   const refreshRef = useRef(refreshPositions);
   refreshRef.current = refreshPositions;
@@ -64,6 +68,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
   useEffect(() => {
     if (!walletConnected || !walletAddress) return;
     let cancelled = false;
+    setWalletDataLoading(true);
     async function fetch_() {
       try {
         const resp = await fetch("/api/token-prices", {
@@ -71,16 +76,20 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ wallet: walletAddress }),
         });
-        if (!resp.ok) return;
+        if (!resp.ok) { if (!cancelled) setWalletDataError(true); return; }
         const data = await resp.json().catch(() => null);
-        if (!data) return;
+        if (!data) { if (!cancelled) setWalletDataError(true); return; }
         if (!cancelled) {
           setSolBalance(data.solBalance ?? 0);
           setTotalWalletUsd(data.totalUsd ?? 0);
           const usdc = (data.tokens ?? []).find((t: { symbol: string }) => t.symbol === "USDC");
           setUsdcBalance(usdc?.amount ?? 0);
+          setWalletDataError(false);
+          setWalletDataLoading(false);
         }
-      } catch {}
+      } catch {
+        if (!cancelled) { setWalletDataError(true); setWalletDataLoading(false); }
+      }
     }
     fetch_();
     const interval = setInterval(fetch_, 10_000);
@@ -91,7 +100,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
   useEffect(() => {
     let cancelled = false;
 
-    // Restore cached data instantly (no flash of empty)
+    // Restore cached data instantly (no flash of empty) — marked as stale
     try {
       const cached = sessionStorage.getItem("fstats_cache");
       if (cached) {
@@ -100,6 +109,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
         if (c.trades7d) setTrades7d(c.trades7d);
         if (c.fees7d) setFees7d(c.fees7d);
         if (c.oiMarkets) setOiMarkets(c.oiMarkets);
+        setFstatsFromCache(true);
       }
     } catch {}
 
@@ -125,6 +135,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
         }
         // Cache for instant load next time
         try { sessionStorage.setItem("fstats_cache", JSON.stringify({ volume7d: v, trades7d: t, fees7d: f, oiMarkets: oi })); } catch {}
+        if (!cancelled) { setFstatsLastOk(Date.now()); setFstatsFromCache(false); }
       } catch {}
     }
     fetch_();
@@ -252,21 +263,31 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
 
       {/* ---- BALANCE ---- */}
       <div className="text-[12px] text-text-tertiary tracking-[0.2em] uppercase mb-3">Total Balance</div>
-      <div className="text-[52px] font-semibold text-text-primary tracking-tight leading-none num mb-3">
-        {walletConnected ? formatUsd(walletUsd) : "$0.00"}
+      <div className="text-[52px] font-semibold tracking-tight leading-none num mb-3"
+        style={{ color: walletConnected && walletDataError ? "var(--color-text-tertiary)" : "var(--color-text-primary)" }}>
+        {!walletConnected ? "$0.00"
+          : walletDataLoading && totalWalletUsd === 0 ? "..."
+          : walletDataError && totalWalletUsd === 0 ? "—"
+          : formatUsd(walletUsd)}
       </div>
 
       {walletConnected ? (
         <div className="flex items-center gap-3 mb-8 text-[13px]">
-          <span className="num text-text-secondary">{safe(solBalance).toFixed(2)} SOL</span>
-          <span className="text-text-tertiary">·</span>
-          <span className="num text-text-secondary">{formatUsd(usdcBalance)} USDC</span>
-          {positions.length > 0 && (
+          {walletDataError && totalWalletUsd === 0 ? (
+            <span className="text-text-tertiary">Balance unavailable</span>
+          ) : (
             <>
+              <span className="num text-text-secondary">{safe(solBalance).toFixed(2)} SOL</span>
               <span className="text-text-tertiary">·</span>
-              <span className="num font-medium" style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
-                {formatPnl(totalPnl)}
-              </span>
+              <span className="num text-text-secondary">{formatUsd(usdcBalance)} USDC</span>
+              {positions.length > 0 && (
+                <>
+                  <span className="text-text-tertiary">·</span>
+                  <span className="num font-medium" style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+                    {formatPnl(totalPnl)}
+                  </span>
+                </>
+              )}
             </>
           )}
         </div>
@@ -292,9 +313,21 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
           style={{ background: "rgba(20,26,34,0.9)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <StatPill label="7d Vol" value={formatCompact(volume7d)} color="var(--color-accent-long)" />
           <span className="w-px h-4" style={{ background: "rgba(255,255,255,0.08)" }} />
-          <StatPill label="Trades" value={trades7d.toLocaleString()} />
+          <StatPill label="Trades" value={safe(trades7d).toLocaleString()} />
           <span className="w-px h-4" style={{ background: "rgba(255,255,255,0.08)" }} />
           <StatPill label="Fees" value={formatCompact(fees7d)} />
+          {fstatsFromCache && (
+            <>
+              <span className="w-px h-4" style={{ background: "rgba(255,255,255,0.08)" }} />
+              <span className="text-[10px] text-text-tertiary">cached</span>
+            </>
+          )}
+          {!fstatsFromCache && fstatsLastOk > 0 && Date.now() - fstatsLastOk > 120_000 && (
+            <>
+              <span className="w-px h-4" style={{ background: "rgba(255,255,255,0.08)" }} />
+              <span className="text-[10px] text-text-tertiary">{formatAgo(fstatsLastOk)}</span>
+            </>
+          )}
         </div>
       )}
 

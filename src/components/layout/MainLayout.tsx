@@ -12,6 +12,7 @@ import PortfolioPanel from "@/components/portfolio/PortfolioPanel";
 import ConfirmOverlay from "@/components/trade/ConfirmOverlay";
 import SystemStatus from "@/components/layout/SystemStatus";
 import { SectionBoundary } from "@/components/ErrorBoundary";
+import DataStatusBanner from "@/components/layout/DataStatusBanner";
 
 export default function MainLayout() {
   // Portfolio hero collapses once chat has messages
@@ -29,6 +30,11 @@ export default function MainLayout() {
           <SystemStatus />
         </SectionBoundary>
       </header>
+
+      {/* ---- Data Status Banner (auto-hides when healthy) ---- */}
+      <SectionBoundary>
+        <DataStatusBanner />
+      </SectionBoundary>
 
       {/* ---- Single Column Content ---- */}
       <div className="flex-1 flex flex-col min-h-0">

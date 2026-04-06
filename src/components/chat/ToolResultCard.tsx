@@ -42,7 +42,7 @@ const ToolResultCard = memo(function ToolResultCard({ part }: { part: ToolPart }
 
   if (part.state === "input-streaming") return <StreamingSteps toolName={part.toolName} step={1} input={part.input} />;
   if (part.state === "input-available") return <StreamingSteps toolName={part.toolName} step={2} input={part.input} />;
-  if (!output) return null;
+  if (!output) return <StreamingSteps toolName={part.toolName} step={2} input={part.input} />;
   if (output.status === "error" && !output.data) return <ToolError toolName={part.toolName} error={output.error} />;
 
   switch (part.toolName) {
@@ -300,7 +300,7 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
   const { connection } = useConnection();
   const { signTransaction, connected } = useWallet();
 
-  if (!d) return null;
+  if (!d) return <ToolError toolName="collateral" error="No collateral data returned" />;
 
   const isAdd = d.action === "add_collateral";
   const side = String(d.side ?? "");
@@ -496,7 +496,7 @@ const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { output: To
   const { connection } = useConnection();
   const { signTransaction, connected } = useWallet();
 
-  if (!d) return null;
+  if (!d) return <ToolError toolName="close_position" error="No position data returned" />;
   const netPnl = Number(d.net_pnl ?? 0);
   const isProfit = netPnl >= 0;
   const market = String(d.market ?? "");
@@ -642,7 +642,7 @@ const ReversePositionCard = memo(function ReversePositionCard({ output }: { outp
   const { connection } = useConnection();
   const { signTransaction, connected } = useWallet();
 
-  if (!d) return null;
+  if (!d) return <ToolError toolName="reverse_position" error="No position data returned" />;
   const market = String(d.market ?? "");
   const currentSide = String(d.current_side ?? "");
   const newSide = String(d.new_side ?? "");
@@ -899,7 +899,7 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
     return () => { cancelled = true; };
   }, [walletAddress, storePrices]);
 
-  if (!d) return null;
+  if (!d) return <ToolError toolName="get_portfolio" error="No portfolio data returned" />;
 
   const pnl = Number(d.total_unrealized_pnl ?? 0);
   const exposure = Number(d.total_exposure ?? 0);
@@ -1092,7 +1092,7 @@ const PriceCard = memo(function PriceCard({ toolName, output }: { toolName: stri
 
 const MarketInfoCard = memo(function MarketInfoCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
-  if (!d) return null;
+  if (!d) return <ToolError toolName="get_market_info" error="No market data returned" />;
   return (
     <div className="w-full max-w-[380px] glass-card overflow-hidden">
       <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>

@@ -98,6 +98,15 @@ export interface FlashStore {
   loadingStates: Record<string, boolean>;
   lastError: { tool: string; message: string } | null;
 
+  // ---- Data Freshness (Transparency) ----
+  dataStatus: {
+    pricesLastOk: number;      // timestamp of last successful price fetch
+    pricesError: string | null; // null = ok, string = error message
+    positionsLastOk: number;
+    positionsError: string | null;
+  };
+  setDataError: (source: "prices" | "positions", error: string | null) => void;
+
   // ---- Existing Actions (UNTOUCHED) ----
   sendMessage: (input: string) => Promise<void>;
   confirmTrade: () => void;
@@ -177,6 +186,25 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
   },
   loadingStates: {},
   lastError: null,
+
+  // ---- Data Freshness ----
+  dataStatus: {
+    pricesLastOk: 0,
+    pricesError: null,
+    positionsLastOk: 0,
+    positionsError: null,
+  },
+  setDataError: (source, error) => {
+    const ds = { ...get().dataStatus };
+    if (source === "prices") {
+      ds.pricesError = error;
+      if (!error) ds.pricesLastOk = Date.now();
+    } else {
+      ds.positionsError = error;
+      if (!error) ds.positionsLastOk = Date.now();
+    }
+    set({ dataStatus: ds });
+  },
 
   // ---- Send Message (core state machine) ----
   sendMessage: async (input: string) => {
@@ -1180,8 +1208,12 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       if (changed) {
         set({ prices: next });
       }
-    } catch {
-      // Silent fail — keep stale data
+      get().setDataError("prices", null); // clear error on success
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Price fetch failed";
+      try { console.warn("[refreshPrices] failed:", msg); } catch {}
+      get().setDataError("prices", msg);
+      // Keep stale data — don't wipe
     }
   },
 
@@ -1201,8 +1233,12 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         return pos;
       });
       set({ positions: enriched });
-    } catch {
-      // Keep stale
+      get().setDataError("positions", null); // clear error on success
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Position fetch failed";
+      try { console.warn("[refreshPositions] failed:", msg); } catch {}
+      get().setDataError("positions", msg);
+      // Keep stale data — don't wipe
     }
   },
 
@@ -1225,8 +1261,9 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
 
     if (!pricesChanged) return;
 
-    // Update prices
+    // Update prices — SSE stream working, clear any price errors
     set({ prices: next });
+    if (get().dataStatus.pricesError) get().setDataError("prices", null);
 
     // Recompute PnL for open positions
     const positions = get().positions;
