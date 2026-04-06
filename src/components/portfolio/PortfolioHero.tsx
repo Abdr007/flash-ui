@@ -86,28 +86,42 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
     return () => { cancelled = true; clearInterval(interval); };
   }, [walletConnected, walletAddress]);
 
-  // fstats
+  // fstats — load from sessionStorage instantly, then refresh in background
   useEffect(() => {
     let cancelled = false;
+
+    // Restore cached data instantly (no flash of empty)
+    try {
+      const cached = sessionStorage.getItem("fstats_cache");
+      if (cached) {
+        const c = JSON.parse(cached);
+        if (c.volume7d) setVolume7d(c.volume7d);
+        if (c.trades7d) setTrades7d(c.trades7d);
+        if (c.fees7d) setFees7d(c.fees7d);
+        if (c.oiMarkets) setOiMarkets(c.oiMarkets);
+      }
+    } catch {}
+
     async function fetch_() {
       try {
         const [statsR, oiR] = await Promise.all([
           fetch(`/api/fstats?path=overview/stats&period=7d`),
           fetch(`/api/fstats?path=positions/open-interest`),
         ]);
+        let v = 0, t = 0, f = 0;
         if (statsR.ok) {
           const s = await statsR.json();
-          if (!cancelled) {
-            setVolume7d(s.volume_usd ?? 0);
-            setTrades7d(s.trades ?? 0);
-            setFees7d(s.fees_usd ?? 0);
-          }
+          v = s.volume_usd ?? 0; t = s.trades ?? 0; f = s.fees_usd ?? 0;
+          if (!cancelled) { setVolume7d(v); setTrades7d(t); setFees7d(f); }
         }
+        let oi: OIMarket[] = [];
         if (oiR.ok) {
           const data = await oiR.json();
-          const markets: OIMarket[] = (data.markets ?? data ?? []);
-          if (!cancelled) setOiMarkets(markets.sort((a: OIMarket, b: OIMarket) => b.total_oi - a.total_oi));
+          oi = (data.markets ?? data ?? []).sort((a: OIMarket, b: OIMarket) => b.total_oi - a.total_oi);
+          if (!cancelled) setOiMarkets(oi);
         }
+        // Cache for instant load next time
+        try { sessionStorage.setItem("fstats_cache", JSON.stringify({ volume7d: v, trades7d: t, fees7d: f, oiMarkets: oi })); } catch {}
       } catch {}
     }
     fetch_();
