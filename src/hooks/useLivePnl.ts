@@ -5,12 +5,12 @@
 // ============================================
 //
 // ARCHITECTURE:
-//   SSE stream (primary, sub-second) → handleStreamPrices → recomputeAllPnl
-//   This hook (fallback, adaptive)   → recomputeAllPnl     (same function)
+//   SSE stream (primary, sub-second) → handleStreamPrices → computePositionPnl
+//   This hook (fallback, adaptive)   → computePositionPnl  (same function)
 //
 // GUARANTEES:
 //   1. Zero network calls — reads Zustand store only
-//   2. Single source of truth — both paths use recomputeAllPnl()
+//   2. Single source of truth — both paths use computePositionPnl()
 //   3. Skip no-ops — hash comparison prevents redundant computation
 //   4. Adaptive interval — smooth decay curve from fast → slow
 //   5. Position-level updates — only recompute affected markets
@@ -123,19 +123,26 @@ export function useLivePnl() {
         lastHashRef.current = hash;
 
         // ---- Volatility detection ----
+        // Compare ALL position markets against previous prices, THEN update.
+        // This prevents the bug where break-on-spike leaves later markets
+        // with stale lastPrices, causing re-detection on the next tick.
+        let spikeDetected = false;
         for (const pos of positions) {
           const p = prices[pos.market];
           if (!p) continue;
           const prev = lastPricesRef.current[pos.market];
-          if (prev && prev > 0) {
+          if (prev && prev > 0 && !spikeDetected) {
             const change = Math.abs(p.price - prev) / prev;
             if (change > VOLATILITY_THRESHOLD) {
-              lastSpikeRef.current = Date.now();
-              pnlMetrics.volatileSpikes++;
-              break;
+              spikeDetected = true;
             }
           }
+          // Always update — even after spike detected
           lastPricesRef.current[pos.market] = p.price;
+        }
+        if (spikeDetected) {
+          lastSpikeRef.current = Date.now();
+          pnlMetrics.volatileSpikes++;
         }
 
         // ---- Position-level PnL: only recompute markets that changed ----
