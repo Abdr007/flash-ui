@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS, TICKER_MARKETS, MARKETS } from "@/lib/constants";
 import { formatUsd, formatPnl, formatPrice } from "@/lib/format";
+import TradeFlow from "./TradeFlow";
 const FSTATS = "https://fstats.io/api/v1";
 
 const TOKEN_COLORS: Record<string, string> = {
@@ -113,6 +114,8 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
+  const [activeFlow, setActiveFlow] = useState<"LONG" | "SHORT" | "portfolio" | "markets" | null>(null);
+
   let totalPnl = 0;
   let totalCollateral = 0;
   for (const pos of positions) {
@@ -121,6 +124,110 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
   }
 
   const walletUsd = totalWalletUsd;
+
+  // ── Guided Trade Flow ──
+  if (activeFlow === "LONG" || activeFlow === "SHORT") {
+    return (
+      <div className="flex flex-col items-center pt-12 pb-6 px-6 w-full" style={{ animation: "fadeIn 300ms ease-out" }}>
+        <TradeFlow
+          side={activeFlow}
+          onComplete={(cmd) => { setActiveFlow(null); onAction(cmd); }}
+          onCancel={() => setActiveFlow(null)}
+        />
+      </div>
+    );
+  }
+
+  // ── Portfolio View ──
+  if (activeFlow === "portfolio") {
+    return (
+      <div className="flex flex-col items-center pt-10 pb-6 px-6 w-full max-w-[520px] mx-auto" style={{ animation: "fadeIn 300ms ease-out" }}>
+        <button onClick={() => setActiveFlow(null)} className="self-start text-[12px] text-text-tertiary hover:text-text-secondary cursor-pointer mb-4">← Back</button>
+        <div className="text-[12px] text-text-tertiary tracking-[0.2em] uppercase mb-2">Portfolio</div>
+        <div className="text-[42px] font-semibold text-text-primary tracking-tight leading-none num mb-2">{formatUsd(walletUsd)}</div>
+        <div className="flex items-center gap-4 mb-6 text-[13px]">
+          <span className="num text-text-secondary">{solBalance.toFixed(2)} SOL</span>
+          <span className="text-text-tertiary">·</span>
+          <span className="num text-text-secondary">{formatUsd(usdcBalance)} USDC</span>
+        </div>
+
+        {positions.length > 0 ? (
+          <div className="w-full glass-card overflow-hidden">
+            <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
+              <span className="text-[12px] text-text-tertiary tracking-wider uppercase">Open Positions</span>
+              <span className="text-[13px] num font-medium" style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+                {formatPnl(totalPnl)}
+              </span>
+            </div>
+            {positions.map((pos) => (
+              <div key={pos.pubkey} className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-semibold text-text-primary">{pos.market}</span>
+                  <span className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded-full"
+                    style={{ color: pos.side === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)",
+                      background: pos.side === "LONG" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
+                    {pos.side} {pos.leverage.toFixed(1)}x
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-[12px]">
+                  <span className="num text-text-secondary">{formatUsd(pos.size_usd)}</span>
+                  <span className="num font-medium" style={{ color: pos.unrealized_pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+                    {formatPnl(pos.unrealized_pnl)}
+                  </span>
+                </div>
+              </div>
+            ))}
+            <div className="px-4 py-3 flex items-center justify-between text-[12px] text-text-tertiary">
+              <span>Total Collateral</span>
+              <span className="num">{formatUsd(totalCollateral)}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="text-[13px] text-text-tertiary py-8">No open positions</div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Markets View ──
+  if (activeFlow === "markets") {
+    return (
+      <div className="flex flex-col items-center pt-10 pb-6 px-6 w-full max-w-[520px] mx-auto" style={{ animation: "fadeIn 300ms ease-out" }}>
+        <button onClick={() => setActiveFlow(null)} className="self-start text-[12px] text-text-tertiary hover:text-text-secondary cursor-pointer mb-4">← Back</button>
+        <div className="text-[12px] text-text-tertiary tracking-[0.2em] uppercase mb-4">Markets</div>
+        <div className="w-full glass-card overflow-hidden">
+          {oiMarkets.length > 0 ? oiMarkets.slice(0, 12).map((m) => {
+            const longPct = m.total_oi > 0 ? (m.long_oi / m.total_oi) * 100 : 50;
+            const p = prices[m.market];
+            return (
+              <button key={m.market}
+                onClick={() => { setActiveFlow(null); onFillInput?.(`long ${m.market} 5x $`); }}
+                className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <div className="flex items-center gap-2.5 w-20">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: MARKETS[m.market]?.dotColor ?? "#555" }} />
+                  <span className="text-[13px] font-semibold text-text-primary">{m.market}</span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-1 mx-4">
+                  <span className="text-[10px] num text-accent-long">{longPct.toFixed(0)}%</span>
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(239,68,68,0.3)" }}>
+                    <div className="h-full rounded-full" style={{ width: `${longPct}%`, background: "var(--color-accent-long)" }} />
+                  </div>
+                  <span className="text-[10px] num text-accent-short">{(100 - longPct).toFixed(0)}%</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] num text-text-tertiary">{formatCompact(m.total_oi)}</span>
+                  {p && <span className="text-[12px] num text-text-secondary w-24 text-right">{formatPrice(p.price)}</span>}
+                </div>
+              </button>
+            );
+          }) : (
+            <div className="text-[13px] text-text-tertiary py-8 text-center">Loading markets...</div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center pt-12 pb-6 px-6 w-full" style={{ animation: "fadeIn 500ms ease-out" }}>
@@ -151,13 +258,13 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
 
       {/* ---- Action Circles ---- */}
       <div className="flex items-center gap-8 mb-8">
-        <ActionCircle label="Long" onClick={() => onFillInput?.("long SOL 5x $")}
+        <ActionCircle label="Long" onClick={() => setActiveFlow("LONG")}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>} />
-        <ActionCircle label="Short" onClick={() => onFillInput?.("short SOL 5x $")}
+        <ActionCircle label="Short" onClick={() => setActiveFlow("SHORT")}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12l7 7 7-7" /></svg>} />
-        <ActionCircle label="Portfolio" onClick={() => onAction("show my positions")}
+        <ActionCircle label="Portfolio" onClick={() => setActiveFlow("portfolio")}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>} />
-        <ActionCircle label="Markets" onClick={() => onAction("show all prices")}
+        <ActionCircle label="Markets" onClick={() => setActiveFlow("markets")}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>} />
       </div>
 
