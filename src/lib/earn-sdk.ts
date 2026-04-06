@@ -13,11 +13,6 @@ import { BN } from "@coral-xyz/anchor";
 import { PerpetualsClient } from "flash-sdk";
 import { PoolConfig } from "flash-sdk/dist/PoolConfig";
 
-// ---- Constants (matching CLI) ----
-const PROGRAM_ID = new PublicKey("FLASH6Lo1ibkVBFn6aCFTxzPQHc1yVwjfDAoX3F4qyZ5");
-const COMPOSABILITY_ID = new PublicKey("EKFPoYCaPL6KpJcHjg7dPyqV9ihhA2Z2y3Q4K6ccPR7i");
-const FB_NFT_REWARD_ID = new PublicKey("FbNFT28DgCi6CxK5BZELvHJvBY2LGxkWnee7WJYRgJL1");
-const REWARD_DIST_ID = new PublicKey("9GAaBN5AWFkijEVBMtiSafNyBPFRq76N3FPKmJR8jzmB");
 const BN_ZERO = new BN(0);
 
 // ---- Pool Name Mapping ----
@@ -41,18 +36,20 @@ export function resolvePoolName(alias: string): string | null {
 let _client: PerpetualsClient | null = null;
 let _lastWallet: string | null = null;
 
-function getClient(connection: Connection, wallet: Wallet): PerpetualsClient {
+function getClient(connection: Connection, wallet: Wallet, poolName: string): PerpetualsClient {
   const walletKey = wallet.publicKey.toBase58();
   if (_client && _lastWallet === walletKey) return _client;
 
+  // Get program IDs FROM the pool config (matching CLI exactly)
+  const pc = PoolConfig.fromIdsByName(poolName, "mainnet-beta");
   const provider = new AnchorProvider(connection, wallet, { commitment: "confirmed" });
   _client = new PerpetualsClient(
     provider,
-    PROGRAM_ID,
-    COMPOSABILITY_ID,
-    FB_NFT_REWARD_ID,
-    REWARD_DIST_ID,
-    {},
+    pc.programId,
+    pc.perpComposibilityProgramId,
+    pc.fbNftRewardProgramId,
+    pc.rewardDistributionProgram.programId,
+    { prioritizationFee: 50_000 },
   );
   _lastWallet = walletKey;
   return _client;
@@ -84,8 +81,8 @@ export async function buildEarnDeposit(
 
   if (!Number.isFinite(amountUsd) || amountUsd < 1) throw new Error("Minimum deposit is $1");
 
-  const client = getClient(connection, wallet);
   const pc = getPoolConfig(poolName);
+  const client = getClient(connection, wallet, poolName);
 
   // USDC = 6 decimals — same as CLI's uiDecimalsToNative
   const nativeAmount = new BN(Math.floor(amountUsd * 1_000_000));
@@ -134,8 +131,8 @@ export async function buildEarnWithdraw(
 
   if (!Number.isFinite(percent) || percent < 1 || percent > 100) throw new Error("Percent must be 1-100");
 
-  const client = getClient(connection, wallet);
   const pc = getPoolConfig(poolName);
+  const client = getClient(connection, wallet, poolName);
 
   // 1. Get FLP token balance (same logic as CLI)
   const { getAssociatedTokenAddress, getAccount } = await import("@solana/spl-token");
