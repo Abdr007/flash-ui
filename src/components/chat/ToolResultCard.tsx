@@ -194,18 +194,32 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
       className={`w-full max-w-[460px] glass-card overflow-hidden ${submitting ? "success-glow" : ""}`}
       style={{ ...bounceStyle }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle">
+      {/* Header — bold, prominent */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle">
         <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full" style={{ background: accent }} />
-          <span className="text-[15px] font-semibold text-text-primary tracking-tight">{t.market}-PERP</span>
-          <span className="text-[11px] font-bold tracking-wider px-2.5 py-0.5 rounded-full"
+          <div className="w-4 h-4 rounded-full" style={{ background: accent }} />
+          <span className="text-[18px] font-bold text-text-primary tracking-tight">{t.market}-PERP</span>
+          <span className="text-[12px] font-bold tracking-wider px-3 py-1 rounded-full"
             style={{ color: accent, background: isLong ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
             {t.side}
           </span>
         </div>
         <ConfidenceBadge confidence={confidence} />
       </div>
+
+      {/* Speed badge */}
+      {output.latency_ms != null && (
+        <div className="px-5 py-1.5 flex items-center gap-2 border-b border-border-subtle" style={{ background: "rgba(200,245,71,0.03)" }}>
+          {output.latency_ms === 0 ? (
+            <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent-lime)" }}>⚡ INSTANT</span>
+          ) : (
+            <span className="text-[10px] font-medium num text-text-tertiary">{output.latency_ms}ms</span>
+          )}
+          {output.status === "degraded" && (
+            <span className="text-[10px] text-text-tertiary">· cached price</span>
+          )}
+        </div>
+      )}
 
       {/* Primary prices */}
       <div className="grid grid-cols-2 border-b border-border-subtle">

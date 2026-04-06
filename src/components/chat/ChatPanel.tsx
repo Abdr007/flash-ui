@@ -107,15 +107,31 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     setAutocomplete(value.trim().length >= 2 ? getAutocompleteSuggestions(value) : []);
   }, []);
 
+  // Optimistic: show instant placeholder the moment user sends
+  const [optimisticPending, setOptimisticPending] = useState(false);
+
   const handleSubmit = useCallback((text?: string) => {
     const msg = (text ?? input).trim();
     if (!msg || isStreaming || isExecuting) return;
+
+    // Optimistic: show typing indicator BEFORE server responds
+    setOptimisticPending(true);
+
+    // Haptic feedback on mobile (noop on desktop/iOS)
+    try { navigator?.vibrate?.(10); } catch {}
 
     sendMessage({ text: msg });
     setInput("");
     setAutocomplete([]);
     setSelectedAC(-1);
   }, [input, isStreaming, isExecuting, sendMessage]);
+
+  // Clear optimistic state once real streaming starts or messages update
+  useEffect(() => {
+    if (isStreaming || messages.length > 0) {
+      setOptimisticPending(false);
+    }
+  }, [isStreaming, messages.length]);
 
   const handleChipClick = useCallback((action: SuggestedAction) => {
     handleSubmit(action.intent);
@@ -173,7 +189,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
           </div>
         ) : (
           /* ---- Chat messages ---- */
-          <div className="max-w-[720px] mx-auto px-5 py-6 flex flex-col gap-4">
+          <div className="max-w-[720px] mx-auto px-5 py-6 flex flex-col gap-3">
             {messages.map((message) => (
               <div key={message.id} className="msg-anim">
                 {message.role === "user" ? (
@@ -185,7 +201,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                 )}
               </div>
             ))}
-            {isStreaming && <StreamingDot />}
+            {(isStreaming || optimisticPending) && <StreamingDot />}
           </div>
         )}
       </div>
@@ -311,6 +327,18 @@ const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Reco
   // Guard: parts could be undefined/null/not-array from bad API response
   const safeParts = Array.isArray(parts) ? parts : [];
 
+  // Detect fast-path response (latency_ms === 0 in tool output)
+  const isFastPath = safeParts.some((p) => {
+    if (p?.type !== "tool-output-available" && p?.type !== "dynamic-tool") return false;
+    const out = (p.output ?? p) as Record<string, unknown>;
+    const data = out.output ?? out;
+    if (typeof data === "object" && data !== null) {
+      const d = data as Record<string, unknown>;
+      return d.request_id && typeof d.request_id === "string" && (d.request_id as string).startsWith("fast_");
+    }
+    return false;
+  });
+
   return (
     <div className="flex items-start gap-3">
       <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center mt-0.5"
@@ -321,6 +349,11 @@ const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Reco
       </div>
 
       <div className="flex flex-col gap-3 min-w-0 flex-1">
+        {isFastPath && (
+          <div className="flex items-center gap-1.5 -mb-1.5">
+            <span className="text-[10px] font-semibold tracking-wider" style={{ color: "var(--color-accent-lime)" }}>⚡ INSTANT</span>
+          </div>
+        )}
         {safeParts.map((part, i) => {
           try {
             if (!part || typeof part !== "object") return null;
