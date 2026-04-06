@@ -22,7 +22,38 @@ interface EarnModalProps {
   onSuccess: () => void;
 }
 
-type Status = "input" | "building" | "simulating" | "signing" | "confirming" | "success" | "error";
+type Status = "input" | "building" | "simulating" | "signing" | "confirming" | "retrying" | "success" | "error";
+
+// ---- Instruction index → human operation mapping ----
+// Flash earn transactions have a predictable instruction order:
+// 0: SetComputeUnitLimit, 1: SetComputeUnitPrice, 2+: SDK instructions
+function ixToOperation(ix: number): string {
+  if (ix <= 1) return "compute budget setup";
+  return `pool operation (step ${ix - 1})`;
+}
+
+// ---- Error → actionable suggestion ----
+interface ErrorSuggestion {
+  label: string;
+  action: "retry" | "reduce" | "slippage" | "wait" | "none";
+}
+
+function getSuggestion(errorMsg: string): ErrorSuggestion | null {
+  const lower = errorMsg.toLowerCase();
+  if (lower.includes("insufficient") || lower.includes("balance"))
+    return { label: "Try a smaller amount", action: "reduce" };
+  if (lower.includes("slippage") || lower.includes("price moved"))
+    return { label: "Retry — pool price may have stabilized", action: "retry" };
+  if (lower.includes("capacity") || lower.includes("max entries"))
+    return { label: "Try a different pool", action: "none" };
+  if (lower.includes("timeout") || lower.includes("congestion"))
+    return { label: "Wait a moment and retry", action: "wait" };
+  if (lower.includes("rejected"))
+    return null; // User chose to reject — no suggestion
+  if (lower.includes("simulation failed") || lower.includes("program error"))
+    return { label: "Retry with a smaller amount", action: "reduce" };
+  return { label: "Try again", action: "retry" };
+}
 
 // ---- Simulation log parser: extracts precise failure reason ----
 function parseSimulationError(errJson: string, logs: string[]): string {
@@ -49,24 +80,25 @@ function parseSimulationError(errJson: string, logs: string[]): string {
   if (tail.includes("AccountNotFound") || tail.includes("account not found")) return "Token account not found — you may need to create an FLP token account first";
   if (tail.includes("OwnerMismatch")) return "Token account ownership error — contact support";
 
-  // Instruction index extraction
+  // Instruction index extraction with human-readable operation
   const ixMatch = errJson.match(/InstructionError.*?(\d+)/);
-  const ixNum = ixMatch ? ` (instruction #${ixMatch[1]})` : "";
+  const ixIdx = ixMatch ? parseInt(ixMatch[1]) : -1;
+  const ixLabel = ixIdx >= 0 ? ` in ${ixToOperation(ixIdx)}` : "";
 
   // Custom program error code
   const codeMatch = errJson.match(/Custom.*?(\d+)/);
   if (codeMatch) {
     const code = parseInt(codeMatch[1]);
     // Common Flash program error codes
-    if (code === 6000) return "Invalid pool state" + ixNum;
-    if (code === 6001) return "Math overflow in pool calculation" + ixNum;
-    if (code === 6006) return "Slippage tolerance exceeded" + ixNum;
-    return `Program error ${code}${ixNum}`;
+    if (code === 6000) return "Invalid pool state" + ixLabel;
+    if (code === 6001) return "Math overflow in pool calculation" + ixLabel;
+    if (code === 6006) return "Slippage tolerance exceeded" + ixLabel;
+    return `Program error ${code}${ixLabel}`;
   }
 
   // Fallback
-  if (errJson.length > 100) return `Simulation failed${ixNum}: ${errJson.slice(0, 80)}...`;
-  return `Simulation failed${ixNum}: ${errJson}`;
+  if (errJson.length > 100) return `Simulation failed${ixLabel}: ${errJson.slice(0, 80)}...`;
+  return `Simulation failed${ixLabel}: ${errJson}`;
 }
 
 // ---- User-friendly error mapping ----
@@ -98,6 +130,7 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
   const [txSig, setTxSig] = useState("");
   const [receivedInfo, setReceivedInfo] = useState("");
   const [latencyInfo, setLatencyInfo] = useState("");
+  const [retryReason, setRetryReason] = useState("");
 
   // Execution lock — prevents double-submit
   const executingRef = useRef(false);
@@ -118,7 +151,7 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
   const previewUsdc = mode === "withdraw" && flpPrice > 0 ? numAmount * flpPrice / 100 : 0;
   const minShares = previewShares * (1 - slippagePct / 100);
 
-  const isInFlight = status === "building" || status === "simulating" || status === "signing" || status === "confirming";
+  const isInFlight = status === "building" || status === "simulating" || status === "signing" || status === "confirming" || status === "retrying";
 
   async function handleExecute() {
     // Execution lock
@@ -234,10 +267,13 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
       if (isTransient && retryCountRef.current < 1) {
         retryCountRef.current++;
         executingRef.current = false;
-        setStatus("input");
-        setErrorMsg("");
-        // Small delay then auto-retry
-        setTimeout(() => handleExecute(), 500);
+        setRetryReason(friendly);
+        setStatus("retrying");
+        // Visible retry — user sees "Retrying..." before it restarts
+        setTimeout(() => {
+          setRetryReason("");
+          handleExecute();
+        }, 800);
         return;
       }
 
@@ -358,13 +394,26 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
                 </div>
               )}
 
-              {/* Error */}
-              {status === "error" && errorMsg && (
-                <div className="mt-4 px-4 py-3 rounded-xl text-[13px]"
-                  style={{ color: "var(--color-accent-short)", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)" }}>
-                  {errorMsg}
-                </div>
-              )}
+              {/* Error with actionable suggestion */}
+              {status === "error" && errorMsg && (() => {
+                const suggestion = getSuggestion(errorMsg);
+                return (
+                  <div className="mt-4 rounded-xl overflow-hidden"
+                    style={{ border: "1px solid rgba(239,68,68,0.12)" }}>
+                    <div className="px-4 py-3 text-[13px]"
+                      style={{ color: "var(--color-accent-short)", background: "rgba(239,68,68,0.06)" }}>
+                      {errorMsg}
+                    </div>
+                    {suggestion && (
+                      <div className="px-4 py-2.5 flex items-center gap-2 text-[12px]"
+                        style={{ background: "rgba(239,68,68,0.03)", borderTop: "1px solid rgba(239,68,68,0.06)" }}>
+                        <span className="text-text-tertiary">💡</span>
+                        <span className="text-text-secondary">{suggestion.label}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* In-flight indicator */}
               {isInFlight && (
@@ -373,6 +422,7 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
                     style={{ animation: "spin 0.8s linear infinite" }} />
                   {status === "building" ? "Building transaction..."
                     : status === "simulating" ? "Simulating — checking for errors..."
+                    : status === "retrying" ? `Retrying — ${retryReason || "rebuilding transaction"}...`
                     : status === "signing" ? "Sign in your wallet..."
                     : "Confirming on-chain..."}
                 </div>
