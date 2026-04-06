@@ -405,7 +405,6 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
           <span className="text-[14px] font-medium" style={{ color: "var(--color-accent-long)" }}>
             Collateral {isAdd ? "added" : "removed"} — {isAdd ? "+" : "-"}${amountUsd.toFixed(2)}
           </span>
-          {txSig && <span className="text-[12px] text-text-tertiary ml-auto num">{txSig.slice(0, 8)}..</span>}
         </div>
         <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
           <Cell label="Collateral" value={formatUsd(realCollateral)} />
@@ -415,6 +414,13 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
           <Cell label="Liq Distance" value={`${realLiqDist.toFixed(1)}%`}
             color={realLiqDist < 10 ? "var(--color-accent-short)" : undefined} />
         </div>
+        {txSig && (
+          <div className="px-4 py-2 border-t border-border-subtle">
+            <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noopener noreferrer" className="text-[12px] text-text-secondary hover:text-text-primary underline">
+              View on Solscan →
+            </a>
+          </div>
+        )}
       </div>
     );
   }
@@ -562,8 +568,14 @@ const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { output: To
           <span className="text-[14px] font-medium" style={{ color: isProfit ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
             Position closed — {receivedUsd ? `received $${receivedUsd}` : formatPnl(netPnl)}
           </span>
-          {txSig && <span className="text-[12px] text-text-tertiary ml-auto num">{txSig.slice(0, 8)}..</span>}
         </div>
+        {txSig && (
+          <div className="px-4 py-2 border-t border-border-subtle">
+            <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noopener noreferrer" className="text-[12px] text-text-secondary hover:text-text-primary underline">
+              View on Solscan →
+            </a>
+          </div>
+        )}
       </div>
     );
   }

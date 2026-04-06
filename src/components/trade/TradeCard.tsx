@@ -188,9 +188,10 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
             <span className="text-[14px]" style={{ color: accent }}>✓</span>
             <span className="text-[13px] font-medium" style={{ color: accent }}>Executed</span>
             {trade.tx_signature && (
-              <span className="text-[12px] text-text-tertiary ml-auto num">
-                {trade.tx_signature.slice(0, 8)}..
-              </span>
+              <a href={`https://solscan.io/tx/${trade.tx_signature}`} target="_blank" rel="noopener noreferrer"
+                className="text-[12px] text-text-tertiary ml-auto hover:text-text-primary underline">
+                View on Solscan →
+              </a>
             )}
           </div>
         )}
