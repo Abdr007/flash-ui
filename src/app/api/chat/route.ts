@@ -158,7 +158,7 @@ export async function POST(req: Request) {
 
   if (greetingPattern.test(lastUserText.trim())) {
     const result = streamText({
-      model: groq("llama-3.1-8b-instant"),
+      model: groq("llama-3.3-70b-versatile"),
       system: getSystemPrompt(context),
       messages: await convertToModelMessages(messages),
       temperature: 0,
@@ -174,7 +174,7 @@ export async function POST(req: Request) {
     hybrid.parseResult.type !== "unknown"
   ) {
     const result = streamText({
-      model: groq("llama-3.1-8b-instant"),
+      model: groq("llama-3.3-70b-versatile"),
       system: getSystemPrompt(context),
       messages: await convertToModelMessages(messages),
       tools,
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
 
   // Full AI path
     const result = streamText({
-      model: groq("llama-3.1-8b-instant"),
+      model: groq("llama-3.3-70b-versatile"),
       system: getSystemPrompt(context),
       messages: await convertToModelMessages(messages),
       tools,
