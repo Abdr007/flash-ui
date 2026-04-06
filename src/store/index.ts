@@ -458,6 +458,13 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       return;
     }
 
+    // ---- EARN ----
+    if (parsed.type === "earn") {
+      addSystemMsg("Earn command detected. Use the Earn page (tap Earn button) to deposit or withdraw from pools.");
+      set({ isProcessing: false });
+      return;
+    }
+
     // ---- QUERY ----
     if (parsed.type === "query") {
       // Price query

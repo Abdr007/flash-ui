@@ -23,6 +23,7 @@ import {
   DEFAULT_SLIPPAGE_BPS,
 } from "./constants";
 import { getTypicalLeverage } from "./user-patterns";
+import { parseEarnCommand } from "./earn-parser";
 
 let nextId = 0;
 function genId(): string {
@@ -30,7 +31,7 @@ function genId(): string {
 }
 
 export interface ParseResult {
-  type: "trade" | "close" | "reduce" | "modify" | "sl" | "tp" | "cancel" | "query" | "ambiguous" | "unknown";
+  type: "trade" | "close" | "reduce" | "modify" | "sl" | "tp" | "cancel" | "query" | "earn" | "ambiguous" | "unknown";
   intent: ParsedIntent;
   trade?: TradeObject;
   /** Chained intents to execute after the primary (e.g., SL/TP after open) */
@@ -292,6 +293,21 @@ function parseSingleIntent(input: string): ParseResult {
       type: "query",
       intent: { type: "QUERY", market: extractMarket(trimmed) ?? undefined, raw: trimmed },
     };
+  }
+
+  // ---- EARN COMMAND (deposit/withdraw into pools) ----
+  const EARN_POOLS = /\b(crypto|defi|gold|meme|wif|fart|ore|stable)\b/i;
+  const EARN_ACTIONS = /\b(deposit|withdraw|add|supply|remove|redeem)\b/i;
+  if (EARN_ACTIONS.test(lower) && EARN_POOLS.test(lower) && !hasTradeKeyword) {
+    const earnResult = parseEarnCommand(trimmed);
+    if (earnResult.status === "valid" && earnResult.earn) {
+      return {
+        type: "earn",
+        intent: { type: "QUERY", raw: trimmed },
+        // earnInstruction available via parseEarnCommand() — caller uses it
+      };
+    }
+    // If earn parse failed, fall through to AI
   }
 
   // ---- RELATIVE MODIFICATION ("double leverage", "increase size", "half") ----
