@@ -21,9 +21,21 @@
 
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { getCachedPrice, metrics as cacheMetrics } from "./price-cache";
-import { enforceFirewall } from "@/lib/trade-firewall";
-import { MARKETS, MARKET_ALIASES, DEFAULT_SLIPPAGE_BPS, MIN_COLLATERAL, MAX_LEVERAGE } from "@/lib/constants";
+import { enforceFirewall, getMaxLeverageForMarket } from "@/lib/trade-firewall";
+import { MARKETS, MARKET_ALIASES, DEFAULT_SLIPPAGE_BPS, MIN_COLLATERAL } from "@/lib/constants";
 import type { Position } from "@/lib/types";
+
+// ---- Background cache refresh (non-blocking, fire-and-forget) ----
+// When fast path misses due to empty cache, trigger a refresh so the NEXT request benefits.
+let _refreshPending = false;
+function triggerBackgroundRefresh(): void {
+  if (_refreshPending) return; // Debounce: only one in-flight at a time
+  _refreshPending = true;
+  import("./flash-api")
+    .then(({ fetchAllPrices }) => fetchAllPrices()) // fetchAllPrices calls updatePriceCache internally
+    .catch(() => {})
+    .finally(() => { _refreshPending = false; });
+}
 
 // ---- Strict Regex (full-string match, no partial) ----
 // Uses RegExp constructor to avoid template literal $ escaping issues.
@@ -86,7 +98,9 @@ function parse(input: string): ParsedTrade | null {
 
   // Numeric safety — reject NaN/Infinity/out-of-bounds
   if (!Number.isFinite(collateral) || collateral < MIN_COLLATERAL) return null;
-  if (!Number.isFinite(leverage) || leverage < 1 || leverage > MAX_LEVERAGE) return null;
+  // Per-market leverage cap (same as firewall — reject early, don't waste cycles)
+  const maxLev = getMaxLeverageForMarket(market);
+  if (!Number.isFinite(leverage) || leverage < 1 || leverage > maxLev) return null;
 
   // TP can be in group 5 or 7, SL in 6 or 8 (either ordering)
   const tp = m[5] ? parseFloat(m[5]) : m[7] ? parseFloat(m[7]) : null;
@@ -106,24 +120,38 @@ function parse(input: string): ParsedTrade | null {
 }
 
 // ---- PHASE 2: Validate (synchronous, <1ms) ----
+// When price is STALE (2-30s old), use CONSERVATIVE bounds to prevent
+// stale-data mistakes. Fresh prices get standard bounds.
+//
+// FRESH:        distance 0.1% – 500%
+// STALE:        distance 1.0% – 450%  (tighter = safer with old data)
+
+const DIST_MAX_FRESH = 5.0;     // 500%
+const DIST_MIN_FRESH = 0.001;   // 0.1%
+const DIST_MAX_STALE = 4.5;     // 450%
+const DIST_MIN_STALE = 0.01;    // 1.0%
 
 function validate(
   trade: ParsedTrade,
   entryPrice: number,
+  priceFresh: boolean,
   positions: Position[],
   wallet: string,
 ): { valid: boolean; preview?: Record<string, unknown>; warnings?: string[] } {
 
-  // TP/SL dynamic distance validation
+  const distMax = priceFresh ? DIST_MAX_FRESH : DIST_MAX_STALE;
+  const distMin = priceFresh ? DIST_MIN_FRESH : DIST_MIN_STALE;
+
+  // TP/SL dynamic distance validation (freshness-aware)
   if (trade.tp != null) {
     const dist = Math.abs(trade.tp - entryPrice) / entryPrice;
-    if (dist > 5.0 || dist < 0.001) return { valid: false };
+    if (dist > distMax || dist < distMin) return { valid: false };
     if (trade.side === "LONG" && trade.tp <= entryPrice) return { valid: false };
     if (trade.side === "SHORT" && trade.tp >= entryPrice) return { valid: false };
   }
   if (trade.sl != null) {
     const dist = Math.abs(trade.sl - entryPrice) / entryPrice;
-    if (dist > 5.0 || dist < 0.001) return { valid: false };
+    if (dist > distMax || dist < distMin) return { valid: false };
     if (trade.side === "LONG" && trade.sl >= entryPrice) return { valid: false };
     if (trade.side === "SHORT" && trade.sl <= entryPrice) return { valid: false };
   }
@@ -245,13 +273,14 @@ export function tryFastPath(
     // PHASE 2: Get cached price (SYNCHRONOUS — no network)
     const cached = getCachedPrice(trade.market);
     if (!cached) {
-      // No cached price → can't validate TP/SL direction → fall back
+      // No cached price → can't validate → fall back. Fire background refresh for next request.
+      triggerBackgroundRefresh();
       metrics.fallbacks++;
       return { matched: false };
     }
 
-    // PHASE 3: Validate
-    const result = validate(trade, cached.price, positions, walletAddress);
+    // PHASE 3: Validate (stale-aware — conservative bounds when price is old)
+    const result = validate(trade, cached.price, cached.fresh, positions, walletAddress);
     if (!result.valid) {
       metrics.validationFailures++;
       return { matched: false };
@@ -270,7 +299,22 @@ export function tryFastPath(
   }
 }
 
-/** Get fast path + cache metrics for diagnostics */
+/** Get fast path + cache metrics with derived rates for diagnostics */
 export function getMetrics() {
-  return { fastPath: { ...metrics }, priceCache: { ...cacheMetrics } };
+  const fp = { ...metrics };
+  const pc = { ...cacheMetrics };
+  const total = fp.hits + fp.misses + fp.fallbacks + fp.validationFailures;
+  return {
+    fastPath: fp,
+    priceCache: pc,
+    derived: {
+      totalAttempts: total,
+      successRate: total > 0 ? fp.hits / total : 0,
+      fallbackRate: total > 0 ? (fp.misses + fp.fallbacks) / total : 0,
+      validationRejectRate: total > 0 ? fp.validationFailures / total : 0,
+      cacheHitRate: (pc.hits + pc.stale) > 0
+        ? (pc.hits + pc.stale) / (pc.hits + pc.stale + pc.misses + pc.expired)
+        : 0,
+    },
+  };
 }
