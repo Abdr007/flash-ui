@@ -152,21 +152,6 @@ export async function POST(req: Request) {
     }
   }
 
-  // ---- EARN COMMAND GATE: prevent AI from treating earn as a trade ----
-  if (hybrid.parseResult?.type === "earn") {
-    const stream = (await import("ai")).createUIMessageStream({
-      execute: ({ writer }) => {
-        writer.write({ type: "start" });
-        const id = `text_earn_${Date.now()}`;
-        writer.write({ type: "text-start", id });
-        writer.write({ type: "text-delta", id, delta: "Use the Earn page to deposit or withdraw from pools. Tap the Earn button on the home screen." });
-        writer.write({ type: "text-end", id });
-        writer.write({ type: "finish" });
-      },
-    });
-    return (await import("ai")).createUIMessageStreamResponse({ stream });
-  }
-
   // Simple greetings / casual messages — no tools needed
   const greetingPattern = /^(h(ello|i|ey|owdy)|gm|good\s*(morning|evening|night)|yo|sup|what'?s?\s*up|thanks?|ty|ok|okay|sure|yes|no|yep|nah)\b/i;
   try {

@@ -14,6 +14,7 @@ import { createClosePositionPreviewTool } from "./closePositionPreview";
 import { createAddCollateralTool } from "./addCollateral";
 import { createRemoveCollateralTool } from "./removeCollateral";
 import { createReversePositionTool } from "./reversePosition";
+import { createEarnDepositTool } from "./earnDeposit";
 
 export function buildTools(wallet: string) {
   return {
@@ -27,5 +28,6 @@ export function buildTools(wallet: string) {
     add_collateral: createAddCollateralTool(wallet),
     remove_collateral: createRemoveCollateralTool(wallet),
     reverse_position_preview: createReversePositionTool(wallet),
+    earn_deposit: createEarnDepositTool(wallet),
   };
 }
