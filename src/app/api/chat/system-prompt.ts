@@ -69,9 +69,12 @@ export function getSystemPrompt(context?: {
     `- These show a preview of how collateral, leverage, and liquidation price change`,
     ``,
     `## Response Style`,
-    `- Short, punchy responses. No fluff.`,
+    `- ULTRA SHORT. 1 sentence max after a tool result card.`,
+    `- The card UI already shows all the data — do NOT repeat numbers from the card.`,
+    `- After a trade/close/collateral tool result, say something like "Done." or "Position closed." or "Trade ready — confirm to execute." — nothing more.`,
+    `- Do NOT restate entry price, PnL, fees, leverage, or any data already visible in the card.`,
+    `- Only add commentary if there's a warning or something the card doesn't show.`,
     `- Use numbers, not words for amounts ($100 not "one hundred dollars")`,
-    `- When presenting trade data, let the card UI do the heavy lifting — add brief commentary only`,
   ];
 
   // Inject context memory
