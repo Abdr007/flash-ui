@@ -46,17 +46,34 @@ export function useWalletSign() {
 
     signingRef.current = true;
 
+    const walletAddress = activeTrade.unsigned_tx
+      ? useFlashStore.getState().walletAddress
+      : null;
+
     (async () => {
       try {
-        // ── Step 1: Deserialize ──
-        const txBuffer = Buffer.from(activeTrade.unsigned_tx!, "base64");
-        const transaction = VersionedTransaction.deserialize(txBuffer);
+        // ── Step 1: Clean transaction (strip Lighthouse assertions, fix CU) ──
+        // Phantom wallet injects Lighthouse assertions during signing if the tx
+        // contains them. Clean BEFORE signing so the wallet signs a clean tx.
+        const cleanResp = await fetch("/api/clean-tx", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            txBase64: activeTrade.unsigned_tx!,
+            payerKey: walletAddress,
+          }),
+        });
+        const cleanData = await cleanResp.json();
+        if (cleanData.error) throw new Error(cleanData.error);
 
-        // ── Step 2: Fresh blockhash ──
-        const { blockhash } = await connection.getLatestBlockhash("confirmed");
-        transaction.message.recentBlockhash = blockhash;
+        // ── Step 2: Deserialize clean transaction ──
+        const txBytes = Uint8Array.from(
+          atob(cleanData.txBase64),
+          (c) => c.charCodeAt(0)
+        );
+        const transaction = VersionedTransaction.deserialize(txBytes);
 
-        // ── Step 3: Wallet signs (ONCE — signed bytes reused for all broadcasts) ──
+        // ── Step 3: Wallet signs clean tx (no Lighthouse to trigger injection) ──
         const signed = await signTransaction(transaction);
         const signedBytes = signed.serialize();
         const signedBase64 = Buffer.from(signedBytes).toString("base64");
