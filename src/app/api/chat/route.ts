@@ -152,13 +152,11 @@ export async function POST(req: Request) {
     return result.toUIMessageStreamResponse();
   }
 
+  // Parser resolved a known intent — let AI call the right tool
   if (
     !hybrid.aiNeeded &&
-    hybrid.parseResult?.type === "trade" &&
-    hybrid.intent?.market &&
-    hybrid.intent?.side &&
-    hybrid.intent?.collateral_usd &&
-    hybrid.intent?.leverage
+    hybrid.parseResult &&
+    hybrid.parseResult.type !== "unknown"
   ) {
     const result = streamText({
       model: groq("llama-3.1-8b-instant"),
