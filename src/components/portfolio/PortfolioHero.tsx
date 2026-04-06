@@ -6,6 +6,7 @@ import { POSITION_REFRESH_MS, TICKER_MARKETS, MARKETS } from "@/lib/constants";
 import { formatUsd, formatPnl, formatPrice, safe, formatAgo } from "@/lib/format";
 import { useNumberSpring } from "@/hooks/useSpring";
 import TradeFlow from "./TradeFlow";
+import BadgePanel from "./BadgePanel";
 const FSTATS = "https://fstats.io/api/v1";
 
 const TOKEN_COLORS: Record<string, string> = {
@@ -218,6 +219,11 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
         ) : (
           <div className="text-[13px] text-text-tertiary py-8">No open positions</div>
         )}
+
+        {/* Badge Panel */}
+        <div className="w-full mt-6">
+          <BadgePanel />
+        </div>
       </div>
     );
   }

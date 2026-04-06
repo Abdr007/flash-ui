@@ -290,7 +290,7 @@ export function getTypicalLeverage(): number {
 
 export interface TradeInsight {
   message: string;
-  type: "streak" | "milestone" | "tip" | "progress";
+  type: "streak" | "milestone" | "tip" | "progress" | "badge";
   color: string; // CSS color var
 }
 
@@ -300,6 +300,30 @@ export interface TradeInsight {
  */
 export function getPostTradeInsight(action: UserAction): TradeInsight | null {
   const p = getUserPatterns();
+
+  // ---- Badge unlocks (highest priority) ----
+  // Check if this trade just unlocked a badge by comparing key thresholds
+  if (p.totalTrades === 1) {
+    return { message: "⚡ Badge unlocked: Genesis", type: "badge", color: "var(--color-accent-lime)" };
+  }
+  if (p.bestSlStreak === 3 && action.hasSl) {
+    return { message: "🎯 Badge unlocked: Disciplined", type: "badge", color: "var(--color-accent-lime)" };
+  }
+  if (p.bestSlStreak === 5 && action.hasSl) {
+    return { message: "⚔️ Badge unlocked: Iron Discipline", type: "badge", color: "var(--color-accent-lime)" };
+  }
+  if (p.bestSlStreak === 10 && action.hasSl) {
+    return { message: "👑 Badge unlocked: Untouchable", type: "badge", color: "var(--color-accent-lime)" };
+  }
+  if (p.totalTrades === 10) {
+    return { message: "🔥 Badge unlocked: Getting Started", type: "badge", color: "var(--color-accent-lime)" };
+  }
+  if (p.totalTrades === 25) {
+    return { message: "💎 Badge unlocked: Regular", type: "badge", color: "var(--color-accent-lime)" };
+  }
+  if (p.totalTrades === 50) {
+    return { message: "🏆 Badge unlocked: Power Trader", type: "badge", color: "var(--color-accent-lime)" };
+  }
 
   // ---- Streaks ----
   if (action.hasSl && p.slStreak >= 3) {
