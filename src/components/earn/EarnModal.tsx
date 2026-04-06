@@ -17,11 +17,12 @@ interface EarnModalProps {
   poolAlias: string;
   poolName: string;
   flpPrice: number;
+  poolApy: number; // 7d APY — used for dynamic slippage
   onClose: () => void;
   onSuccess: () => void;
 }
 
-type Status = "input" | "building" | "signing" | "confirming" | "success" | "error";
+type Status = "input" | "building" | "simulating" | "signing" | "confirming" | "success" | "error";
 
 // ---- User-friendly error mapping ----
 function friendlyError(msg: string): string {
@@ -36,7 +37,16 @@ function friendlyError(msg: string): string {
   return msg;
 }
 
-export default function EarnModal({ mode, poolAlias, poolName, flpPrice, onClose, onSuccess }: EarnModalProps) {
+// Dynamic slippage: higher APY = more trading activity = wider slippage
+function computeSlippage(apy: number): number {
+  if (!Number.isFinite(apy) || apy <= 0) return 0.5;
+  if (apy > 100) return 2.0;  // Very high APY pools (Ore, etc) — volatile
+  if (apy > 50) return 1.5;   // High activity pools
+  if (apy > 20) return 0.75;  // Moderate
+  return 0.5;                  // Stable pools
+}
+
+export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy, onClose, onSuccess }: EarnModalProps) {
   const [amount, setAmount] = useState("");
   const [status, setStatus] = useState<Status>("input");
   const [errorMsg, setErrorMsg] = useState("");
@@ -53,14 +63,15 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, onClose
   const isValid = Number.isFinite(numAmount) && numAmount > 0 &&
     (mode === "deposit" ? numAmount >= 1 : numAmount >= 1 && numAmount <= 100);
 
+  // Dynamic slippage based on pool volatility
+  const slippagePct = computeSlippage(poolApy);
+
   // Previews (display only — final values from protocol)
   const previewShares = mode === "deposit" && flpPrice > 0 ? numAmount / flpPrice : 0;
   const previewUsdc = mode === "withdraw" && flpPrice > 0 ? numAmount * flpPrice / 100 : 0;
-  // Show minimum after slippage
-  const slippagePct = 0.5;
   const minShares = previewShares * (1 - slippagePct / 100);
 
-  const isInFlight = status === "building" || status === "signing" || status === "confirming";
+  const isInFlight = status === "building" || status === "simulating" || status === "signing" || status === "confirming";
 
   async function handleExecute() {
     // Execution lock
@@ -119,7 +130,29 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, onClose
         transaction.sign(result.additionalSigners);
       }
 
-      // Wallet signs
+      // ---- PRE-BROADCAST SIMULATION ----
+      // Catch program errors before asking user to sign.
+      // Saves wallet popups and gas on doomed transactions.
+      setStatus("simulating");
+      const simResult = await connection.simulateTransaction(transaction, {
+        sigVerify: false, // Don't verify sigs — wallet hasn't signed yet
+        replaceRecentBlockhash: true,
+      });
+      if (simResult.value.err) {
+        // Parse program error for user-friendly message
+        const simErr = JSON.stringify(simResult.value.err);
+        const logs = simResult.value.logs?.slice(-3)?.join(" ") ?? "";
+        if (simErr.includes("InstructionError") || logs.includes("Error")) {
+          const reason = logs.includes("insufficient") ? "Insufficient balance"
+            : logs.includes("SlippageExceeded") || logs.includes("slippage") ? "Slippage exceeded — price moved"
+            : logs.includes("ExceededMaxEntries") ? "Pool is full"
+            : `Simulation failed: ${simErr.slice(0, 80)}`;
+          throw new Error(reason);
+        }
+        throw new Error(`Transaction would fail: ${simErr.slice(0, 100)}`);
+      }
+
+      // Wallet signs (only after successful simulation)
       setStatus("signing");
       const signed = await signTransaction(transaction);
 
@@ -265,6 +298,7 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, onClose
                   <span className="w-3.5 h-3.5 border-2 border-text-tertiary border-t-transparent rounded-full"
                     style={{ animation: "spin 0.8s linear infinite" }} />
                   {status === "building" ? "Building transaction..."
+                    : status === "simulating" ? "Simulating — checking for errors..."
                     : status === "signing" ? "Sign in your wallet..."
                     : "Confirming on-chain..."}
                 </div>

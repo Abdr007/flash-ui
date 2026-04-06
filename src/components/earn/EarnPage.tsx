@@ -200,6 +200,7 @@ function PoolCard({ pool, walletConnected, onRefresh }: { pool: EarnPool; wallet
           poolAlias={meta.name.split(" ")[0].toLowerCase()}
           poolName={meta.name}
           flpPrice={flpPrice}
+          poolApy={flpApy}
           onClose={() => setModal(null)}
           onSuccess={() => { setModal(null); onRefresh(); }}
         />
