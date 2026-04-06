@@ -6,6 +6,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useWalletSign } from "@/hooks/useWalletSign";
+import { useLivePnl } from "@/hooks/useLivePnl";
 
 const WalletProvider = dynamic(
   () => import("@/components/layout/WalletProvider"),
@@ -15,6 +16,7 @@ const WalletProvider = dynamic(
 function AppShell({ children }: { children: React.ReactNode }) {
   usePriceStream();
   useWalletSign();
+  useLivePnl();
 
   // Global unhandled error/rejection handlers — prevent silent white screens
   useEffect(() => {

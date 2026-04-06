@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS, TICKER_MARKETS, MARKETS } from "@/lib/constants";
 import { formatUsd, formatPnl, formatPrice, safe, formatAgo } from "@/lib/format";
+import { useNumberSpring } from "@/hooks/useSpring";
 import TradeFlow from "./TradeFlow";
 const FSTATS = "https://fstats.io/api/v1";
 
@@ -152,6 +153,9 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
     totalCollateral += safe(pos.collateral_usd);
   }
 
+  // Spring-animated total PnL (smooth transitions)
+  const springTotalPnl = useNumberSpring(totalPnl, { stiffness: 160, damping: 20 });
+
   const walletUsd = totalWalletUsd;
 
   // ── Guided Trade Flow ──
@@ -185,7 +189,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
             <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
               <span className="text-[12px] text-text-tertiary tracking-wider uppercase">Open Positions</span>
               <span className="text-[13px] num font-medium" style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
-                {formatPnl(totalPnl)}
+                {formatPnl(springTotalPnl)}
               </span>
             </div>
             {positions.map((pos) => (
@@ -284,7 +288,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
                 <>
                   <span className="text-text-tertiary">·</span>
                   <span className="num font-medium" style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
-                    {formatPnl(totalPnl)}
+                    {formatPnl(springTotalPnl)}
                   </span>
                 </>
               )}

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS } from "@/lib/constants";
-import { formatUsd, formatPrice, formatPnl, formatPnlPct } from "@/lib/format";
+import { formatUsd, formatPrice, formatPnl, formatPnlPct, safe, liqDistancePct } from "@/lib/format";
+import { useNumberSpring } from "@/hooks/useSpring";
 import type { Position } from "@/lib/types";
 
 export default function PositionPanel() {
@@ -49,13 +50,37 @@ export default function PositionPanel() {
 
 function PositionRow({ position }: { position: Position }) {
   const closePosition = useFlashStore((s) => s.closePosition);
-  const isProfit = (position.unrealized_pnl ?? 0) >= 0;
+  const pnl = safe(position.unrealized_pnl);
+  const pnlPct = safe(position.unrealized_pnl_pct);
+  const isProfit = pnl >= 0;
   const isLong = position.side === "LONG";
   const sideColor = isLong ? "var(--color-accent-long)" : "var(--color-accent-short)";
   const pnlColor = isProfit ? "var(--color-accent-long)" : "var(--color-accent-short)";
 
+  // Spring-animated PnL (smooth transitions, no jumps)
+  const springPnl = useNumberSpring(pnl, { stiffness: 180, damping: 22 });
+  const springPnlPct = useNumberSpring(pnlPct, { stiffness: 180, damping: 22 });
+
+  // Liquidation distance
+  const liqDist = liqDistancePct(position.mark_price || position.entry_price, position.liquidation_price, position.side);
+
+  // Flash on PnL direction change
+  const [flash, setFlash] = useState(false);
+  const prevProfitRef = useRef(isProfit);
+  useEffect(() => {
+    if (prevProfitRef.current !== isProfit) {
+      prevProfitRef.current = isProfit;
+      setFlash(true);
+      const t = setTimeout(() => setFlash(false), 400);
+      return () => clearTimeout(t);
+    }
+  }, [isProfit]);
+
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="glass-card overflow-hidden" style={{
+      transition: "box-shadow 400ms ease-out",
+      boxShadow: flash ? `inset 0 0 12px ${pnlColor}20` : "none",
+    }}>
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border-subtle">
         <div className="flex items-center gap-2">
@@ -65,20 +90,38 @@ function PositionRow({ position }: { position: Position }) {
             {position.side}
           </span>
         </div>
-        <span className="num text-[13px] font-semibold" style={{ color: pnlColor }}>
-          {formatPnl(position.unrealized_pnl)}
+        <span className="num text-[13px] font-semibold" style={{ color: pnlColor, transition: "color 300ms" }}>
+          {formatPnl(springPnl)}
         </span>
       </div>
 
       {/* Data */}
       <div className="px-3.5 py-2.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
         <Row label="Size" value={formatUsd(position.size_usd)} />
-        <Row label="Lev" value={`${(position.leverage ?? 0).toFixed(1)}x`} />
+        <Row label="Lev" value={`${safe(position.leverage).toFixed(1)}x`} />
         <Row label="Entry" value={formatPrice(position.entry_price)} />
         <Row label="Mark" value={formatPrice(position.mark_price)} />
         <Row label="Liq" value={formatPrice(position.liquidation_price)} color="var(--color-accent-warn)" />
-        <Row label="PnL %" value={formatPnlPct(position.unrealized_pnl_pct)} color={pnlColor} />
+        <Row label="PnL %" value={formatPnlPct(springPnlPct)} color={pnlColor} />
       </div>
+
+      {/* Liquidation distance bar */}
+      {liqDist > 0 && (
+        <div className="px-3.5 pb-2 pt-0.5">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1 bg-border-subtle rounded-full overflow-hidden">
+              <div className="h-full rounded-full" style={{
+                width: `${Math.min(safe(liqDist), 100)}%`,
+                background: liqDist < 10 ? "var(--color-accent-short)" : liqDist < 25 ? "var(--color-accent-warn)" : "var(--color-accent-long)",
+                transition: "width 500ms ease-out, background-color 300ms",
+              }} />
+            </div>
+            <span className="text-[10px] num" style={{
+              color: liqDist < 10 ? "var(--color-accent-short)" : liqDist < 25 ? "var(--color-accent-warn)" : "var(--color-text-tertiary)",
+            }}>{safe(liqDist).toFixed(0)}%</span>
+          </div>
+        </div>
+      )}
 
       {/* Close */}
       <button
