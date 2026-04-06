@@ -285,7 +285,7 @@ function parseSingleIntent(input: string): ParseResult {
   }
 
   // ---- QUERY ----
-  if (/^(price|positions?|portfolio|balance|status|help)\b/i.test(lower)) {
+  if (/\b(show\s+)?(my\s+)?(price|positions?|portfolio|balance|status|help|all\s*prices?|markets?)\b/i.test(lower)) {
     return {
       type: "query",
       intent: { type: "QUERY", market: extractMarket(trimmed) ?? undefined, raw: trimmed },
