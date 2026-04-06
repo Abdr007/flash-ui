@@ -55,6 +55,7 @@ const ToolResultCard = memo(function ToolResultCard({ part }: { part: ToolPart }
     case "get_market_info": return <MarketInfoCard output={output} />;
     case "add_collateral":
     case "remove_collateral": return <CollateralCard output={output} />;
+    case "reverse_position_preview": return <ReversePositionCard output={output} />;
     default: return <GenericCard toolName={part.toolName} output={output} />;
   }
 });
@@ -68,6 +69,7 @@ const TOOL_STEPS: Record<string, string[]> = {
   close_position_preview: ["Loading position", "Fetching exit price", "Calculating PnL"],
   add_collateral: ["Loading position", "Calculating new leverage"],
   remove_collateral: ["Loading position", "Validating removal", "Calculating new leverage"],
+  reverse_position_preview: ["Loading position", "Calculating reversal", "Estimating fees"],
   get_positions: ["Querying positions"],
   get_portfolio: ["Loading portfolio"],
   get_price: ["Fetching price"],
@@ -615,6 +617,135 @@ const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { output: To
           </button>
         )}
       </div>
+    </div>
+  );
+});
+
+const ReversePositionCard = memo(function ReversePositionCard({ output }: { output: ToolOutput }) {
+  const d = output.data as Record<string, unknown> | null;
+  const [status, setStatus] = useState<"preview" | "executing" | "signing" | "confirming" | "success" | "error">("preview");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [txSig, setTxSig] = useState("");
+  const walletAddress = useFlashStore((s) => s.walletAddress);
+  const refreshPositions = useFlashStore((s) => s.refreshPositions);
+  const { connection } = useConnection();
+  const { signTransaction, connected } = useWallet();
+
+  if (!d) return null;
+  const market = String(d.market ?? "");
+  const currentSide = String(d.current_side ?? "");
+  const newSide = String(d.new_side ?? "");
+  const closePnl = Number(d.close_pnl ?? 0);
+  const totalFees = Number(d.total_fees ?? 0);
+  const newCollateral = Number(d.new_collateral ?? 0);
+  const newSize = Number(d.new_size ?? 0);
+  const newLeverage = Number(d.new_leverage ?? 0);
+  const positionKey = String(d.pubkey ?? "");
+
+  async function handleReverse() {
+    if (status !== "preview" || !walletAddress || !connected || !signTransaction || !positionKey) return;
+    setStatus("executing");
+
+    try {
+      const { buildReversePosition } = await import("@/lib/api");
+      const apiResult = await buildReversePosition({
+        positionKey,
+        owner: walletAddress,
+      });
+
+      if (apiResult.err) throw new Error(apiResult.err);
+      if (!apiResult.transactionBase64) throw new Error("No transaction from API");
+
+      const cleanResp = await fetch("/api/clean-tx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txBase64: apiResult.transactionBase64, payerKey: walletAddress }),
+      });
+      const cleanData = await cleanResp.json();
+      if (cleanData.error) throw new Error(cleanData.error);
+
+      const { VersionedTransaction } = await import("@solana/web3.js");
+      const txBytes = Uint8Array.from(atob(cleanData.txBase64), (c) => c.charCodeAt(0));
+      const transaction = VersionedTransaction.deserialize(txBytes);
+
+      setStatus("signing");
+      const signed = await signTransaction(transaction);
+
+      setStatus("confirming");
+      const { executeSignedTransaction } = await import("@/lib/tx-executor");
+      const signedBase64 = Buffer.from(signed.serialize()).toString("base64");
+      const signature = await executeSignedTransaction(signedBase64, connection);
+
+      setTxSig(signature);
+      setStatus("success");
+      refreshPositions();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Reverse failed";
+      setErrorMsg(msg.includes("rejected") ? "Transaction rejected by wallet." : msg);
+      setStatus("error");
+    }
+  }
+
+  const isLive = status === "executing" || status === "signing" || status === "confirming";
+
+  return (
+    <div className="w-full max-w-[420px] glass-card overflow-hidden">
+      <div className="px-5 py-4">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px] text-text-tertiary tracking-wider uppercase">Reverse Position</span>
+          {status === "success" && <span className="text-[11px] text-accent-long font-medium">Confirmed</span>}
+          {status === "error" && <span className="text-[11px] text-accent-short font-medium">Failed</span>}
+          {isLive && <span className="text-[11px] text-text-secondary animate-pulse">
+            {status === "executing" ? "Building..." : status === "signing" ? "Sign in wallet..." : "Confirming..."}
+          </span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-bold px-2 py-0.5 rounded"
+            style={{ color: currentSide === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)",
+              background: currentSide === "LONG" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
+            {currentSide}
+          </span>
+          <span className="text-text-tertiary">→</span>
+          <span className="text-[13px] font-bold px-2 py-0.5 rounded"
+            style={{ color: newSide === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)",
+              background: newSide === "LONG" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
+            {newSide}
+          </span>
+          <span className="text-[15px] font-semibold text-text-primary ml-1">{market}</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
+        <Cell label="Close PnL" value={formatPnl(closePnl)} color={closePnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)"} />
+        <Cell label="Total Fees" value={formatUsd(totalFees)} />
+        <Cell label="New Collateral" value={formatUsd(newCollateral)} />
+        <Cell label="New Size" value={formatUsd(newSize)} />
+        <Cell label="Leverage" value={formatLeverage(newLeverage)} />
+        <Cell label="New Side" value={newSide} color={newSide === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)"} />
+      </div>
+
+      <div className="flex border-t border-border-subtle">
+        <button
+          onClick={handleReverse}
+          disabled={status !== "preview"}
+          className="btn-primary flex-1 py-3 text-[13px] font-bold tracking-wide
+            cursor-pointer disabled:opacity-25 disabled:cursor-default rounded-none rounded-bl-xl"
+          style={{ background: newSide === "LONG" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)",
+            color: newSide === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+          {isLive ? "Processing..." : status === "success" ? "Reversed" : status === "error" ? "Failed" : `Reverse to ${newSide}`}
+        </button>
+      </div>
+
+      {status === "error" && errorMsg && (
+        <div className="px-4 py-2 text-[12px] text-accent-short bg-accent-short/5">{errorMsg}</div>
+      )}
+      {status === "success" && txSig && (
+        <div className="px-4 py-2 text-[12px] text-text-secondary">
+          <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-text-primary">
+            View on Solscan →
+          </a>
+        </div>
+      )}
     </div>
   );
 });

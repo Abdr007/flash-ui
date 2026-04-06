@@ -13,6 +13,7 @@ import { createBuildTradeTool } from "./buildTrade";
 import { createClosePositionPreviewTool } from "./closePositionPreview";
 import { createAddCollateralTool } from "./addCollateral";
 import { createRemoveCollateralTool } from "./removeCollateral";
+import { createReversePositionTool } from "./reversePosition";
 
 export function buildTools(wallet: string) {
   return {
@@ -25,5 +26,6 @@ export function buildTools(wallet: string) {
     close_position_preview: createClosePositionPreviewTool(wallet),
     add_collateral: createAddCollateralTool(wallet),
     remove_collateral: createRemoveCollateralTool(wallet),
+    reverse_position_preview: createReversePositionTool(wallet),
   };
 }
