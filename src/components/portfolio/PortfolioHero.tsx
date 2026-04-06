@@ -27,6 +27,7 @@ interface PortfolioHeroProps {
 }
 
 function formatCompact(n: number): string {
+  if (!Number.isFinite(n) || n === 0) return "$0";
   if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
   if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`;
@@ -166,7 +167,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
                   <span className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded-full"
                     style={{ color: pos.side === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)",
                       background: pos.side === "LONG" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
-                    {pos.side} {pos.leverage.toFixed(1)}x
+                    {pos.side} {(pos.leverage ?? 0).toFixed(1)}x
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-[12px]">

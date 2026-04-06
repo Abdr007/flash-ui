@@ -49,7 +49,7 @@ export default function PositionPanel() {
 
 function PositionRow({ position }: { position: Position }) {
   const closePosition = useFlashStore((s) => s.closePosition);
-  const isProfit = position.unrealized_pnl >= 0;
+  const isProfit = (position.unrealized_pnl ?? 0) >= 0;
   const isLong = position.side === "LONG";
   const sideColor = isLong ? "var(--color-accent-long)" : "var(--color-accent-short)";
   const pnlColor = isProfit ? "var(--color-accent-long)" : "var(--color-accent-short)";
@@ -73,7 +73,7 @@ function PositionRow({ position }: { position: Position }) {
       {/* Data */}
       <div className="px-3.5 py-2.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
         <Row label="Size" value={formatUsd(position.size_usd)} />
-        <Row label="Lev" value={`${position.leverage.toFixed(1)}x`} />
+        <Row label="Lev" value={`${(position.leverage ?? 0).toFixed(1)}x`} />
         <Row label="Entry" value={formatPrice(position.entry_price)} />
         <Row label="Mark" value={formatPrice(position.mark_price)} />
         <Row label="Liq" value={formatPrice(position.liquidation_price)} color="var(--color-accent-warn)" />

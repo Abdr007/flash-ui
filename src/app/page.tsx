@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import MainLayout from "@/components/layout/MainLayout";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useWalletSign } from "@/hooks/useWalletSign";
 
@@ -18,10 +19,12 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
 export default function Home() {
   return (
-    <WalletProvider>
-      <AppShell>
-        <MainLayout />
-      </AppShell>
-    </WalletProvider>
+    <ErrorBoundary>
+      <WalletProvider>
+        <AppShell>
+          <MainLayout />
+        </AppShell>
+      </WalletProvider>
+    </ErrorBoundary>
   );
 }
