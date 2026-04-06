@@ -327,15 +327,26 @@ const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Reco
   // Guard: parts could be undefined/null/not-array from bad API response
   const safeParts = Array.isArray(parts) ? parts : [];
 
-  // Detect fast-path response (latency_ms === 0 in tool output)
+  // Detect fast-path response and extract trade summary for intelligence signal
+  let fastPathSummary = "";
   const isFastPath = safeParts.some((p) => {
-    if (p?.type !== "tool-output-available" && p?.type !== "dynamic-tool") return false;
-    const out = (p.output ?? p) as Record<string, unknown>;
-    const data = out.output ?? out;
-    if (typeof data === "object" && data !== null) {
-      const d = data as Record<string, unknown>;
-      return d.request_id && typeof d.request_id === "string" && (d.request_id as string).startsWith("fast_");
-    }
+    try {
+      const toolInput = p?.input as Record<string, unknown> | undefined;
+      const toolOutput = p?.output as Record<string, unknown> | undefined;
+      const reqId = toolOutput?.request_id ?? (toolOutput?.output as Record<string, unknown> | undefined)?.request_id;
+      if (typeof reqId === "string" && reqId.startsWith("fast_")) {
+        // Build summary from tool input
+        if (toolInput) {
+          const parts: string[] = [];
+          if (toolInput.side) parts.push(String(toolInput.side));
+          if (toolInput.market) parts.push(String(toolInput.market));
+          if (toolInput.leverage) parts.push(`${toolInput.leverage}x`);
+          if (toolInput.collateral_usd) parts.push(`$${toolInput.collateral_usd}`);
+          fastPathSummary = parts.join(" · ");
+        }
+        return true;
+      }
+    } catch {}
     return false;
   });
 
@@ -350,8 +361,9 @@ const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Reco
 
       <div className="flex flex-col gap-3 min-w-0 flex-1">
         {isFastPath && (
-          <div className="flex items-center gap-1.5 -mb-1.5">
+          <div className="flex items-center gap-2 -mb-1.5">
             <span className="text-[10px] font-semibold tracking-wider" style={{ color: "var(--color-accent-lime)" }}>⚡ INSTANT</span>
+            {fastPathSummary && <span className="text-[10px] text-text-tertiary">{fastPathSummary}</span>}
           </div>
         )}
         {safeParts.map((part, i) => {

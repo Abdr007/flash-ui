@@ -81,8 +81,27 @@ const StreamingSteps = memo(function StreamingSteps({ toolName, step, input }: {
   const steps = TOOL_STEPS[toolName] ?? ["Processing"];
   const market = input?.market ? ` ${input.market}` : "";
 
+  // Build an intent summary from input params (shows what was understood)
+  const intentParts: string[] = [];
+  if (input) {
+    if (input.side) intentParts.push(String(input.side));
+    if (input.market) intentParts.push(String(input.market));
+    if (input.leverage) intentParts.push(`${input.leverage}x`);
+    if (input.collateral_usd) intentParts.push(`$${input.collateral_usd}`);
+    if (input.take_profit_price) intentParts.push(`TP $${input.take_profit_price}`);
+    if (input.stop_loss_price) intentParts.push(`SL $${input.stop_loss_price}`);
+  }
+  const intentSummary = intentParts.length > 0 ? intentParts.join(" · ") : "";
+
   return (
     <div className="w-full max-w-[420px] glass-card anticipate-in overflow-hidden">
+      {/* Intent detection banner */}
+      {intentSummary && step >= 2 && (
+        <div className="px-4 py-2 text-[11px] text-text-tertiary border-b border-border-subtle flex items-center gap-2">
+          <span style={{ color: "var(--color-accent-lime)" }}>✓</span>
+          <span>Detected: {intentSummary}</span>
+        </div>
+      )}
       <div className="px-4 py-3 flex flex-col gap-2">
         {steps.map((label, i) => {
           const isDone = i < step;
@@ -1149,11 +1168,15 @@ const Cell = memo(function Cell({ label, value, color }: { label: string; value:
 });
 
 const ConfidenceBadge = memo(function ConfidenceBadge({ confidence }: { confidence: TradeConfidence }) {
-  const cfg = { high: { c: "var(--color-accent-long)", l: "High" }, medium: { c: "var(--color-accent-warn)", l: "Med" }, low: { c: "var(--color-accent-short)", l: "Low" } }[confidence.level];
+  const cfg = {
+    high: { c: "var(--color-accent-long)", l: "Verified", icon: "✓" },
+    medium: { c: "var(--color-accent-warn)", l: "Med", icon: "●" },
+    low: { c: "var(--color-accent-short)", l: "Low", icon: "●" },
+  }[confidence.level];
   return (
     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
       style={{ background: `${cfg.c}12` }}>
-      <div className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.c }} />
+      <span className="text-[10px] font-bold" style={{ color: cfg.c }}>{cfg.icon}</span>
       <span className="text-[11px] font-semibold" style={{ color: cfg.c }}>{cfg.l}</span>
     </div>
   );
