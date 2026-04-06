@@ -45,6 +45,13 @@ export interface UserPatterns {
   slStreak: number;         // consecutive trades WITH SL set
   bestSlStreak: number;     // all-time best SL streak
   sessionTrades: number;    // trades in current session (since last page load)
+  // ---- Earn behavior ----
+  earnDeposits: number;              // total successful deposits
+  earnWithdraws: number;             // total successful withdrawals
+  earnErrors: Record<string, number>; // error type → count (for adaptive suggestions)
+  earnPreferredPool: string;         // most-used pool alias
+  earnAvgDeposit: number;            // rolling avg deposit size
+  earnLastSlippageError: number;     // timestamp of last slippage error
 }
 
 // ---- Storage Key ----
@@ -68,6 +75,12 @@ function defaultPatterns(): UserPatterns {
     slStreak: 0,
     bestSlStreak: 0,
     sessionTrades: 0,
+    earnDeposits: 0,
+    earnWithdraws: 0,
+    earnErrors: {},
+    earnPreferredPool: "",
+    earnAvgDeposit: 0,
+    earnLastSlippageError: 0,
   };
 }
 
@@ -367,6 +380,88 @@ export function getPostTradeInsight(action: UserAction): TradeInsight | null {
     const profile = getRiskProfile();
     const profileLabel = { aggressive: "Aggressive", moderate: "Balanced", conservative: "Conservative" }[profile];
     return { message: `Trading profile: ${profileLabel} · Avg ${p.avgLeverage.toFixed(1)}x · SL rate ${Math.round(p.slUsageRate * 100)}%`, type: "progress", color: "var(--color-text-secondary)" };
+  }
+
+  return null;
+}
+
+// ---- Earn Intelligence ----
+
+/** Record a successful earn action */
+export function recordEarnSuccess(pool: string, amountUsd: number, action: "deposit" | "withdraw"): void {
+  const p = getUserPatterns();
+  if (action === "deposit") {
+    p.earnDeposits++;
+    // Rolling average deposit size
+    const n = p.earnDeposits;
+    p.earnAvgDeposit = p.earnAvgDeposit * ((n - 1) / n) + amountUsd / n;
+  } else {
+    p.earnWithdraws++;
+  }
+  // Track preferred pool (most deposits)
+  const poolCounts: Record<string, number> = {};
+  for (const a of p.lastActions) {
+    if (a.market.startsWith("earn:")) poolCounts[a.market] = (poolCounts[a.market] ?? 0) + 1;
+  }
+  poolCounts[`earn:${pool}`] = (poolCounts[`earn:${pool}`] ?? 0) + 1;
+  const best = Object.entries(poolCounts).sort((a, b) => b[1] - a[1])[0];
+  if (best) p.earnPreferredPool = best[0].replace("earn:", "");
+
+  persist(p);
+}
+
+/** Record an earn error for adaptive suggestions */
+export function recordEarnError(errorType: string): void {
+  const p = getUserPatterns();
+  const key = errorType.toLowerCase().includes("slippage") ? "slippage"
+    : errorType.toLowerCase().includes("insufficient") ? "balance"
+    : errorType.toLowerCase().includes("timeout") ? "timeout"
+    : "other";
+  p.earnErrors[key] = (p.earnErrors[key] ?? 0) + 1;
+  if (key === "slippage") p.earnLastSlippageError = Date.now();
+  persist(p);
+}
+
+/** Get personalized earn suggestion based on history */
+export function getEarnGuidance(errorMsg: string): string | null {
+  const p = getUserPatterns();
+  const errors = p.earnErrors;
+
+  // Repeated slippage errors → suggest waiting or smaller size
+  if (errorMsg.toLowerCase().includes("slippage") && (errors.slippage ?? 0) >= 2) {
+    return "You've hit slippage multiple times. Try depositing during lower-traffic hours or use a smaller amount.";
+  }
+
+  // Repeated balance errors → suggest checking balance first
+  if (errorMsg.toLowerCase().includes("insufficient") && (errors.balance ?? 0) >= 2) {
+    return "Check your USDC balance before depositing. You can see it on the Portfolio page.";
+  }
+
+  // Repeated timeouts → suggest trying later
+  if (errorMsg.toLowerCase().includes("timeout") && (errors.timeout ?? 0) >= 3) {
+    return "Network has been congested. Solana traffic is high — try again in a few minutes.";
+  }
+
+  return null;
+}
+
+/** Get personalized success message based on earn history */
+export function getEarnSuccessFeedback(pool: string, action: "deposit" | "withdraw"): string | null {
+  const p = getUserPatterns();
+
+  if (action === "deposit") {
+    if (p.earnDeposits === 1) return "First deposit! You're now earning from trading fees.";
+    if (p.earnDeposits === 5) return "5 deposits — you're building a yield portfolio.";
+    if (p.earnDeposits === 10) return "10 deposits — experienced LP.";
+    if (pool === p.earnPreferredPool && p.earnDeposits > 3) return `Continuing with your preferred pool.`;
+    // Reinforce good behavior: depositing after a withdrawal
+    if (p.earnWithdraws > 0 && p.earnDeposits > p.earnWithdraws) return "Smart — reinvesting after withdrawal.";
+  }
+
+  if (action === "withdraw") {
+    if (p.earnWithdraws === 1) return "First withdrawal complete.";
+    // If they withdraw everything after errors, acknowledge
+    if ((p.earnErrors.slippage ?? 0) > 0) return "Withdrawn successfully despite earlier slippage issues.";
   }
 
   return null;

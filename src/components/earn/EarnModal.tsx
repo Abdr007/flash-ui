@@ -11,6 +11,7 @@ import { useState, useRef } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { VersionedTransaction, ComputeBudgetProgram, MessageV0 } from "@solana/web3.js";
 import { formatUsd, safe } from "@/lib/format";
+import { recordEarnSuccess, recordEarnError, getEarnGuidance, getEarnSuccessFeedback } from "@/lib/user-patterns";
 
 interface EarnModalProps {
   mode: "deposit" | "withdraw";
@@ -40,6 +41,11 @@ interface ErrorSuggestion {
 
 function getSuggestion(errorMsg: string): ErrorSuggestion | null {
   const lower = errorMsg.toLowerCase();
+
+  // Check for personalized guidance first (based on error history)
+  const learned = getEarnGuidance(errorMsg);
+  if (learned) return { label: learned, action: "retry" };
+
   if (lower.includes("insufficient") || lower.includes("balance"))
     return { label: "Try a smaller amount", action: "reduce" };
   if (lower.includes("slippage") || lower.includes("price moved"))
@@ -49,7 +55,7 @@ function getSuggestion(errorMsg: string): ErrorSuggestion | null {
   if (lower.includes("timeout") || lower.includes("congestion"))
     return { label: "Wait a moment and retry", action: "wait" };
   if (lower.includes("rejected"))
-    return null; // User chose to reject — no suggestion
+    return null;
   if (lower.includes("simulation failed") || lower.includes("program error"))
     return { label: "Retry with a smaller amount", action: "reduce" };
   return { label: "Try again", action: "retry" };
@@ -243,12 +249,18 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
       const signature = await executeSignedTransaction(signedBase64, connection);
       tConfirm = Math.round(performance.now() - tConfirmStart);
 
-      // Build success info
+      // Record success for learning
+      try { recordEarnSuccess(poolAlias, numAmount, mode); } catch {}
+
+      // Build success info with personalized feedback
       setTxSig(signature);
+      const personalFeedback = getEarnSuccessFeedback(poolAlias, mode);
       if (mode === "deposit") {
-        setReceivedInfo(`≈ ${safe(previewShares).toFixed(4)} FLP received`);
+        setReceivedInfo(`≈ ${safe(previewShares).toFixed(4)} FLP received`
+          + (personalFeedback ? ` · ${personalFeedback}` : ""));
       } else {
-        setReceivedInfo(`≈ ${formatUsd(previewUsdc)} USDC received`);
+        setReceivedInfo(`≈ ${formatUsd(previewUsdc)} USDC received`
+          + (personalFeedback ? ` · ${personalFeedback}` : ""));
       }
       const totalMs = Math.round(performance.now() - t0);
       setLatencyInfo(`Build ${tBuild}ms · Sim ${tSim}ms · Confirm ${tConfirm}ms · Total ${totalMs}ms`);
@@ -276,6 +288,9 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
         }, 800);
         return;
       }
+
+      // Record error for adaptive suggestions
+      try { recordEarnError(raw); } catch {}
 
       setErrorMsg(friendly);
       setStatus("error");
