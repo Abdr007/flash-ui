@@ -4,6 +4,8 @@
 // Mirrors lib/api.ts patterns but for server-side use in /api/chat tools.
 // Used by AI tools to fetch prices, positions, and market data.
 
+import { updatePriceCache } from "./price-cache";
+
 const FLASH_API_URL = process.env.NEXT_PUBLIC_FLASH_API_URL || "https://flashapi.trade";
 const TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
@@ -97,6 +99,9 @@ export async function fetchAllPrices(): Promise<Record<string, ServerPrice>> {
       timestamp: safeFloat(e.timestampUs) ? safeFloat(e.timestampUs) / 1000 : Date.now(),
     };
   }
+
+  // Populate server-side price cache for fast path (non-blocking, no exceptions)
+  try { updatePriceCache(result); } catch {}
 
   return result;
 }

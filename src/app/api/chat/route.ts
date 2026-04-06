@@ -138,15 +138,18 @@ export async function POST(req: Request) {
   // 6. Stream response (parser-fast or AI-full)
   const tools = buildTools(walletAddress);
 
-  // ---- FAST PATH: deterministic parse → direct tool result (no AI model call) ----
-  try {
-    const fast = await tryFastPath(lastUserText, walletAddress);
+  // ---- FAST PATH: deterministic parse → direct tool result (NO AI, NO network) ----
+  // Uses cached prices from previous requests. Fully synchronous parse + validate.
+  // Positions passed from context (already available from previous chat state).
+  {
+    const ctxPositions = Array.isArray((context as Record<string, unknown>).positions)
+      ? (context as Record<string, unknown>).positions as import("@/lib/types").Position[]
+      : [];
+    const fast = tryFastPath(lastUserText, walletAddress, ctxPositions);
     if (fast.matched && fast.response) {
       logInfo("fast_path", { wallet: walletAddress, data: { input: lastUserText.slice(0, 80) } });
       return fast.response;
     }
-  } catch {
-    // Fast path failed — fall through to AI (safe fallback)
   }
 
   // Simple greetings / casual messages — no tools needed
