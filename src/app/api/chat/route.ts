@@ -22,6 +22,7 @@ import { groq } from "@ai-sdk/groq";
 
 import { getSystemPrompt } from "./system-prompt";
 import { resolveIntent } from "./hybrid-engine";
+import { tryFastPath } from "./fast-path";
 import { fetchAllPrices, fetchPositions } from "./flash-api";
 import { warmCache } from "./cache";
 import { buildTools } from "./tools";
@@ -136,6 +137,17 @@ export async function POST(req: Request) {
 
   // 6. Stream response (parser-fast or AI-full)
   const tools = buildTools(walletAddress);
+
+  // ---- FAST PATH: deterministic parse → direct tool result (no AI model call) ----
+  try {
+    const fast = await tryFastPath(lastUserText, walletAddress);
+    if (fast.matched && fast.response) {
+      logInfo("fast_path", { wallet: walletAddress, data: { input: lastUserText.slice(0, 80) } });
+      return fast.response;
+    }
+  } catch {
+    // Fast path failed — fall through to AI (safe fallback)
+  }
 
   // Simple greetings / casual messages — no tools needed
   const greetingPattern = /^(h(ello|i|ey|owdy)|gm|good\s*(morning|evening|night)|yo|sup|what'?s?\s*up|thanks?|ty|ok|okay|sure|yes|no|yep|nah)\b/i;

@@ -21,6 +21,7 @@ export type LogStage =
   | "cache_hit"
   | "cache_miss"
   | "parser"
+  | "fast_path"
   | "system";
 
 export interface LogEntry {
