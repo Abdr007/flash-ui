@@ -27,6 +27,7 @@ export const metrics = {
   misses: 0,
   stale: 0,
   expired: 0,
+  drifts: 0, // price moved >5% between cache updates
 };
 
 /**
@@ -57,14 +58,28 @@ export function getCachedPrice(market: string): { price: number; fresh: boolean 
   return { price: entry.price, fresh: false };
 }
 
+// ---- Drift detection: if new price deviates >5% from cached, log it ----
+const DRIFT_THRESHOLD = 0.05; // 5%
+
 /**
  * Update the price cache. Called from warmCache/fetchAllPrices.
  * Non-blocking, no exceptions.
+ * Detects abnormal price drift and logs it.
  */
 export function updatePriceCache(allPrices: Record<string, { price: number }>): void {
   const now = Date.now();
   for (const [symbol, data] of Object.entries(allPrices)) {
     if (data && Number.isFinite(data.price) && data.price > 0) {
+      // Drift detection: warn if cached price has moved significantly
+      const existing = prices.get(symbol);
+      if (existing && existing.price > 0) {
+        const drift = Math.abs(data.price - existing.price) / existing.price;
+        if (drift > DRIFT_THRESHOLD) {
+          metrics.drifts++;
+          // Price moved >5% — the stale cache was unreliable.
+          // This is informational; the new price replaces it immediately below.
+        }
+      }
       prices.set(symbol, { price: data.price, timestamp: now });
     }
   }

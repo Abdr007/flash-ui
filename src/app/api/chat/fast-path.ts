@@ -26,15 +26,37 @@ import { MARKETS, MARKET_ALIASES, DEFAULT_SLIPPAGE_BPS, MIN_COLLATERAL } from "@
 import type { Position } from "@/lib/types";
 
 // ---- Background cache refresh (non-blocking, fire-and-forget) ----
-// When fast path misses due to empty cache, trigger a refresh so the NEXT request benefits.
 let _refreshPending = false;
 function triggerBackgroundRefresh(): void {
-  if (_refreshPending) return; // Debounce: only one in-flight at a time
+  if (_refreshPending) return;
   _refreshPending = true;
   import("./flash-api")
-    .then(({ fetchAllPrices }) => fetchAllPrices()) // fetchAllPrices calls updatePriceCache internally
+    .then(({ fetchAllPrices }) => fetchAllPrices())
     .catch(() => {})
     .finally(() => { _refreshPending = false; });
+}
+
+// ---- Micro-burst dedup (prevents duplicate trade previews on rapid clicks) ----
+// Key: normalized input string. Value: timestamp of last successful fast-path hit.
+// Window: 500ms — identical inputs within this window are rejected.
+const _recentHits = new Map<string, number>();
+const DEDUP_WINDOW_MS = 500;
+
+function isDuplicate(input: string): boolean {
+  const now = Date.now();
+  const prev = _recentHits.get(input);
+  if (prev && now - prev < DEDUP_WINDOW_MS) return true;
+  // Evict old entries (keep map bounded)
+  if (_recentHits.size > 50) {
+    for (const [k, t] of _recentHits) {
+      if (now - t > DEDUP_WINDOW_MS) _recentHits.delete(k);
+    }
+  }
+  return false;
+}
+
+function recordHit(input: string): void {
+  _recentHits.set(input, Date.now());
 }
 
 // ---- Strict Regex (full-string match, no partial) ----
@@ -266,6 +288,9 @@ export function tryFastPath(
     const trimmed = input.trim();
     if (!trimmed) { metrics.misses++; return { matched: false }; }
 
+    // PHASE 0: Micro-burst dedup — reject identical input within 500ms window
+    if (isDuplicate(trimmed)) { metrics.misses++; return { matched: false }; }
+
     // PHASE 1: Parse
     const trade = parse(trimmed);
     if (!trade) { metrics.misses++; return { matched: false }; }
@@ -286,8 +311,9 @@ export function tryFastPath(
       return { matched: false };
     }
 
-    // PHASE 4: Build response
+    // PHASE 4: Build response + record dedup
     metrics.hits++;
+    recordHit(trimmed);
     return {
       matched: true,
       response: buildResponse(trade, result.preview!, result.warnings, cached.fresh),
