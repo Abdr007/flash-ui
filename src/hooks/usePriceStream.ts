@@ -7,57 +7,50 @@ import { PRICE_REFRESH_MS } from "@/lib/constants";
 
 /**
  * Manages the Pyth Hermes SSE price stream.
- * - Connects on mount, disconnects on unmount
+ * - Connects once on mount, disconnects on unmount
  * - Falls back to REST polling if SSE fails
- * - Stream pushes into store.handleStreamPrices
+ * - Uses refs for store functions to avoid re-render loops
  */
 export function usePriceStream() {
   const handleStreamPrices = useFlashStore((s) => s.handleStreamPrices);
   const setStreamStatus = useFlashStore((s) => s.setStreamStatus);
   const refreshPrices = useFlashStore((s) => s.refreshPrices);
-  const streamRef = useRef<PriceStream | null>(null);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Refs to avoid dependency-triggered re-runs
+  const handleRef = useRef(handleStreamPrices);
+  const statusRef = useRef(setStreamStatus);
+  const refreshRef = useRef(refreshPrices);
+  handleRef.current = handleStreamPrices;
+  statusRef.current = setStreamStatus;
+  refreshRef.current = refreshPrices;
 
   useEffect(() => {
-    // Initial load via REST (fast, reliable)
-    refreshPrices();
+    // Initial load via REST
+    refreshRef.current();
 
     // Start SSE stream
-    const stream = new PriceStream(
-      (updates) => {
-        handleStreamPrices(updates);
-      },
-      (status) => {
-        setStreamStatus(status);
+    let pollingTimer: ReturnType<typeof setInterval> | null = null;
 
+    const stream = new PriceStream(
+      (updates) => handleRef.current(updates),
+      (status) => {
+        statusRef.current(status);
         if (status === "connected") {
-          // SSE is live — stop polling fallback
-          if (pollingRef.current) {
-            clearInterval(pollingRef.current);
-            pollingRef.current = null;
-          }
-        } else if (status === "reconnecting" || status === "disconnected") {
-          // SSE down — start polling fallback if not already running
-          if (!pollingRef.current) {
-            pollingRef.current = setInterval(refreshPrices, PRICE_REFRESH_MS);
-          }
+          if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
+        } else if (!pollingTimer) {
+          pollingTimer = setInterval(() => refreshRef.current(), PRICE_REFRESH_MS);
         }
       }
     );
 
     stream.connect();
-    streamRef.current = stream;
 
-    // Safety net: start polling immediately in case SSE takes time to connect
-    pollingRef.current = setInterval(refreshPrices, PRICE_REFRESH_MS);
+    // Safety net polling until SSE connects
+    pollingTimer = setInterval(() => refreshRef.current(), PRICE_REFRESH_MS);
 
     return () => {
       stream.destroy();
-      streamRef.current = null;
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
+      if (pollingTimer) clearInterval(pollingTimer);
     };
-  }, [handleStreamPrices, setStreamStatus, refreshPrices]);
+  }, []); // Empty deps — runs once on mount
 }
