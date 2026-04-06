@@ -460,9 +460,109 @@ export function getEarnSuccessFeedback(pool: string, action: "deposit" | "withdr
 
   if (action === "withdraw") {
     if (p.earnWithdraws === 1) return "First withdrawal complete.";
-    // If they withdraw everything after errors, acknowledge
     if ((p.earnErrors.slippage ?? 0) > 0) return "Withdrawn successfully despite earlier slippage issues.";
   }
 
   return null;
+}
+
+// ============================================
+// Unified Intelligence Engine
+// ============================================
+// Reads across ALL user behavior (trading + earn + errors)
+// to produce contextual, non-repetitive guidance.
+//
+// Called from: TradeHints, EarnModal, suggestions, post-trade insights.
+// NEVER produces generic advice — always grounded in the user's data.
+
+export type UserConfidence = "new" | "learning" | "experienced" | "expert";
+
+/** How confident the system is in the user's ability */
+export function getUserConfidence(): UserConfidence {
+  const p = getUserPatterns();
+  const total = p.totalTrades + p.earnDeposits + p.earnWithdraws;
+  if (total === 0) return "new";
+  if (total < 5) return "learning";
+  if (total < 20) return "experienced";
+  return "expert";
+}
+
+export interface UnifiedProfile {
+  confidence: UserConfidence;
+  riskProfile: "aggressive" | "moderate" | "conservative";
+  totalActivity: number;       // trades + earn actions
+  isEarner: boolean;           // has used earn
+  isTrader: boolean;           // has used trading
+  isDualUser: boolean;         // uses both
+  errorProne: boolean;         // >3 total errors
+  recentErrors: boolean;       // errors in last hour
+  prefersDiscipline: boolean;  // high SL usage
+}
+
+/** Build a unified view of the user across all features */
+export function getUnifiedProfile(): UnifiedProfile {
+  const p = getUserPatterns();
+  const totalErrors = Object.values(p.earnErrors).reduce((s, n) => s + n, 0);
+  const recentErrorCutoff = Date.now() - 3600_000; // 1 hour
+
+  return {
+    confidence: getUserConfidence(),
+    riskProfile: getRiskProfile(),
+    totalActivity: p.totalTrades + p.earnDeposits + p.earnWithdraws,
+    isEarner: p.earnDeposits > 0,
+    isTrader: p.totalTrades > 0,
+    isDualUser: p.totalTrades > 0 && p.earnDeposits > 0,
+    errorProne: totalErrors > 3,
+    recentErrors: p.earnLastSlippageError > recentErrorCutoff,
+    prefersDiscipline: p.slUsageRate > 0.6 && p.tpSlSampleCount >= 3,
+  };
+}
+
+/** Cross-feature guidance: trading context → earn suggestion, earn context → trade suggestion */
+export function getCrossFeatureHint(context: "trade" | "earn"): string | null {
+  const p = getUserPatterns();
+  const profile = getUnifiedProfile();
+
+  // Don't guide new users — let them explore
+  if (profile.confidence === "new") return null;
+
+  // ---- Trading context: suggest earn based on earn history ----
+  if (context === "trade") {
+    // Aggressive trader who hasn't tried earn → nudge toward yield
+    if (profile.riskProfile === "aggressive" && !profile.isEarner && profile.totalActivity >= 5) {
+      return "Tip: Earn lets you earn yield passively while you trade.";
+    }
+    // User has earn deposits but rarely trades with SL → cross-reinforce discipline
+    if (profile.isEarner && !profile.prefersDiscipline && p.totalTrades >= 5) {
+      return "Your earn positions are growing — protect your trades with SL too.";
+    }
+    // Expert dual user → no unnecessary hints
+    if (profile.confidence === "expert" && profile.isDualUser) return null;
+  }
+
+  // ---- Earn context: adjust based on trading risk ----
+  if (context === "earn") {
+    // Aggressive trader depositing into earn → suggest conservative pool
+    if (profile.riskProfile === "aggressive" && p.earnDeposits <= 2) {
+      return "As a high-leverage trader, consider the Crypto Pool for balanced risk.";
+    }
+    // Conservative trader → affirm their earn choice
+    if (profile.riskProfile === "conservative" && p.earnDeposits >= 2) {
+      return null; // Don't over-guide conservative users — they know what they're doing
+    }
+    // Error-prone user → extra caution
+    if (profile.errorProne && profile.recentErrors) {
+      return "Recent errors detected — consider a smaller deposit to test first.";
+    }
+  }
+
+  return null;
+}
+
+/** Determine how much guidance to show (less for experts, more for new users) */
+export function getGuidanceLevel(): "full" | "minimal" | "none" {
+  const profile = getUnifiedProfile();
+  if (profile.confidence === "new" || profile.confidence === "learning") return "full";
+  if (profile.confidence === "experienced") return "minimal";
+  return "none"; // experts don't need hand-holding
 }

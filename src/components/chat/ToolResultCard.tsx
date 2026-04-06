@@ -14,7 +14,7 @@ import {
   formatPrice, formatUsd, formatLeverage, formatPnl, formatPnlPct, formatPercent, liqDistancePct, safe,
 } from "@/lib/format";
 import { HIGH_LEVERAGE_THRESHOLD, MARKETS } from "@/lib/constants";
-import { getPreferredSlDistance, getPreferredTpDistance, getRiskProfile, getPostTradeInsight, getUserPatterns, type TradeInsight } from "@/lib/user-patterns";
+import { getPreferredSlDistance, getPreferredTpDistance, getRiskProfile, getPostTradeInsight, getUserPatterns, getCrossFeatureHint, getGuidanceLevel, type TradeInsight } from "@/lib/user-patterns";
 
 // ---- Types ----
 
@@ -422,6 +422,15 @@ const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) 
       intent: `${trade.side.toLowerCase()} ${trade.market} $${Math.round(trade.collateral_usd * 1.5)} ${trade.leverage}x`,
       color: "var(--color-accent-warn)",
     });
+  }
+
+  // Cross-feature hint (e.g. "try earn" for aggressive traders)
+  const guidanceLevel = getGuidanceLevel();
+  if (guidanceLevel !== "none") {
+    const crossHint = getCrossFeatureHint("trade");
+    if (crossHint && hints.length < 3) {
+      hints.push({ label: crossHint, intent: "", color: "var(--color-accent-blue)" });
+    }
   }
 
   if (hints.length === 0) return null;

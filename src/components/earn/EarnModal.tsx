@@ -11,7 +11,7 @@ import { useState, useRef } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { VersionedTransaction, ComputeBudgetProgram, MessageV0 } from "@solana/web3.js";
 import { formatUsd, safe } from "@/lib/format";
-import { recordEarnSuccess, recordEarnError, getEarnGuidance, getEarnSuccessFeedback } from "@/lib/user-patterns";
+import { recordEarnSuccess, recordEarnError, getEarnGuidance, getEarnSuccessFeedback, getCrossFeatureHint, getGuidanceLevel } from "@/lib/user-patterns";
 
 interface EarnModalProps {
   mode: "deposit" | "withdraw";
@@ -356,6 +356,19 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
         {status !== "success" && (
           <>
             <div className="px-6 py-5">
+              {/* Cross-feature hint (only for non-expert users) */}
+              {status === "input" && (() => {
+                const level = getGuidanceLevel();
+                if (level === "none") return null;
+                const hint = getCrossFeatureHint("earn");
+                if (!hint) return null;
+                return (
+                  <div className="mb-3 px-3 py-2 rounded-lg text-[11px] text-text-tertiary leading-relaxed"
+                    style={{ background: "rgba(59,130,246,0.04)", border: "1px solid rgba(59,130,246,0.08)" }}>
+                    {hint}
+                  </div>
+                );
+              })()}
               {/* Amount input */}
               <div className="mb-4">
                 <label className="text-[12px] text-text-tertiary mb-2 block">
