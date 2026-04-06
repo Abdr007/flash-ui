@@ -23,7 +23,7 @@ export default function MainLayout() {
   }, []);
 
   return (
-    <div className="h-screen flex flex-col bg-bg-root overflow-hidden">
+    <div className="flex flex-col bg-bg-root overflow-hidden" style={{ height: "100dvh" }}>
       {/* ---- Top Bar ---- */}
       <header className="shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
         <SectionBoundary fallback={<div className="h-14 bg-bg-root" />}>

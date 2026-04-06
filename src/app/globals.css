@@ -328,10 +328,47 @@ input:focus-visible { outline: none; }
   will-change: width;
 }
 
+/* ---- Input glow on focus ---- */
+.input-glow:focus-within {
+  border-color: rgba(200, 245, 71, 0.2) !important;
+  box-shadow: 0 0 0 1px rgba(200, 245, 71, 0.08), 0 2px 12px rgba(200, 245, 71, 0.04);
+}
+
+/* ---- Send button pulse ---- */
+@keyframes sendPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+.send-pulse { animation: sendPulse 200ms cubic-bezier(0.2, 0, 0, 1); }
+
+/* ---- Typing indicator ---- */
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translate3d(0, 0, 0); }
+  30% { transform: translate3d(0, -4px, 0); }
+}
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent-blue);
+  display: inline-block;
+}
+.typing-dot:nth-child(1) { animation: typingBounce 1.2s ease-in-out infinite 0ms; }
+.typing-dot:nth-child(2) { animation: typingBounce 1.2s ease-in-out infinite 150ms; }
+.typing-dot:nth-child(3) { animation: typingBounce 1.2s ease-in-out infinite 300ms; }
+
 /* ---- Mobile ---- */
 @media (max-width: 768px) {
   .panel-transition {
     transition: opacity 150ms ease-out;
+  }
+}
+
+/* ---- Mobile safe area ---- */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 20px) !important;
   }
 }
 

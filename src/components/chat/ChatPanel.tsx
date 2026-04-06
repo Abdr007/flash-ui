@@ -210,7 +210,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
       )}
 
       {/* ---- Input (Galileo-style: full-width rounded box, bottom-pinned) ---- */}
-      <div className="px-5 pb-5 pt-2 relative">
+      <div className="px-5 pb-5 pt-2 relative safe-bottom">
         {/* Autocomplete */}
         {autocomplete.length > 0 && (
           <div className="absolute bottom-full left-5 right-5 mb-2 max-w-[720px] mx-auto overflow-hidden"
@@ -229,7 +229,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
         )}
 
         <div className="max-w-[720px] mx-auto">
-          <div className="relative rounded-2xl overflow-hidden"
+          <div className="input-glow relative rounded-2xl overflow-hidden transition-all duration-200"
             style={{ background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <textarea
               ref={inputRef}
@@ -247,11 +247,18 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
             <div className="absolute bottom-3 right-3 flex items-center gap-3">
               {isStreaming && <StreamingDot inline />}
               <button
-                onClick={() => handleSubmit()}
+                onClick={() => {
+                  handleSubmit();
+                  // Micro-interaction: pulse the button
+                  const btn = document.activeElement as HTMLElement;
+                  btn?.classList.add("send-pulse");
+                  setTimeout(() => btn?.classList.remove("send-pulse"), 200);
+                }}
                 disabled={!input.trim() || isStreaming || isExecuting}
                 className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer shrink-0
-                  transition-all duration-150 disabled:opacity-20 disabled:cursor-default"
-                style={{ background: "var(--color-accent-lime)" }}
+                  transition-all duration-150 disabled:opacity-20 disabled:cursor-default
+                  hover:scale-105 active:scale-95"
+                style={{ background: input.trim() ? "var(--color-accent-lime)" : "rgba(200,245,71,0.3)" }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0E13" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="19" x2="12" y2="5" />
@@ -280,10 +287,10 @@ const StreamingDot = memo(function StreamingDot({ inline }: { inline?: boolean }
           <path d="M3 12L8 3L13 12H3Z" fill="white" fillOpacity="0.9" />
         </svg>
       </div>
-      <div className="flex items-center gap-1.5">
-        <div className="w-1.5 h-1.5 rounded-full bg-accent-blue" style={{ animation: "pulseDot 1s infinite" }} />
-        <div className="w-1.5 h-1.5 rounded-full bg-accent-blue" style={{ animation: "pulseDot 1s infinite 0.2s" }} />
-        <div className="w-1.5 h-1.5 rounded-full bg-accent-blue" style={{ animation: "pulseDot 1s infinite 0.4s" }} />
+      <div className="flex items-center gap-2">
+        <span className="typing-dot" />
+        <span className="typing-dot" />
+        <span className="typing-dot" />
       </div>
     </div>
   );
