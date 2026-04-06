@@ -38,10 +38,10 @@ interface ToolOutput {
 // ---- Main ----
 
 const ToolResultCard = memo(function ToolResultCard({ part }: { part: ToolPart }) {
+  const output = part.output;
+
   if (part.state === "input-streaming") return <StreamingSteps toolName={part.toolName} step={1} input={part.input} />;
   if (part.state === "input-available") return <StreamingSteps toolName={part.toolName} step={2} input={part.input} />;
-
-  const output = part.output;
   if (!output) return null;
   if (output.status === "error" && !output.data) return <ToolError toolName={part.toolName} error={output.error} />;
 
@@ -325,44 +325,18 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
       if (apiResult.err) throw new Error(apiResult.err);
       if (!apiResult.transactionBase64) throw new Error("No transaction from API");
 
-      // Deserialize, strip Lighthouse instructions, rebuild — all inline
-      const {
-        VersionedTransaction, TransactionMessage, MessageV0,
-        PublicKey: SolPubkey, ComputeBudgetProgram,
-      } = await import("@solana/web3.js");
-
-      const rawBytes = Uint8Array.from(atob(apiResult.transactionBase64), (c) => c.charCodeAt(0));
-      const rawTx = VersionedTransaction.deserialize(rawBytes);
-      const rawMsg = rawTx.message as InstanceType<typeof MessageV0>;
-
-      // Resolve ALTs
-      const altAccounts: NonNullable<Awaited<ReturnType<typeof connection.getAddressLookupTable>>["value"]>[] = [];
-      for (const lookup of rawMsg.addressTableLookups) {
-        const r = await connection.getAddressLookupTable(lookup.accountKey);
-        if (r.value) altAccounts.push(r.value);
-      }
-
-      // Decompile → filter → rebuild
-      const LIGHTHOUSE = "L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95";
-      const decompiled = TransactionMessage.decompile(rawMsg, { addressLookupTableAccounts: altAccounts });
-      const filteredIxs = decompiled.instructions.filter(
-        (ix) => ix.programId.toBase58() !== LIGHTHOUSE
-      );
-      const cleanIxs = filteredIxs.map((ix) => {
-        if (ix.programId.toBase58() === "ComputeBudget111111111111111111111111111111" && ix.data.length >= 5 && ix.data[0] === 2) {
-          return ComputeBudgetProgram.setComputeUnitLimit({ units: 420_000 });
-        }
-        return ix;
+      // Clean server-side (strip Lighthouse, fix CU to match Flash Trade)
+      const cleanResp = await fetch("/api/clean-tx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txBase64: apiResult.transactionBase64, payerKey: walletAddress }),
       });
+      const cleanData = await cleanResp.json();
+      if (cleanData.error) throw new Error(cleanData.error);
 
-      const { blockhash } = await connection.getLatestBlockhash("confirmed");
-      const cleanMsg = MessageV0.compile({
-        payerKey: new SolPubkey(walletAddress),
-        instructions: cleanIxs,
-        recentBlockhash: blockhash,
-        addressLookupTableAccounts: altAccounts,
-      });
-      const transaction = new VersionedTransaction(cleanMsg);
+      const { VersionedTransaction } = await import("@solana/web3.js");
+      const txBytes = Uint8Array.from(atob(cleanData.txBase64), (c) => c.charCodeAt(0));
+      const transaction = VersionedTransaction.deserialize(txBytes);
 
       // Sign with signTransaction (NOT signAndSendTransaction) — dApp submits
       // This prevents wallet from injecting Lighthouse assertions
@@ -536,20 +510,152 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
 
 const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
+  const [status, setStatus] = useState<"preview" | "executing" | "signing" | "confirming" | "success" | "error">("preview");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [txSig, setTxSig] = useState("");
+  const [receivedUsd, setReceivedUsd] = useState("");
+  const walletAddress = useFlashStore((s) => s.walletAddress);
+  const refreshPositions = useFlashStore((s) => s.refreshPositions);
+  const { connection } = useConnection();
+  const { signTransaction, connected } = useWallet();
+
   if (!d) return null;
   const netPnl = Number(d.net_pnl ?? 0);
   const isProfit = netPnl >= 0;
+  const market = String(d.market ?? "");
+  const side = String(d.side ?? "");
+  const closePercent = Number(d.close_percent ?? 100);
+  const positionKey = String(d.pubkey ?? "");
+  const sizeUsd = Number(d.size_usd ?? 0);
+  const closingSize = sizeUsd * (closePercent / 100);
+
+  async function handleClose() {
+    if (status !== "preview" || !walletAddress || !connected || !signTransaction || !positionKey) return;
+    setStatus("executing");
+
+    try {
+      const { buildClosePositionTx } = await import("@/lib/api");
+      const apiResult = await buildClosePositionTx({
+        positionKey,
+        marketSymbol: market,
+        side: side === "LONG" ? "Long" : "Short",
+        owner: walletAddress,
+        closePercent,
+        inputUsdUi: String(closingSize),
+        withdrawTokenSymbol: "USDC",
+      });
+
+      if (apiResult.err) throw new Error(apiResult.err);
+      if (!apiResult.transactionBase64) throw new Error("No transaction from API");
+
+      // Clean server-side (strip Lighthouse, fix CU to match Flash Trade)
+      const cleanResp = await fetch("/api/clean-tx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txBase64: apiResult.transactionBase64, payerKey: walletAddress }),
+      });
+      const cleanData = await cleanResp.json();
+      if (cleanData.error) throw new Error(cleanData.error);
+
+      const { VersionedTransaction } = await import("@solana/web3.js");
+      const txBytes = Uint8Array.from(atob(cleanData.txBase64), (c) => c.charCodeAt(0));
+      const transaction = VersionedTransaction.deserialize(txBytes);
+
+      setStatus("signing");
+      const signed = await signTransaction(transaction);
+
+      setStatus("confirming");
+      const signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true, maxRetries: 5 });
+
+      for (let i = 0; i < 2; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        try { await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true }); } catch {}
+      }
+
+      let confirmed = false;
+      const start = Date.now();
+      while (Date.now() - start < 60_000) {
+        const { value } = await connection.getSignatureStatuses([signature]);
+        const s = value[0];
+        if (s?.err) throw new Error(`Transaction failed: ${JSON.stringify(s.err)}`);
+        if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") { confirmed = true; break; }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      if (!confirmed) throw new Error("Transaction not confirmed in 60s");
+
+      setTxSig(signature);
+      setReceivedUsd(apiResult.receiveTokenAmountUsdUi ?? "");
+      setStatus("success");
+      refreshPositions();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed";
+      setErrorMsg(msg.includes("rejected") ? "Transaction rejected by wallet." : msg);
+      setStatus("error");
+    }
+  }
+
+  if (status === "success") {
+    return (
+      <div className="w-full max-w-[460px] glass-card overflow-hidden success-glow">
+        <div className="px-5 py-3.5 flex items-center gap-2.5" style={{ background: isProfit ? "rgba(16,185,129,0.06)" : "rgba(239,68,68,0.06)" }}>
+          <span className="text-[14px]" style={{ color: isProfit ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>✓</span>
+          <span className="text-[14px] font-medium" style={{ color: isProfit ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+            Position closed — {receivedUsd ? `received $${receivedUsd}` : formatPnl(netPnl)}
+          </span>
+          {txSig && <span className="text-[12px] text-text-tertiary ml-auto num">{txSig.slice(0, 8)}..</span>}
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="w-full max-w-[460px] glass-card overflow-hidden px-5 py-3.5">
+        <div className="text-[13px] text-accent-short mb-2">{errorMsg}</div>
+        <button onClick={() => { setStatus("preview"); setErrorMsg(""); }} className="text-[12px] text-accent-blue cursor-pointer">Try again</button>
+      </div>
+    );
+  }
+
+  const accent = isProfit ? "var(--color-accent-long)" : "var(--color-accent-short)";
 
   return (
-    <div className="w-full max-w-[420px] glass-card overflow-hidden">
-      <div className="px-4 py-3 border-b border-border-subtle text-[14px] font-semibold text-text-primary">
-        Close {Number(d.close_percent ?? 100)}% of {String(d.side ?? "")} {String(d.market ?? "")}
+    <div className="w-full max-w-[460px] glass-card overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-border-subtle flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-[15px] font-semibold text-text-primary">
+            Close {closePercent < 100 ? `${closePercent}%` : ""} Position
+          </span>
+          <span className="text-[11px] font-bold tracking-wider px-2.5 py-0.5 rounded-full"
+            style={{ color: side === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)",
+              background: side === "LONG" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
+            {side} {market}
+          </span>
+        </div>
       </div>
+
       <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
-        <Cell label="Exit" value={formatPrice(Number(d.exit_price ?? 0))} />
-        <Cell label="PnL" value={formatPnl(Number(d.estimated_pnl ?? 0))} color={isProfit ? "var(--color-accent-long)" : "var(--color-accent-short)"} />
+        <Cell label="Exit Price" value={formatPrice(Number(d.exit_price ?? 0))} />
+        <Cell label="PnL" value={formatPnl(Number(d.estimated_pnl ?? 0))} color={accent} />
         <Cell label="Fees" value={formatUsd(Number(d.estimated_fees ?? 0))} />
-        <Cell label="Net" value={formatPnl(netPnl)} color={isProfit ? "var(--color-accent-long)" : "var(--color-accent-short)"} />
+        <Cell label="Net PnL" value={formatPnl(netPnl)} color={accent} />
+      </div>
+
+      <div className="flex border-t border-border-subtle">
+        <button
+          onClick={handleClose}
+          disabled={status !== "preview"}
+          className="btn-primary flex-1 py-3 text-[13px] font-bold tracking-wide
+            cursor-pointer disabled:opacity-25 disabled:cursor-default rounded-none rounded-bl-xl"
+          style={{ color: "#fff", background: "var(--color-accent-short)" }}
+        >
+          {status === "executing" ? "Building tx..." : status === "signing" ? "Sign in wallet..." : status === "confirming" ? "Confirming..." : `Close ${closePercent < 100 ? closePercent + "%" : "Position"}`}
+        </button>
+        {status === "preview" && (
+          <button className="btn-secondary px-6 py-3 text-[13px] text-text-tertiary border-l border-border-subtle cursor-pointer hover:text-text-secondary rounded-none rounded-br-xl">
+            Cancel
+          </button>
+        )}
       </div>
     </div>
   );
@@ -630,76 +736,65 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
   const [solBal, setSolBal] = useState(0);
   const [usdcBal, setUsdcBal] = useState(0);
   const [expanded, setExpanded] = useState(false);
-  const { connection } = useConnection();
 
   const [allTokens, setAllTokens] = useState<{ symbol: string; amount: number; usdValue: number; color: string }[]>([]);
 
-  // Fetch ALL wallet token balances for NET WORTH
+  const TOKEN_COLORS: Record<string, string> = {
+    SOL: "#9945FF", USDC: "#2775CA", JitoSOL: "#8B5CF6", JUP: "#00D18C",
+    BONK: "#F59E0B", WIF: "#A855F7", PYTH: "#7142CF", JTO: "#4E7CFF",
+    WBTC: "#F7931A", BTC: "#F7931A", ETH: "#627EEA", ORE: "#F97316",
+    HYPE: "#3B82F6", RAY: "#4F46E5", PENGU: "#7DD3FC", FAF: "#FF6B6B",
+    SPYx: "#3B82F6", WSOL: "#9945FF",
+  };
+
+  // Fetch ALL wallet tokens via Helius DAS API (single call, auto-priced)
   useEffect(() => {
     if (!walletAddress) return;
     let cancelled = false;
     (async () => {
       try {
-        const { PublicKey } = await import("@solana/web3.js");
-        const pubkey = new PublicKey(walletAddress);
-
-        // SOL balance
-        const lamports = await connection.getBalance(pubkey);
-        const sol = lamports / 1e9;
-        if (!cancelled) setSolBal(sol);
-
-        // ALL SPL tokens
-        const tokenAccs = await connection.getParsedTokenAccountsByOwner(pubkey, {
-          programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+        const resp = await fetch("/api/token-prices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ wallet: walletAddress }),
         });
-
-        const KNOWN_MINTS: Record<string, { symbol: string; color: string }> = {
-          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": { symbol: "USDC", color: "#2775CA" },
-          "So11111111111111111111111111111111111111112": { symbol: "WSOL", color: "#9945FF" },
-          "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn": { symbol: "JitoSOL", color: "#8B5CF6" },
-          "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN": { symbol: "JUP", color: "#00D18C" },
-          "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263": { symbol: "BONK", color: "#F59E0B" },
-          "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm": { symbol: "WIF", color: "#A855F7" },
-          "HZ1JovNiVvGrGNiiYvEozBSTU8diLqkABee1dSbGfmus": { symbol: "PYTH", color: "#7142CF" },
-          "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL": { symbol: "JTO", color: "#4E7CFF" },
-        };
+        if (!resp.ok) return;
+        const data = await resp.json();
 
         const tokens: { symbol: string; amount: number; usdValue: number; color: string }[] = [];
-        let totalUsd = 0;
 
-        // Add SOL
-        const solPrice = storePrices["SOL"]?.price ?? 0;
-        const solUsd = sol * solPrice;
-        tokens.push({ symbol: "SOL", amount: sol, usdValue: solUsd, color: "#9945FF" });
-        totalUsd += solUsd;
+        // SOL
+        tokens.push({
+          symbol: "SOL",
+          amount: data.solBalance ?? 0,
+          usdValue: data.solUsd ?? 0,
+          color: "#9945FF",
+        });
+        if (!cancelled) setSolBal(data.solBalance ?? 0);
 
-        for (const acc of tokenAccs.value) {
-          const info = acc.account.data.parsed?.info;
-          const mint = info?.mint as string;
-          const uiAmount = info?.tokenAmount?.uiAmount as number;
-          if (!uiAmount || uiAmount <= 0) continue;
-
-          const known = KNOWN_MINTS[mint];
-          if (known) {
-            const price = storePrices[known.symbol]?.price ?? (known.symbol === "USDC" ? 1 : 0);
-            const usd = uiAmount * price;
-            tokens.push({ symbol: known.symbol, amount: uiAmount, usdValue: usd, color: known.color });
-            totalUsd += usd;
-            if (known.symbol === "USDC") { if (!cancelled) setUsdcBal(uiAmount); }
-          }
+        // All SPL tokens
+        for (const t of data.tokens ?? []) {
+          tokens.push({
+            symbol: t.symbol,
+            amount: t.amount,
+            usdValue: t.usdValue,
+            color: TOKEN_COLORS[t.symbol] ?? `hsl(${Math.abs(t.symbol.charCodeAt(0) * 37) % 360}, 60%, 55%)`,
+          });
+          if (t.symbol === "USDC" && !cancelled) setUsdcBal(t.amount);
         }
 
-        // Sort by USD value
-        tokens.sort((a, b) => b.usdValue - a.usdValue);
+        // Filter dust, sort by value
+        const meaningful = tokens.filter((t) => t.usdValue >= 0.01);
+        meaningful.sort((a, b) => b.usdValue - a.usdValue);
 
         if (!cancelled) {
-          setAllTokens(tokens);
-          setWalletUsd(totalUsd);
+          setAllTokens(meaningful);
+          setWalletUsd(data.totalUsd ?? 0);
         }
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, [walletAddress, connection, storePrices]);
+  }, [walletAddress, storePrices]);
 
   if (!d) return null;
 

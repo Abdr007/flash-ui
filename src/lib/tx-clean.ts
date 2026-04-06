@@ -21,8 +21,9 @@ const STRIP_PROGRAMS = new Set([
   "L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95",
 ]);
 
-// Match Flash Trade website CU limit exactly
+// Match Flash Trade website exactly
 const FLASH_CU_LIMIT = 420_000;
+const FLASH_CU_PRICE = 10_000; // microlamports (0.01 lamports/CU)
 
 export async function cleanFlashTransaction(
   txBase64: string,
@@ -45,17 +46,18 @@ export async function cleanFlashTransaction(
     addressLookupTableAccounts: altAccounts,
   });
 
-  // Filter out strip-listed programs and fix CU limit
+  // Filter out strip-listed programs and fix CU params to match Flash Trade
   const cleanInstructions = decompiled.instructions
     .filter((ix) => !STRIP_PROGRAMS.has(ix.programId.toBase58()))
     .map((ix) => {
-      // Fix CU limit to match Flash Trade website
-      if (
-        ix.programId.toBase58() === "ComputeBudget111111111111111111111111111111" &&
-        ix.data.length >= 5 &&
-        ix.data[0] === 2
-      ) {
-        return ComputeBudgetProgram.setComputeUnitLimit({ units: FLASH_CU_LIMIT });
+      const progId = ix.programId.toBase58();
+      if (progId === "ComputeBudget111111111111111111111111111111") {
+        if (ix.data.length >= 5 && ix.data[0] === 2) {
+          return ComputeBudgetProgram.setComputeUnitLimit({ units: FLASH_CU_LIMIT });
+        }
+        if (ix.data.length >= 9 && ix.data[0] === 3) {
+          return ComputeBudgetProgram.setComputeUnitPrice({ microLamports: FLASH_CU_PRICE });
+        }
       }
       return ix;
     });

@@ -1,13 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey } from "@solana/web3.js";
 import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS, TICKER_MARKETS, MARKETS } from "@/lib/constants";
 import { formatUsd, formatPnl, formatPrice } from "@/lib/format";
-
-const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const FSTATS = "https://fstats.io/api/v1";
 
 const TOKEN_COLORS: Record<string, string> = {
@@ -42,10 +38,10 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
   const walletConnected = useFlashStore((s) => s.walletConnected);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const refreshPositions = useFlashStore((s) => s.refreshPositions);
-  const { connection } = useConnection();
 
   const [solBalance, setSolBalance] = useState(0);
   const [usdcBalance, setUsdcBalance] = useState(0);
+  const [totalWalletUsd, setTotalWalletUsd] = useState(0);
   const [volume7d, setVolume7d] = useState(0);
   const [trades7d, setTrades7d] = useState(0);
   const [fees7d, setFees7d] = useState(0);
@@ -62,28 +58,31 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
     return () => clearInterval(interval);
   }, [walletConnected]);
 
-  // Wallet balances
+  // Wallet balances via Helius DAS API
   useEffect(() => {
     if (!walletConnected || !walletAddress) return;
     let cancelled = false;
     async function fetch_() {
       try {
-        const pubkey = new PublicKey(walletAddress!);
-        const lamports = await connection.getBalance(pubkey);
-        if (!cancelled) setSolBalance(lamports / 1e9);
-        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(pubkey, { mint: new PublicKey(USDC_MINT) });
-        let usdc = 0;
-        for (const acc of tokenAccounts.value) {
-          const amt = acc.account.data.parsed?.info?.tokenAmount?.uiAmount;
-          if (typeof amt === "number") usdc += amt;
+        const resp = await fetch("/api/token-prices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ wallet: walletAddress }),
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!cancelled) {
+          setSolBalance(data.solBalance ?? 0);
+          setTotalWalletUsd(data.totalUsd ?? 0);
+          const usdc = (data.tokens ?? []).find((t: { symbol: string }) => t.symbol === "USDC");
+          setUsdcBalance(usdc?.amount ?? 0);
         }
-        if (!cancelled) setUsdcBalance(usdc);
       } catch {}
     }
     fetch_();
-    const interval = setInterval(fetch_, 30_000);
+    const interval = setInterval(fetch_, 10_000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [walletConnected, walletAddress, connection]);
+  }, [walletConnected, walletAddress]);
 
   // fstats
   useEffect(() => {
@@ -121,8 +120,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
     totalCollateral += pos.collateral_usd;
   }
 
-  const solPrice = prices["SOL"]?.price ?? 0;
-  const walletUsd = (solBalance * solPrice) + usdcBalance;
+  const walletUsd = totalWalletUsd;
 
   return (
     <div className="flex flex-col items-center pt-12 pb-6 px-6 w-full" style={{ animation: "fadeIn 500ms ease-out" }}>

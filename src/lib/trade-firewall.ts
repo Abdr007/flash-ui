@@ -223,6 +223,8 @@ export const ClosePreviewSchema = z.object({
   closing_size: z.number().finite().positive().optional(),
   net_pnl: z.number().finite().optional(),
   entry_price: z.number().finite().positive().optional(),
+  pubkey: z.string().optional(),
+  size_usd: z.number().finite().optional(),
 }).strict();
 
 export type ClosePreview = z.infer<typeof ClosePreviewSchema>;

@@ -12,6 +12,7 @@ const STRIP_PROGRAMS = new Set([
   "L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95",
 ]);
 const FLASH_CU_LIMIT = 420_000;
+const FLASH_CU_PRICE = 10_000;
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,16 +38,17 @@ export async function POST(req: NextRequest) {
       addressLookupTableAccounts: altAccounts,
     });
 
-    // Filter out Lighthouse/FlashLog + fix CU limit
+    // Filter out Lighthouse/FlashLog + fix CU params
     const cleanIxs = decompiled.instructions
       .filter((ix) => !STRIP_PROGRAMS.has(ix.programId.toBase58()))
       .map((ix) => {
-        if (
-          ix.programId.toBase58() === "ComputeBudget111111111111111111111111111111" &&
-          ix.data.length >= 5 &&
-          ix.data[0] === 2
-        ) {
-          return ComputeBudgetProgram.setComputeUnitLimit({ units: FLASH_CU_LIMIT });
+        if (ix.programId.toBase58() === "ComputeBudget111111111111111111111111111111") {
+          if (ix.data.length >= 5 && ix.data[0] === 2) {
+            return ComputeBudgetProgram.setComputeUnitLimit({ units: FLASH_CU_LIMIT });
+          }
+          if (ix.data.length >= 9 && ix.data[0] === 3) {
+            return ComputeBudgetProgram.setComputeUnitPrice({ microLamports: FLASH_CU_PRICE });
+          }
         }
         return ix;
       });

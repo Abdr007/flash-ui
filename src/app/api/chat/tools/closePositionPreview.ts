@@ -134,6 +134,8 @@ export function createClosePositionPreviewTool(wallet: string) {
           estimated_fees: closeFee,
           net_pnl: pnl - closeFee,
           entry_price: position.entry_price,
+          pubkey: position.pubkey,
+          size_usd: position.size_usd,
         };
 
         // ---- STEP 7: Firewall validation ----

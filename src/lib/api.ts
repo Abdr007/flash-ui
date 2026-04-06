@@ -321,6 +321,27 @@ export async function buildRemoveCollateral(
   return apiPost<CollateralResult>("/transaction-builder/remove-collateral", { ...params });
 }
 
+// ---- Close Position (with transaction) ----
+
+export interface BuildCloseWithTxParams {
+  positionKey: string;
+  marketSymbol: string;
+  side: string;
+  owner: string;
+  closePercent: number;
+  inputUsdUi: string;
+  withdrawTokenSymbol: string;
+}
+
+export async function buildClosePositionTx(
+  params: BuildCloseWithTxParams
+): Promise<{ transactionBase64?: string; err: string | null; receiveTokenAmountUsdUi?: string; settledPnl?: string; fees?: string }> {
+  return apiPost<{ transactionBase64?: string; err: string | null; receiveTokenAmountUsdUi?: string; settledPnl?: string; fees?: string }>(
+    "/transaction-builder/close-position",
+    { ...params },
+  );
+}
+
 // ---- Trade Validation ----
 
 import { MIN_COLLATERAL, MAX_LEVERAGE, MARKETS } from "./constants";
