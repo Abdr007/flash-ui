@@ -76,9 +76,13 @@ export async function buildEarnDeposit(
   wallet: Wallet,
   amountUsd: number,
   poolAlias: string,
+  flpPrice: number,
+  slippagePct = 0.5,
 ): Promise<EarnTxResult> {
   const poolName = resolvePoolName(poolAlias);
   if (!poolName) throw new Error(`Unknown pool: ${poolAlias}`);
+
+  if (!Number.isFinite(amountUsd) || amountUsd < 1) throw new Error("Minimum deposit is $1");
 
   const client = getClient(connection, wallet);
   const pc = getPoolConfig(poolName);
@@ -87,9 +91,18 @@ export async function buildEarnDeposit(
   const nativeAmount = new BN(Math.floor(amountUsd * 1_000_000));
   if (nativeAmount.isZero()) throw new Error("Amount too small");
 
+  // Slippage protection: calculate minimum FLP out
+  // FLP has 6 decimals (from poolConfig.lpDecimals)
+  let minOut = BN_ZERO;
+  if (flpPrice > 0 && slippagePct > 0) {
+    const expectedShares = amountUsd / flpPrice;
+    const minShares = expectedShares * (1 - slippagePct / 100);
+    minOut = new BN(Math.floor(minShares * 1_000_000));
+  }
+
   const result = await client.addCompoundingLiquidity(
     nativeAmount,
-    BN_ZERO, // minCompoundingAmountOut — protocol handles slippage
+    minOut,
     "USDC",
     pc.compoundingTokenMint,
     pc,
@@ -110,9 +123,13 @@ export async function buildEarnWithdraw(
   wallet: Wallet,
   percent: number,
   poolAlias: string,
+  flpPrice = 0,
+  slippagePct = 0.5,
 ): Promise<EarnTxResult> {
   const poolName = resolvePoolName(poolAlias);
   if (!poolName) throw new Error(`Unknown pool: ${poolAlias}`);
+
+  if (!Number.isFinite(percent) || percent < 1 || percent > 100) throw new Error("Percent must be 1-100");
 
   const client = getClient(connection, wallet);
   const pc = getPoolConfig(poolName);
@@ -149,14 +166,23 @@ export async function buildEarnWithdraw(
   const withdrawAmount = flpBalance.mul(new BN(Math.floor(percent))).div(new BN(100));
   if (withdrawAmount.isZero()) throw new Error(`${percent}% of balance rounds to zero`);
 
+  // Slippage protection: calculate minimum USDC out
+  let minOut = BN_ZERO;
+  if (flpPrice > 0 && slippagePct > 0) {
+    const sharesUi = parseInt(withdrawAmount.toString()) / 1_000_000;
+    const expectedUsdc = sharesUi * flpPrice;
+    const minUsdc = expectedUsdc * (1 - slippagePct / 100);
+    minOut = new BN(Math.floor(minUsdc * 1_000_000));
+  }
+
   // Build transaction (same branching as CLI)
   let result: { instructions: TransactionInstruction[]; additionalSigners: Signer[] };
   if (useRawLp) {
-    result = await client.removeLiquidity("USDC", withdrawAmount, BN_ZERO, pc, true, true);
+    result = await client.removeLiquidity("USDC", withdrawAmount, minOut, pc, true, true);
   } else {
     result = await client.removeCompoundingLiquidity(
       withdrawAmount,
-      BN_ZERO,
+      minOut,
       "USDC",
       flpMint,
       pc,
