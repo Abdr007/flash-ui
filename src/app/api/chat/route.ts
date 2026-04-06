@@ -139,6 +139,8 @@ export async function POST(req: Request) {
 
   // Simple greetings / casual messages — no tools needed
   const greetingPattern = /^(h(ello|i|ey|owdy)|gm|good\s*(morning|evening|night)|yo|sup|what'?s?\s*up|thanks?|ty|ok|okay|sure|yes|no|yep|nah)\b/i;
+  try {
+
   if (greetingPattern.test(lastUserText.trim())) {
     const result = streamText({
       model: groq("llama-3.1-8b-instant"),
@@ -158,7 +160,6 @@ export async function POST(req: Request) {
     hybrid.intent?.collateral_usd &&
     hybrid.intent?.leverage
   ) {
-    // Parser resolved complete trade — AI just formats + calls build_trade
     const result = streamText({
       model: groq("llama-3.1-8b-instant"),
       system: getSystemPrompt(context),
@@ -173,15 +174,23 @@ export async function POST(req: Request) {
   }
 
   // Full AI path
-  const result = streamText({
-    model: groq("llama-3.1-8b-instant"),
-    system: getSystemPrompt(context),
-    messages: await convertToModelMessages(messages),
-    tools,
-    stopWhen: stepCountIs(5),
-    temperature: 0,
-    maxOutputTokens: 800,
-  });
+    const result = streamText({
+      model: groq("llama-3.1-8b-instant"),
+      system: getSystemPrompt(context),
+      messages: await convertToModelMessages(messages),
+      tools,
+      stopWhen: stepCountIs(5),
+      temperature: 0,
+      maxOutputTokens: 800,
+    });
 
-  return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "AI processing failed";
+    logError("ai_request", { wallet: walletAddress, error: msg });
+    return new Response(
+      JSON.stringify({ error: msg }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
 }
