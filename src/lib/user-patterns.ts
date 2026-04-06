@@ -41,6 +41,10 @@ export interface UserPatterns {
   avgTpDistancePct: number; // average TP distance from entry (%)
   avgSlDistancePct: number; // average SL distance from entry (%)
   tpSlSampleCount: number;  // number of trades used for TP/SL averaging
+  // ---- Streaks & progression ----
+  slStreak: number;         // consecutive trades WITH SL set
+  bestSlStreak: number;     // all-time best SL streak
+  sessionTrades: number;    // trades in current session (since last page load)
 }
 
 // ---- Storage Key ----
@@ -61,6 +65,9 @@ function defaultPatterns(): UserPatterns {
     avgTpDistancePct: 10,  // default 10% TP
     avgSlDistancePct: 5,   // default 5% SL
     tpSlSampleCount: 0,
+    slStreak: 0,
+    bestSlStreak: 0,
+    sessionTrades: 0,
   };
 }
 
@@ -141,6 +148,17 @@ export function recordTradeAction(action: UserAction): void {
     }
     if (action.hasSl && action.slDistancePct && Number.isFinite(action.slDistancePct) && action.slDistancePct > 0) {
       p.avgSlDistancePct = p.avgSlDistancePct * (1 - alpha) + action.slDistancePct * alpha;
+    }
+  }
+
+  // Streak tracking
+  if (action.side !== "CLOSE") {
+    p.sessionTrades++;
+    if (action.hasSl) {
+      p.slStreak++;
+      if (p.slStreak > p.bestSlStreak) p.bestSlStreak = p.slStreak;
+    } else {
+      p.slStreak = 0;
     }
   }
 
@@ -266,4 +284,66 @@ export function getRiskProfile(): "aggressive" | "moderate" | "conservative" {
 export function getTypicalLeverage(): number {
   const p = getUserPatterns();
   return p.totalTrades >= 2 ? Math.round(p.avgLeverage) : 0; // 0 = no preference
+}
+
+// ---- Post-Trade Insight Generator ----
+
+export interface TradeInsight {
+  message: string;
+  type: "streak" | "milestone" | "tip" | "progress";
+  color: string; // CSS color var
+}
+
+/**
+ * Generate a post-trade insight based on current patterns.
+ * Returns null if nothing noteworthy. Called after recordTradeAction.
+ */
+export function getPostTradeInsight(action: UserAction): TradeInsight | null {
+  const p = getUserPatterns();
+
+  // ---- Streaks ----
+  if (action.hasSl && p.slStreak >= 3) {
+    if (p.slStreak === p.bestSlStreak && p.slStreak >= 5) {
+      return { message: `New record! ${p.slStreak} trades in a row with SL`, type: "streak", color: "var(--color-accent-lime)" };
+    }
+    if (p.slStreak === 3 || p.slStreak === 5 || p.slStreak === 10) {
+      return { message: `${p.slStreak}-trade SL streak — disciplined trading`, type: "streak", color: "var(--color-accent-long)" };
+    }
+  }
+
+  // ---- Milestones ----
+  if (p.totalTrades === 1) {
+    return { message: "First trade executed!", type: "milestone", color: "var(--color-accent-lime)" };
+  }
+  if (p.totalTrades === 5) {
+    return { message: "5 trades complete — you're getting the hang of it", type: "milestone", color: "var(--color-accent-blue)" };
+  }
+  if (p.totalTrades === 10) {
+    return { message: "10 trades — learning system adapting to your style", type: "milestone", color: "var(--color-accent-purple)" };
+  }
+  if (p.totalTrades === 25) {
+    return { message: "25 trades — experienced trader detected", type: "milestone", color: "var(--color-accent-lime)" };
+  }
+  if (p.totalTrades === 50 || p.totalTrades === 100) {
+    return { message: `${p.totalTrades} trades — power user`, type: "milestone", color: "var(--color-accent-lime)" };
+  }
+
+  // ---- Risk tips (non-intrusive, only every ~5 trades) ----
+  if (p.sessionTrades % 5 === 0 && p.sessionTrades > 0) {
+    if (!action.hasSl && p.slUsageRate < 0.3 && p.totalTrades >= 5) {
+      return { message: "Tip: setting SL on every trade protects capital", type: "tip", color: "var(--color-accent-warn)" };
+    }
+    if (p.avgLeverage > 15 && p.totalTrades >= 5) {
+      return { message: `Avg leverage ${p.avgLeverage.toFixed(0)}x — consider lowering for consistency`, type: "tip", color: "var(--color-accent-warn)" };
+    }
+  }
+
+  // ---- Progress signals (every ~10 trades) ----
+  if (p.totalTrades >= 10 && p.totalTrades % 10 === 0) {
+    const profile = getRiskProfile();
+    const profileLabel = { aggressive: "Aggressive", moderate: "Balanced", conservative: "Conservative" }[profile];
+    return { message: `Trading profile: ${profileLabel} · Avg ${p.avgLeverage.toFixed(1)}x · SL rate ${Math.round(p.slUsageRate * 100)}%`, type: "progress", color: "var(--color-text-secondary)" };
+  }
+
+  return null;
 }

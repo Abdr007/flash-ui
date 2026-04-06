@@ -14,7 +14,7 @@ import {
   formatPrice, formatUsd, formatLeverage, formatPnl, formatPnlPct, formatPercent, liqDistancePct, safe,
 } from "@/lib/format";
 import { HIGH_LEVERAGE_THRESHOLD, MARKETS } from "@/lib/constants";
-import { getPreferredSlDistance, getPreferredTpDistance, getRiskProfile } from "@/lib/user-patterns";
+import { getPreferredSlDistance, getPreferredTpDistance, getRiskProfile, getPostTradeInsight, getUserPatterns, type TradeInsight } from "@/lib/user-patterns";
 
 // ---- Types ----
 
@@ -156,20 +156,45 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
 
   if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Trade cancelled.</div>;
 
+  // Compute insight unconditionally (hooks can't be conditional)
+  const postTradeInsight = useMemo<TradeInsight | null>(() => {
+    if (!tradeCompleted) return null;
+    try {
+      const t = output.data as Record<string, unknown> | null;
+      if (!t) return null;
+      return getPostTradeInsight({
+        market: String(t.market ?? ""),
+        side: String(t.side ?? "LONG") as "LONG" | "SHORT",
+        leverage: Number(t.leverage ?? 0),
+        collateral: Number(t.collateral_usd ?? 0),
+        timestamp: Date.now(),
+        hasTp: !!t.take_profit_price,
+        hasSl: !!t.stop_loss_price,
+      });
+    } catch { return null; }
+  }, [tradeCompleted, output.data]);
+
   // Trade was submitted and completed successfully
   if (tradeCompleted && (tradeStatus === "SUCCESS" || !activeTrade)) {
     return (
-      <div className="w-full max-w-[460px] glass-card overflow-hidden success-glow">
-        <div className="px-5 py-3.5 flex items-center gap-2.5"
-          style={{ background: "rgba(16,185,129,0.06)" }}>
-          <span className="text-[14px]" style={{ color: "var(--color-accent-long)" }}>✓</span>
-          <span className="text-[14px] font-medium" style={{ color: "var(--color-accent-long)" }}>Trade executed</span>
-          {activeTrade?.tx_signature && (
-            <span className="text-[12px] text-text-tertiary ml-auto num">
-              {activeTrade.tx_signature.slice(0, 8)}..
-            </span>
-          )}
+      <div className="w-full max-w-[460px]">
+        <div className="glass-card overflow-hidden success-glow">
+          <div className="px-5 py-3.5 flex items-center gap-2.5"
+            style={{ background: "rgba(16,185,129,0.06)" }}>
+            <span className="text-[14px]" style={{ color: "var(--color-accent-long)" }}>✓</span>
+            <span className="text-[14px] font-medium" style={{ color: "var(--color-accent-long)" }}>Trade executed</span>
+            {activeTrade?.tx_signature && (
+              <span className="text-[12px] text-text-tertiary ml-auto num">
+                {activeTrade.tx_signature.slice(0, 8)}..
+              </span>
+            )}
+          </div>
         </div>
+        {postTradeInsight && (
+          <div className="mt-2 flex items-center gap-2 px-1 msg-anim">
+            <span className="text-[11px] font-medium" style={{ color: postTradeInsight.color }}>{postTradeInsight.message}</span>
+          </div>
+        )}
       </div>
     );
   }
