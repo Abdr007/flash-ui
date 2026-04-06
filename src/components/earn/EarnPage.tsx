@@ -7,6 +7,7 @@
 // Deposit/withdraw via Flash API transaction builder.
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useFlashStore } from "@/store";
 import { formatUsd, safe } from "@/lib/format";
 import dynamic from "next/dynamic";
@@ -193,8 +194,8 @@ function PoolCard({ pool, walletConnected, onRefresh }: { pool: EarnPool; wallet
         </div>
       )}
 
-      {/* Modal */}
-      {modal && (
+      {/* Modal — portaled to body to escape overflow:hidden */}
+      {modal && typeof document !== "undefined" && createPortal(
         <EarnModal
           mode={modal}
           poolAlias={meta.name.split(" ")[0].toLowerCase()}
@@ -203,7 +204,8 @@ function PoolCard({ pool, walletConnected, onRefresh }: { pool: EarnPool; wallet
           poolApy={flpApy}
           onClose={() => setModal(null)}
           onSuccess={() => { setModal(null); onRefresh(); }}
-        />
+        />,
+        document.body,
       )}
     </div>
   );
