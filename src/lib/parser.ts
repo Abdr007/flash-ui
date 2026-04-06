@@ -219,6 +219,27 @@ function tagResult(result: Omit<ParseResult, "confidence" | "source">): ParseRes
   return { ...result, confidence, source: "grammar" as const };
 }
 
+// ── Adversarial Input Defense ──
+const INJECTION_PATTERNS = [
+  /ignore\s+(?:all\s+)?(?:above|previous|prior)\s+(?:rules|instructions|prompts)/i,
+  /disregard\s+(?:all\s+)?(?:rules|instructions|safety)/i,
+  /you\s+are\s+now\s+(?:a|an)\b/i,
+  /\bsystem\s*:\s*/i,
+  /\bprompt\s*:\s*/i,
+  /\bassistant\s*:\s*/i,
+  /pretend\s+(?:you|to)\b/i,
+  /bypass\s+(?:validation|safety|rules|firewall)/i,
+  /override\s+(?:the\s+)?(?:rules|limits|safety)/i,
+  /execute\s+(?:without|no)\s+(?:validation|check)/i,
+  /\b(?:eval|exec|require|import)\s*\(/i,
+  /\{\{.*\}\}/,
+  /<script/i,
+];
+
+function isAdversarial(input: string): boolean {
+  return INJECTION_PATTERNS.some((p) => p.test(input));
+}
+
 export function parseCommand(input: string): ParseResult {
   const trimmed = input.trim();
   if (!trimmed) {
@@ -228,6 +249,14 @@ export function parseCommand(input: string): ParseResult {
   // Input sanitization: reject oversized input
   if (trimmed.length > MAX_INPUT_LENGTH) {
     return tagResult({ type: "unknown", intent: { type: "QUERY", raw: trimmed.slice(0, 100) + "..." } });
+  }
+
+  // Adversarial input defense: reject prompt injection attempts
+  if (isAdversarial(trimmed)) {
+    return tagResult({
+      type: "unknown",
+      intent: { type: "QUERY", raw: "[rejected: adversarial input]" },
+    });
   }
 
   // ---- Check for chained intents (max 3 segments) ----
