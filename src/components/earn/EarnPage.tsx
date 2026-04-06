@@ -9,6 +9,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useFlashStore } from "@/store";
 import { formatUsd, safe } from "@/lib/format";
+import dynamic from "next/dynamic";
+const EarnModal = dynamic(() => import("./EarnModal"), { ssr: false });
 
 // ---- Types (from Flash earn API) ----
 
@@ -109,7 +111,7 @@ export default function EarnPage({ onBack }: { onBack: () => void }) {
       ) : (
         <div className="w-full flex flex-col gap-3">
           {pools.map((pool) => (
-            <PoolCard key={pool.poolAddress} pool={pool} walletConnected={walletConnected} />
+            <PoolCard key={pool.poolAddress} pool={pool} walletConnected={walletConnected} onRefresh={fetchPools} />
           ))}
         </div>
       )}
@@ -127,7 +129,8 @@ export default function EarnPage({ onBack }: { onBack: () => void }) {
 
 // ---- Pool Card ----
 
-function PoolCard({ pool, walletConnected }: { pool: EarnPool; walletConnected: boolean }) {
+function PoolCard({ pool, walletConnected, onRefresh }: { pool: EarnPool; walletConnected: boolean; onRefresh: () => void }) {
+  const [modal, setModal] = useState<"deposit" | "withdraw" | null>(null);
   const meta = POOL_META[pool.flpTokenSymbol] ?? { name: pool.flpTokenSymbol, assets: "", color: "#555" };
   const aum = safe(parseFloat(pool.aum));
   const flpApy = safe(pool.flpWeeklyApy);
@@ -165,17 +168,41 @@ function PoolCard({ pool, walletConnected }: { pool: EarnPool; walletConnected: 
         <MetricCell label="sFLP APR" value={sflpApr > 0 ? `${sflpApr.toFixed(1)}%` : "—"} />
       </div>
 
-      {/* Action hint */}
+      {/* Actions */}
       {walletConnected ? (
-        <div className="px-5 py-3 flex items-center justify-between">
-          <span className="text-[11px] text-text-tertiary">
-            Deposit via chat: <span className="text-text-secondary font-medium">earn deposit $100 {meta.name.split(" ")[0].toLowerCase()}</span>
-          </span>
+        <div className="flex border-t border-border-subtle">
+          <button
+            onClick={() => setModal("deposit")}
+            className="btn-primary flex-1 py-3 text-[13px] font-bold tracking-wide cursor-pointer"
+            style={{ color: "#000", background: "var(--color-accent-lime)", borderRadius: "0 0 0 16px" }}
+          >
+            Deposit
+          </button>
+          <button
+            onClick={() => setModal("withdraw")}
+            className="flex-1 py-3 text-[13px] font-medium text-text-tertiary hover:text-text-secondary cursor-pointer
+              border-l border-border-subtle"
+            style={{ borderRadius: "0 0 16px 0" }}
+          >
+            Withdraw
+          </button>
         </div>
       ) : (
         <div className="px-5 py-3 text-[11px] text-text-tertiary text-center">
           Connect wallet to deposit
         </div>
+      )}
+
+      {/* Modal */}
+      {modal && (
+        <EarnModal
+          mode={modal}
+          poolAlias={meta.name.split(" ")[0].toLowerCase()}
+          poolName={meta.name}
+          flpPrice={flpPrice}
+          onClose={() => setModal(null)}
+          onSuccess={() => { setModal(null); onRefresh(); }}
+        />
       )}
     </div>
   );
