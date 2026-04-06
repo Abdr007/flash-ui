@@ -119,9 +119,9 @@ export async function POST(req: Request) {
     data: { message_count: messages.length, trace_id: traceId },
   });
 
-  // 4. Warm cache (wallet-scoped)
+  // 4. Warm cache (non-blocking — don't delay AI response)
   if (walletAddress) {
-    await warmCache(walletAddress, fetchAllPrices, fetchPositions);
+    warmCache(walletAddress, fetchAllPrices, fetchPositions).catch(() => {});
   }
 
   // 5. Hybrid intent: try parser first
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
       system: getSystemPrompt(context),
       messages: await convertToModelMessages(messages),
       temperature: 0,
-      maxOutputTokens: 150,
+      maxOutputTokens: 80,
     });
     return result.toUIMessageStreamResponse();
   }
@@ -165,7 +165,7 @@ export async function POST(req: Request) {
       tools,
       stopWhen: stepCountIs(3),
       temperature: 0,
-      maxOutputTokens: 300,
+      maxOutputTokens: 200,
     });
 
     return result.toUIMessageStreamResponse();
@@ -179,7 +179,7 @@ export async function POST(req: Request) {
       tools,
       stopWhen: stepCountIs(5),
       temperature: 0,
-      maxOutputTokens: 800,
+      maxOutputTokens: 400,
     });
 
     return result.toUIMessageStreamResponse();
