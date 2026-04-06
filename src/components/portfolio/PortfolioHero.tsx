@@ -7,6 +7,7 @@ import { formatUsd, formatPnl, formatPrice, safe, formatAgo } from "@/lib/format
 import { useNumberSpring } from "@/hooks/useSpring";
 import TradeFlow from "./TradeFlow";
 import BadgePanel from "./BadgePanel";
+import EarnPage from "@/components/earn/EarnPage";
 const FSTATS = "https://fstats.io/api/v1";
 
 const TOKEN_COLORS: Record<string, string> = {
@@ -145,7 +146,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
-  const [activeFlow, setActiveFlow] = useState<"LONG" | "SHORT" | "portfolio" | "markets" | null>(null);
+  const [activeFlow, setActiveFlow] = useState<"LONG" | "SHORT" | "portfolio" | "markets" | "earn" | null>(null);
 
   let totalPnl = 0;
   let totalCollateral = 0;
@@ -228,6 +229,11 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
     );
   }
 
+  // ── Earn View ──
+  if (activeFlow === "earn") {
+    return <EarnPage onBack={() => setActiveFlow(null)} />;
+  }
+
   // ── Markets View ──
   if (activeFlow === "markets") {
     return (
@@ -306,11 +312,13 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
       )}
 
       {/* ---- Action Circles ---- */}
-      <div className="flex items-center gap-8 mb-8">
+      <div className="flex items-center gap-6 mb-8 flex-wrap justify-center">
         <ActionCircle label="Long" onClick={() => setActiveFlow("LONG")}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>} />
         <ActionCircle label="Short" onClick={() => setActiveFlow("SHORT")}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12l7 7 7-7" /></svg>} />
+        <ActionCircle label="Earn" onClick={() => setActiveFlow("earn")}
+          icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v12M8 10l4-4 4 4M8 14l4 4 4-4" /></svg>} />
         <ActionCircle label="Portfolio" onClick={() => setTimeout(() => onAction("portfolio"), 0)}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>} />
         <ActionCircle label="Markets" onClick={() => setTimeout(() => onAction("show all prices"), 0)}
