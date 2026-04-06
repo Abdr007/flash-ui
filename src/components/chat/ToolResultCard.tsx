@@ -11,7 +11,7 @@ import { getTradeConfidence, type TradeConfidence } from "@/lib/predictive-actio
 import { useFlashStore } from "@/store";
 import { useNumberSpring, useBounceIn } from "@/hooks/useSpring";
 import {
-  formatPrice, formatUsd, formatLeverage, formatPnl, formatPnlPct, formatPercent, liqDistancePct,
+  formatPrice, formatUsd, formatLeverage, formatPnl, formatPnlPct, formatPercent, liqDistancePct, safe,
 } from "@/lib/format";
 import { HIGH_LEVERAGE_THRESHOLD, MARKETS } from "@/lib/constants";
 
@@ -233,7 +233,7 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
           <div className="flex justify-between text-[12px] mb-2">
             <span className="text-text-tertiary">Liquidation distance</span>
             <span className="num font-medium" style={{ color: liqDist < 10 ? "var(--color-accent-short)" : liqDist < 20 ? "var(--color-accent-warn)" : "var(--color-accent-long)" }}>
-              {liqDist.toFixed(1)}%
+              {safe(liqDist).toFixed(1)}%
             </span>
           </div>
           <div className="w-full h-1.5 bg-border-subtle rounded-full overflow-hidden">
@@ -333,8 +333,10 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ txBase64: apiResult.transactionBase64, payerKey: walletAddress }),
       });
-      const cleanData = await cleanResp.json();
+      if (!cleanResp.ok) throw new Error(`Clean-tx failed: ${cleanResp.status}`);
+      const cleanData = await cleanResp.json().catch(() => { throw new Error("Invalid clean-tx response"); });
       if (cleanData.error) throw new Error(cleanData.error);
+      if (!cleanData.txBase64) throw new Error("No cleaned transaction returned");
 
       const { VersionedTransaction } = await import("@solana/web3.js");
       const txBytes = Uint8Array.from(atob(cleanData.txBase64), (c) => c.charCodeAt(0));
@@ -355,25 +357,20 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
       // Fetch real post-execution position data
       try {
         await new Promise((r) => setTimeout(r, 2000)); // wait for chain to update
-        const resp = await fetch(`${window.location.origin}/api/rpc`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ method: "getPositions", wallet: walletAddress }),
-        });
         // Fallback: use flash API directly
         const posResp = await fetch(
           `https://flashapi.trade/positions/owner/${walletAddress}?includePnlInLeverageDisplay=true`
         );
         if (posResp.ok) {
-          const positions = await posResp.json();
+          const positions = await posResp.json().catch(() => null);
           const pos = Array.isArray(positions)
             ? positions.find((p: Record<string, unknown>) => p.marketSymbol === market && String(p.sideUi).toUpperCase() === side)
             : null;
           if (pos) {
             setPostExecData({
-              collateral: parseFloat(String(pos.collateralUsdUi ?? 0)),
-              leverage: parseFloat(String(pos.leverageUi ?? 0)),
-              liqPrice: parseFloat(String(pos.liquidationPriceUi ?? 0)),
+              collateral: safe(pos.collateralUsdUi),
+              leverage: safe(pos.leverageUi),
+              liqPrice: safe(pos.liquidationPriceUi),
             });
           }
         }
@@ -403,15 +400,15 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
         <div className="px-5 py-3.5 flex items-center gap-2.5 border-b border-border-subtle" style={{ background: "rgba(16,185,129,0.06)" }}>
           <span className="text-[14px]" style={{ color: "var(--color-accent-long)" }}>✓</span>
           <span className="text-[14px] font-medium" style={{ color: "var(--color-accent-long)" }}>
-            Collateral {isAdd ? "added" : "removed"} — {isAdd ? "+" : "-"}${amountUsd.toFixed(2)}
+            Collateral {isAdd ? "added" : "removed"} — {isAdd ? "+" : "-"}${safe(amountUsd).toFixed(2)}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
           <Cell label="Collateral" value={formatUsd(realCollateral)} />
-          <Cell label="Leverage" value={`${realLeverage.toFixed(2)}x`}
+          <Cell label="Leverage" value={`${safe(realLeverage).toFixed(2)}x`}
             color={realLeverage >= 10 ? "var(--color-accent-warn)" : undefined} />
           <Cell label="Liq Price" value={formatPrice(realLiqPrice)} />
-          <Cell label="Liq Distance" value={`${realLiqDist.toFixed(1)}%`}
+          <Cell label="Liq Distance" value={`${safe(realLiqDist).toFixed(1)}%`}
             color={realLiqDist < 10 ? "var(--color-accent-short)" : undefined} />
         </div>
         {txSig && (
@@ -447,7 +444,7 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
           </span>
         </div>
         <span className="text-[14px] font-semibold num text-text-primary">
-          {isAdd ? "+" : "-"}${amountUsd.toFixed(2)}
+          {isAdd ? "+" : "-"}${safe(amountUsd).toFixed(2)}
         </span>
       </div>
 
@@ -455,13 +452,13 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
         <Cell label="Collateral" value={`${formatUsd(Number(d.current_collateral ?? 0))} → ${formatUsd(Number(d.new_collateral ?? 0))}`} />
         <Cell
           label="Leverage"
-          value={`${Number(d.current_leverage ?? 0).toFixed(1)}x → ${Number(d.new_leverage ?? 0).toFixed(1)}x`}
+          value={`${safe(d.current_leverage).toFixed(1)}x → ${safe(d.new_leverage).toFixed(1)}x`}
           color={newLevHigher ? "var(--color-accent-warn)" : "var(--color-accent-long)"}
         />
         <Cell label="Liq Price" value={`${formatPrice(Number(d.current_liq_price ?? 0))} → ${formatPrice(Number(d.new_liq_price ?? 0))}`} />
         <Cell
           label="Liq Distance"
-          value={`${Number(d.current_liq_distance_pct ?? 0).toFixed(1)}% → ${Number(d.new_liq_distance_pct ?? 0).toFixed(1)}%`}
+          value={`${safe(d.current_liq_distance_pct).toFixed(1)}% → ${safe(d.new_liq_distance_pct).toFixed(1)}%`}
           color={Number(d.new_liq_distance_pct ?? 0) < 10 ? "var(--color-accent-short)" : undefined}
         />
       </div>
@@ -534,8 +531,10 @@ const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { output: To
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ txBase64: apiResult.transactionBase64, payerKey: walletAddress }),
       });
-      const cleanData = await cleanResp.json();
+      if (!cleanResp.ok) throw new Error(`Clean-tx failed: ${cleanResp.status}`);
+      const cleanData = await cleanResp.json().catch(() => { throw new Error("Invalid clean-tx response"); });
       if (cleanData.error) throw new Error(cleanData.error);
+      if (!cleanData.txBase64) throw new Error("No cleaned transaction returned");
 
       const { VersionedTransaction } = await import("@solana/web3.js");
       const txBytes = Uint8Array.from(atob(cleanData.txBase64), (c) => c.charCodeAt(0));
@@ -673,8 +672,10 @@ const ReversePositionCard = memo(function ReversePositionCard({ output }: { outp
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ txBase64: apiResult.transactionBase64, payerKey: walletAddress }),
       });
-      const cleanData = await cleanResp.json();
+      if (!cleanResp.ok) throw new Error(`Clean-tx failed: ${cleanResp.status}`);
+      const cleanData = await cleanResp.json().catch(() => { throw new Error("Invalid clean-tx response"); });
       if (cleanData.error) throw new Error(cleanData.error);
+      if (!cleanData.txBase64) throw new Error("No cleaned transaction returned");
 
       const { VersionedTransaction } = await import("@solana/web3.js");
       const txBytes = Uint8Array.from(atob(cleanData.txBase64), (c) => c.charCodeAt(0));
@@ -804,7 +805,7 @@ const PositionsCard = memo(function PositionsCard({ output }: { output: ToolOutp
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                     style={{ color: side === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)",
                       background: side === "LONG" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>{side}</span>
-                  <span className="text-[11px] text-text-tertiary num">{leverage.toFixed(1)}x</span>
+                  <span className="text-[11px] text-text-tertiary num">{safe(leverage).toFixed(1)}x</span>
                 </div>
                 <div className="flex items-center gap-3 text-[12px] text-text-tertiary num">
                   <span>{formatUsd(size)}</span>
@@ -860,7 +861,8 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
           body: JSON.stringify({ wallet: walletAddress }),
         });
         if (!resp.ok) return;
-        const data = await resp.json();
+        const data = await resp.json().catch(() => null);
+        if (!data) return;
 
         const tokens: { symbol: string; amount: number; usdValue: number; color: string }[] = [];
 
@@ -970,7 +972,7 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
                 style={{ background: dotColor }}>{market.slice(0, 1)}</div>
               <div className="flex-1">
                 <span className="text-[14px] font-medium text-text-primary">{market}</span>
-                <span className="text-[11px] text-text-tertiary ml-2 num">{leverage.toFixed(1)}x · {formatPrice(entry)}</span>
+                <span className="text-[11px] text-text-tertiary ml-2 num">{safe(leverage).toFixed(1)}x · {formatPrice(entry)}</span>
               </div>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full mr-2"
                 style={{ color: side === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)",
@@ -1003,7 +1005,7 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
                 <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
                   style={{ background: t.color }}>{t.symbol.slice(0, 1)}</div>
                 <span className="text-[13px] text-text-primary flex-1">{t.symbol}</span>
-                <span className="text-[12px] text-text-secondary num">{t.amount < 1 ? t.amount.toFixed(6) : t.amount.toFixed(2)}</span>
+                <span className="text-[12px] text-text-secondary num">{safe(t.amount) < 1 ? safe(t.amount).toFixed(6) : safe(t.amount).toFixed(2)}</span>
                 <span className="text-[12px] text-text-primary num w-16 text-right">{formatUsd(t.usdValue)}</span>
               </div>
             ))}

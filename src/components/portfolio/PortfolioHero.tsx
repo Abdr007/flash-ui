@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS, TICKER_MARKETS, MARKETS } from "@/lib/constants";
-import { formatUsd, formatPnl, formatPrice } from "@/lib/format";
+import { formatUsd, formatPnl, formatPrice, safe } from "@/lib/format";
 import TradeFlow from "./TradeFlow";
 const FSTATS = "https://fstats.io/api/v1";
 
@@ -72,7 +72,8 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
           body: JSON.stringify({ wallet: walletAddress }),
         });
         if (!resp.ok) return;
-        const data = await resp.json();
+        const data = await resp.json().catch(() => null);
+        if (!data) return;
         if (!cancelled) {
           setSolBalance(data.solBalance ?? 0);
           setTotalWalletUsd(data.totalUsd ?? 0);
@@ -110,13 +111,15 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
         ]);
         let v = 0, t = 0, f = 0;
         if (statsR.ok) {
-          const s = await statsR.json();
+          const s = await statsR.json().catch(() => null);
+          if (!s) return;
           v = s.volume_usd ?? 0; t = s.trades ?? 0; f = s.fees_usd ?? 0;
           if (!cancelled) { setVolume7d(v); setTrades7d(t); setFees7d(f); }
         }
         let oi: OIMarket[] = [];
         if (oiR.ok) {
-          const data = await oiR.json();
+          const data = await oiR.json().catch(() => null);
+          if (!data) return;
           oi = (data.markets ?? data ?? []).sort((a: OIMarket, b: OIMarket) => b.total_oi - a.total_oi);
           if (!cancelled) setOiMarkets(oi);
         }
@@ -134,8 +137,8 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
   let totalPnl = 0;
   let totalCollateral = 0;
   for (const pos of positions) {
-    totalPnl += pos.unrealized_pnl;
-    totalCollateral += pos.collateral_usd;
+    totalPnl += safe(pos.unrealized_pnl);
+    totalCollateral += safe(pos.collateral_usd);
   }
 
   const walletUsd = totalWalletUsd;
@@ -161,7 +164,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
         <div className="text-[12px] text-text-tertiary tracking-[0.2em] uppercase mb-2">Portfolio</div>
         <div className="text-[42px] font-semibold text-text-primary tracking-tight leading-none num mb-2">{formatUsd(walletUsd)}</div>
         <div className="flex items-center gap-4 mb-6 text-[13px]">
-          <span className="num text-text-secondary">{solBalance.toFixed(2)} SOL</span>
+          <span className="num text-text-secondary">{safe(solBalance).toFixed(2)} SOL</span>
           <span className="text-text-tertiary">·</span>
           <span className="num text-text-secondary">{formatUsd(usdcBalance)} USDC</span>
         </div>
@@ -186,7 +189,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
                 </div>
                 <div className="flex items-center gap-4 text-[12px]">
                   <span className="num text-text-secondary">{formatUsd(pos.size_usd)}</span>
-                  <span className="num font-medium" style={{ color: pos.unrealized_pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+                  <span className="num font-medium" style={{ color: safe(pos.unrealized_pnl) >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
                     {formatPnl(pos.unrealized_pnl)}
                   </span>
                 </div>
@@ -224,11 +227,11 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
                   <span className="text-[13px] font-semibold text-text-primary">{m.market}</span>
                 </div>
                 <div className="flex items-center gap-1.5 flex-1 mx-4">
-                  <span className="text-[10px] num text-accent-long">{longPct.toFixed(0)}%</span>
+                  <span className="text-[10px] num text-accent-long">{safe(longPct).toFixed(0)}%</span>
                   <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(239,68,68,0.3)" }}>
                     <div className="h-full rounded-full" style={{ width: `${longPct}%`, background: "var(--color-accent-long)" }} />
                   </div>
-                  <span className="text-[10px] num text-accent-short">{(100 - longPct).toFixed(0)}%</span>
+                  <span className="text-[10px] num text-accent-short">{safe(100 - longPct).toFixed(0)}%</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-[11px] num text-text-tertiary">{formatCompact(m.total_oi)}</span>
@@ -255,7 +258,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
 
       {walletConnected ? (
         <div className="flex items-center gap-3 mb-8 text-[13px]">
-          <span className="num text-text-secondary">{solBalance.toFixed(2)} SOL</span>
+          <span className="num text-text-secondary">{safe(solBalance).toFixed(2)} SOL</span>
           <span className="text-text-tertiary">·</span>
           <span className="num text-text-secondary">{formatUsd(usdcBalance)} USDC</span>
           {positions.length > 0 && (
@@ -327,11 +330,11 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
                       <span className="text-[13px] font-medium text-text-primary">{m.market}</span>
                     </div>
                     <div className="flex items-center gap-1.5 flex-1 mx-4">
-                      <span className="text-[10px] num text-accent-long">{longPct.toFixed(0)}%</span>
+                      <span className="text-[10px] num text-accent-long">{safe(longPct).toFixed(0)}%</span>
                       <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(239,68,68,0.3)" }}>
                         <div className="h-full rounded-full" style={{ width: `${longPct}%`, background: "var(--color-accent-long)" }} />
                       </div>
-                      <span className="text-[10px] num text-accent-short">{(100 - longPct).toFixed(0)}%</span>
+                      <span className="text-[10px] num text-accent-short">{safe(100 - longPct).toFixed(0)}%</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-[11px] num text-text-tertiary">{formatCompact(m.total_oi)}</span>

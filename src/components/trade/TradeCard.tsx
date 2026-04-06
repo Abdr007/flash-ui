@@ -13,6 +13,7 @@ import {
   formatLeverage,
   formatPercent,
   liqDistancePct,
+  safe,
 } from "@/lib/format";
 import { HIGH_LEVERAGE_THRESHOLD } from "@/lib/constants";
 import { getTradeConfidence, type TradeConfidence } from "@/lib/predictive-actions";
@@ -107,7 +108,7 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
               <span className="text-text-tertiary">Distance to liquidation</span>
               <span className="num font-medium"
                 style={{ color: liqDist < 10 ? "var(--color-accent-short)" : liqDist < 20 ? "var(--color-accent-warn)" : "var(--color-accent-long)" }}>
-                {liqDist.toFixed(1)}%
+                {safe(liqDist).toFixed(1)}%
               </span>
             </div>
             <div className="w-full h-1.5 bg-border-subtle rounded-full overflow-hidden">
@@ -125,7 +126,7 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
           <div className="px-5 py-2.5 text-[12px] border-t border-border-subtle flex items-center gap-2"
             style={{ color: "var(--color-accent-warn)", background: "rgba(245,158,11,0.04)" }}>
             <span>⚠</span>
-            <span>High leverage — {liqDist.toFixed(1)}% to liquidation</span>
+            <span>High leverage — {safe(liqDist).toFixed(1)}% to liquidation</span>
           </div>
         )}
 

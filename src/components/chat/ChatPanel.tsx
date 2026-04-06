@@ -47,11 +47,17 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const transportRef = useRef(new DefaultChatTransport({
     api: "/api/chat",
     fetch: async (url, init) => {
-      const state = useFlashStore.getState();
-      const body = JSON.parse((init?.body as string) ?? "{}");
-      body.wallet_address = state.walletAddress ?? "";
-      body.context = state.getContextForAPI();
-      return fetch(url, { ...init, body: JSON.stringify(body) });
+      try {
+        const state = useFlashStore.getState();
+        let body: Record<string, unknown> = {};
+        try { body = JSON.parse((init?.body as string) ?? "{}"); } catch {}
+        body.wallet_address = state.walletAddress ?? "";
+        body.context = state.getContextForAPI();
+        return fetch(url, { ...init, body: JSON.stringify(body) });
+      } catch (e) {
+        console.error("[ChatTransport]", e);
+        return fetch(url, init);
+      }
     },
   }));
 
@@ -295,6 +301,9 @@ const UserMessage = memo(function UserMessage({ text }: { text: string }) {
 });
 
 const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Record<string, unknown>[] }) {
+  // Guard: parts could be undefined/null/not-array from bad API response
+  const safeParts = Array.isArray(parts) ? parts : [];
+
   return (
     <div className="flex items-start gap-3">
       <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center mt-0.5"
@@ -305,44 +314,51 @@ const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Reco
       </div>
 
       <div className="flex flex-col gap-3 min-w-0 flex-1">
-        {parts.map((part, i) => {
-          if (part.type === "text") {
-            const text = part.text as string;
-            if (!text?.trim()) return null;
-            return (
-              <div key={i} className="text-[15px] text-text-secondary leading-relaxed">{text}</div>
-            );
+        {safeParts.map((part, i) => {
+          try {
+            if (!part || typeof part !== "object") return null;
+
+            if (part.type === "text") {
+              const text = String(part.text ?? "");
+              if (!text.trim()) return null;
+              return (
+                <div key={i} className="text-[15px] text-text-secondary leading-relaxed">{text}</div>
+              );
+            }
+
+            if (part.type === "dynamic-tool" || (typeof part.type === "string" && (part.type as string).startsWith("tool-"))) {
+              const toolName = part.type === "dynamic-tool"
+                ? String(part.toolName ?? "unknown")
+                : (part.type as string).replace("tool-", "");
+
+              return (
+                <div key={String(part.toolCallId ?? i)} className="card-anim">
+                  <ToolResultCard
+                    part={{
+                      type: String(part.type),
+                      toolName,
+                      toolCallId: String(part.toolCallId ?? `tc_${i}`),
+                      state: (part.state as "input-streaming" | "input-available" | "output-available") ?? "input-available",
+                      input: part.input as Record<string, unknown> | undefined,
+                      output: part.output as {
+                        status: "success" | "error" | "degraded";
+                        data: unknown;
+                        error?: string;
+                        request_id?: string;
+                        latency_ms?: number;
+                        warnings?: string[];
+                      } | undefined,
+                    }}
+                  />
+                </div>
+              );
+            }
+
+            return null;
+          } catch {
+            // Silently skip malformed parts — never crash the whole chat
+            return null;
           }
-
-          if (part.type === "dynamic-tool" || (typeof part.type === "string" && (part.type as string).startsWith("tool-"))) {
-            const toolName = part.type === "dynamic-tool"
-              ? (part.toolName as string)
-              : (part.type as string).replace("tool-", "");
-
-            return (
-              <div key={(part.toolCallId as string) ?? i} className="card-anim">
-                <ToolResultCard
-                  part={{
-                    type: part.type as string,
-                    toolName,
-                    toolCallId: (part.toolCallId as string) ?? `tc_${i}`,
-                    state: part.state as "input-streaming" | "input-available" | "output-available",
-                    input: part.input as Record<string, unknown> | undefined,
-                    output: part.output as {
-                      status: "success" | "error" | "degraded";
-                      data: unknown;
-                      error?: string;
-                      request_id?: string;
-                      latency_ms?: number;
-                      warnings?: string[];
-                    } | undefined,
-                  }}
-                />
-              </div>
-            );
-          }
-
-          return null;
         })}
       </div>
     </div>

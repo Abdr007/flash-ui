@@ -1,7 +1,7 @@
 "use client";
 
 import { useFlashStore } from "@/store";
-import { formatUsd, formatPrice, liqDistancePct } from "@/lib/format";
+import { formatUsd, formatPrice, liqDistancePct, safe } from "@/lib/format";
 
 export default function ConfirmOverlay() {
   const trade = useFlashStore((s) => s.activeTrade);
@@ -36,11 +36,11 @@ export default function ConfirmOverlay() {
         </div>
 
         {/* High leverage warning */}
-        {(trade.leverage ?? 0) > 10 && !isInFlight && (
+        {safe(trade.leverage) > 10 && !isInFlight && (
           <div className="px-6 py-3 text-[13px] flex items-center gap-2"
             style={{ color: "var(--color-accent-warn)", background: "rgba(245,158,11,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
             <span>⚠</span>
-            <span>{trade.leverage}x leverage — liquidation {liqDist.toFixed(1)}% from entry{(trade.collateral_usd ?? 0) >= 500 ? " · large trade" : ""}</span>
+            <span>{safe(trade.leverage)}x leverage — liquidation {safe(liqDist).toFixed(1)}% from entry{safe(trade.collateral_usd) >= 500 ? " · large trade" : ""}</span>
           </div>
         )}
 
@@ -51,7 +51,7 @@ export default function ConfirmOverlay() {
           <DataRow label="Fees" value={formatUsd(trade.fees)} />
           <DataRow
             label="Liquidation"
-            value={`${formatPrice(trade.liquidation_price)} (${liqDist.toFixed(1)}%)`}
+            value={`${formatPrice(trade.liquidation_price)} (${safe(liqDist).toFixed(1)}%)`}
             color={liqDist < 10 ? "var(--color-accent-short)" : "var(--color-accent-warn)"}
           />
         </div>

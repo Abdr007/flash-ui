@@ -1108,8 +1108,10 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ txBase64: result.transactionBase64, payerKey: wallet }),
       });
-      const cleanData = await cleanResp.json();
+      if (!cleanResp.ok) throw new Error(`Clean-tx failed: ${cleanResp.status}`);
+      const cleanData = await cleanResp.json().catch(() => { throw new Error("Invalid clean-tx response"); });
       if (cleanData.error) throw new Error(cleanData.error);
+      if (!cleanData.txBase64) throw new Error("No cleaned transaction returned");
 
       // Create a trade object for the signing flow
       const closeTrade: TradeObject = {

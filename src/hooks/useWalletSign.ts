@@ -38,8 +38,10 @@ export function useWalletSign() {
             payerKey: walletAddress,
           }),
         });
-        const cleanData = await cleanResp.json();
+        if (!cleanResp.ok) throw new Error(`Clean-tx failed: ${cleanResp.status}`);
+        const cleanData = await cleanResp.json().catch(() => { throw new Error("Invalid clean-tx response"); });
         if (cleanData.error) throw new Error(cleanData.error);
+        if (!cleanData.txBase64) throw new Error("No cleaned transaction returned");
 
         // 2. Deserialize clean tx
         const txBytes = Uint8Array.from(atob(cleanData.txBase64), (c) => c.charCodeAt(0));
