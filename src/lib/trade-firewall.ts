@@ -195,13 +195,14 @@ export function validateTrade(
     }
   }
 
-  // 10. TP/SL validation: direction + range (anti-nonsense: ±50% of entry)
-  const tpslRangeLow = t.entry_price * 0.5;
-  const tpslRangeHigh = t.entry_price * 2.0;
-
+  // 10. TP/SL validation: direction + dynamic range (>500% = unrealistic, <0.1% = too tight)
   if (t.take_profit_price != null && t.entry_price > 0) {
-    if (t.take_profit_price < tpslRangeLow || t.take_profit_price > tpslRangeHigh) {
-      errors.push(`Take profit $${t.take_profit_price} outside reasonable range for $${t.entry_price} entry`);
+    const dist = Math.abs(t.take_profit_price - t.entry_price) / t.entry_price;
+    if (dist > 5.0) {
+      errors.push(`Take profit $${t.take_profit_price} is >500% from entry $${t.entry_price} — unrealistic`);
+    }
+    if (dist < 0.001) {
+      errors.push(`Take profit $${t.take_profit_price} is <0.1% from entry $${t.entry_price} — too tight`);
     }
     if (t.side === "LONG" && t.take_profit_price <= t.entry_price) {
       errors.push(`LONG take profit $${t.take_profit_price} must be above entry $${t.entry_price}`);
@@ -211,8 +212,12 @@ export function validateTrade(
     }
   }
   if (t.stop_loss_price != null && t.entry_price > 0) {
-    if (t.stop_loss_price < tpslRangeLow || t.stop_loss_price > tpslRangeHigh) {
-      errors.push(`Stop loss $${t.stop_loss_price} outside reasonable range for $${t.entry_price} entry`);
+    const dist = Math.abs(t.stop_loss_price - t.entry_price) / t.entry_price;
+    if (dist > 5.0) {
+      errors.push(`Stop loss $${t.stop_loss_price} is >500% from entry $${t.entry_price} — unrealistic`);
+    }
+    if (dist < 0.001) {
+      errors.push(`Stop loss $${t.stop_loss_price} is <0.1% from entry $${t.entry_price} — too tight`);
     }
     if (t.side === "LONG" && t.stop_loss_price >= t.entry_price) {
       errors.push(`LONG stop loss $${t.stop_loss_price} must be below entry $${t.entry_price}`);

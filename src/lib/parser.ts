@@ -413,23 +413,15 @@ function parseSingleIntent(input: string): ParseResult {
   cleaned = cleaned.replace(/\d+(?:\.\d+)?\s*%\s*(?:tp|take\s*profit|sl|stop\s*loss)/gi, "");
   cleaned = cleaned.replace(/\b(?:tp|take\s*profit|sl|stop\s*loss)\s+(?:at\s+)?\d+(?:\.\d+)?\s*%/gi, "");
 
-  // Step 3: Extract limit/market order type
-  const isLimit = /\blimit\b/i.test(cleaned);
-  let orderType: "market" | "limit" = "market";
-  let limitPrice: number | null = null;
-
-  if (isLimit) {
-    orderType = "limit";
-    const limitPriceMatch = cleaned.match(/\blimit\s+(?:at\s+)?\$?(\d+(?:\.\d+)?)/i);
-    if (limitPriceMatch) {
-      const n = parseFloat(limitPriceMatch[1]);
-      if (Number.isFinite(n) && n > 0) limitPrice = n;
-    }
-    // Strip limit token + value
-    cleaned = cleaned.replace(/\blimit\s+(?:at\s+)?\$?\d+(?:\.\d+)?/gi, "");
-    cleaned = cleaned.replace(/\blimit\b/gi, "");
+  // Step 3: Limit order gate — REJECT IMMEDIATELY at parse time
+  if (/\blimit\b/i.test(cleaned)) {
+    return {
+      type: "unknown",
+      intent: { type: "QUERY", raw: trimmed },
+      // Parser rejects — this message will be shown to user via AI fallback
+    };
   }
-  // Strip explicit "market" keyword
+  // Strip explicit "market" keyword (it's the default, no-op)
   cleaned = cleaned.replace(/\bmarket\b/gi, "");
 
   // Step 4: Extract leverage from cleaned input
@@ -465,8 +457,8 @@ function parseSingleIntent(input: string): ParseResult {
     slippage_bps: DEFAULT_SLIPPAGE_BPS,
     status: "INCOMPLETE",
     missing_fields: missing,
-    order_type: orderType,
-    limit_price: limitPrice,
+    order_type: "market",
+    limit_price: null,
     take_profit_price: inlineTPPrice,
     stop_loss_price: inlineSLPrice,
   };
