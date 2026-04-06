@@ -6,7 +6,7 @@
 
 import { memo, useState, useEffect, useMemo, useCallback } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { validateTrade } from "@/lib/trade-firewall";
+import { validateTrade, type TradePreview } from "@/lib/trade-firewall";
 import { getTradeConfidence, type TradeConfidence } from "@/lib/predictive-actions";
 import { useFlashStore } from "@/store";
 import { useNumberSpring, useBounceIn } from "@/hooks/useSpring";
@@ -334,6 +334,98 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
           Cancel
         </button>
       </div>
+
+      {/* Smart suggestions — context-aware, non-intrusive */}
+      {!submitting && <TradeHints trade={t} />}
+    </div>
+  );
+});
+
+// ---- Post-Intent Suggestions ----
+
+const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) {
+  const [dismissed, setDismissed] = useState(false);
+
+  if (dismissed) return null;
+
+  const hints: { label: string; intent: string; color: string }[] = [];
+
+  // No SL → suggest adding one
+  if (!trade.stop_loss_price) {
+    const suggestedSl = trade.side === "LONG"
+      ? Math.round(trade.entry_price * 0.95 * 100) / 100
+      : Math.round(trade.entry_price * 1.05 * 100) / 100;
+    hints.push({
+      label: `Add SL ~$${suggestedSl.toLocaleString()}`,
+      intent: `${trade.side.toLowerCase()} ${trade.market} $${trade.collateral_usd} ${trade.leverage}x sl ${suggestedSl}`,
+      color: "var(--color-accent-short)",
+    });
+  }
+
+  // No TP → suggest adding one
+  if (!trade.take_profit_price) {
+    const suggestedTp = trade.side === "LONG"
+      ? Math.round(trade.entry_price * 1.1 * 100) / 100
+      : Math.round(trade.entry_price * 0.9 * 100) / 100;
+    hints.push({
+      label: `Add TP ~$${suggestedTp.toLocaleString()}`,
+      intent: `${trade.side.toLowerCase()} ${trade.market} $${trade.collateral_usd} ${trade.leverage}x tp ${suggestedTp}`,
+      color: "var(--color-accent-long)",
+    });
+  }
+
+  // High leverage → warn
+  if (trade.leverage >= 20) {
+    const safeLev = Math.max(5, Math.floor(trade.leverage / 2));
+    hints.push({
+      label: `Reduce to ${safeLev}x?`,
+      intent: `${trade.side.toLowerCase()} ${trade.market} $${trade.collateral_usd} ${safeLev}x`,
+      color: "var(--color-accent-warn)",
+    });
+  }
+
+  // Low liquidation distance → suggest more collateral
+  const liqDist = liqDistancePct(trade.entry_price, trade.liquidation_price, trade.side);
+  if (liqDist < 10 && liqDist > 0 && trade.leverage < 20) {
+    hints.push({
+      label: "Add more collateral?",
+      intent: `${trade.side.toLowerCase()} ${trade.market} $${Math.round(trade.collateral_usd * 1.5)} ${trade.leverage}x`,
+      color: "var(--color-accent-warn)",
+    });
+  }
+
+  if (hints.length === 0) return null;
+
+  return (
+    <div className="px-4 py-2.5 flex flex-wrap gap-1.5 border-t border-border-subtle" style={{ animation: "fadeIn 200ms ease-out" }}>
+      {hints.slice(0, 3).map((h, i) => (
+        <button
+          key={i}
+          onClick={() => {
+            setDismissed(true);
+            // Copy intent to clipboard and focus input — user can paste or we auto-fill
+            try {
+              const input = document.querySelector<HTMLTextAreaElement>("textarea");
+              if (input) {
+                const nativeSet = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+                nativeSet?.call(input, h.intent);
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+                input.focus();
+              }
+            } catch {}
+          }}
+          className="chip text-[11px] px-3 py-1.5 cursor-pointer"
+          style={{ color: h.color, background: `${h.color}08`, border: `1px solid ${h.color}20` }}
+        >
+          {h.label}
+        </button>
+      ))}
+      <button
+        onClick={() => setDismissed(true)}
+        className="text-[10px] text-text-tertiary px-2 py-1.5 cursor-pointer hover:text-text-secondary"
+      >
+        ✕
+      </button>
     </div>
   );
 });
