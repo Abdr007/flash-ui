@@ -106,6 +106,9 @@ export async function buildEarnDeposit(
     "USDC",
     pc.compoundingTokenMint,
     pc,
+    true,         // skipBalanceChecks — ATA may not exist yet
+    undefined,    // ephemeralSignerPubkey
+    wallet.publicKey, // userPublicKey — explicit
   );
 
   return {
@@ -186,6 +189,9 @@ export async function buildEarnWithdraw(
       "USDC",
       flpMint,
       pc,
+      true,           // createUserATA
+      undefined,       // ephemeralSignerPubkey
+      wallet.publicKey, // userPublicKey
     );
   }
 

@@ -1406,6 +1406,17 @@ const EarnDepositCard = memo(function EarnDepositCard({ output }: { output: Tool
       const transaction = new VersionedTransaction(message);
       if (result.additionalSigners.length > 0) transaction.sign(result.additionalSigners);
 
+      // Simulate before signing
+      const simResult = await connection.simulateTransaction(transaction, { sigVerify: false, replaceRecentBlockhash: true });
+      if (simResult.value.err) {
+        const logs = simResult.value.logs?.slice(-3)?.join(" ") ?? "";
+        throw new Error(
+          logs.includes("insufficient") ? "Insufficient USDC balance"
+          : logs.includes("AccountNotFound") ? "Token account not initialized — try the Earn page instead"
+          : `Simulation failed: ${JSON.stringify(simResult.value.err).slice(0, 80)}`
+        );
+      }
+
       setStatus("signing");
       const signed = await signTransaction(transaction);
 
