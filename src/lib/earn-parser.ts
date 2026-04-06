@@ -11,7 +11,7 @@ export interface EarnInstruction {
   action: "deposit" | "withdraw";
   pool: string;
   amount: number | null;
-  amount_type: "USD" | "percent" | null;
+  amount_type: "USDC" | "percent" | null; // Always USDC, never raw "USD"
   shares: number | null;
 }
 
@@ -25,13 +25,14 @@ export interface EarnParseResult {
 
 const VALID_POOLS = new Set(["crypto", "defi", "gold", "meme", "wif", "fart", "ore", "stable"]);
 const VALID_TOKENS = new Set(["usdc", "usd"]);
-const FILLER_WORDS = new Set(["into", "from", "in", "to", "the", "pool", "earn", "of", "my"]);
+const FILLER_WORDS = new Set(["into", "from", "in", "to", "the", "pool", "earn", "of", "my", "max", "and"]);
 
 const DEPOSIT_WORDS = new Set(["deposit", "add", "supply"]);
 const WITHDRAW_WORDS = new Set(["withdraw", "remove", "redeem"]);
 const ALL_ACTION_WORDS = new Set([...DEPOSIT_WORDS, ...WITHDRAW_WORDS]);
 
-const VAGUE_WORDS = /\b(some|everything|all|max|best|safe|good|high|low|a\s*lot|a\s*bit|much)\b/i;
+const VAGUE_WORDS = /\b(some|everything|all|best|safe|good|high|low|a\s*lot|a\s*bit|much)\b/i;
+// NOTE: "max" is NOT vague for withdraw — it's a deterministic alias for 100%
 const MAX_USDC_DECIMALS = 2; // USDC: 6 on-chain, but UI caps at 2 for sanity
 
 // ---- Main Compiler ----
@@ -75,46 +76,71 @@ export function parseEarnCommand(input: string): EarnParseResult {
 
   // ---- PHASE 4: Extract Amount with MANDATORY unit ----
   let amount: number | null = null;
-  let amountType: "USD" | "percent" | null = null;
+  let amountType: "USDC" | "percent" | null = null;
   let shares: number | null = null;
 
-  // 4a. Percent: "50%"
-  const pctMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*%/);
-  if (pctMatch) {
-    const pct = parseFloat(pctMatch[1]);
-    if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
-      errors.push("Percent must be between 0 and 100");
+  // Count how many value types are present (for single-value enforcement)
+  const hasPct = /\d+(?:\.\d+)?\s*%/.test(trimmed);
+  const hasDollar = /\$\s*\d/.test(trimmed);
+  const hasTokenAmount = /\d+(?:\.\d+)?\s*(?:usdc|usd|dollars?)\b/i.test(trimmed);
+  const hasShares = /\d+(?:\.\d+)?\s*shares?\b/i.test(trimmed);
+  const hasMax = /\bmax\b/i.test(lower);
+  const valueCount = [hasPct, hasDollar || hasTokenAmount, hasShares, hasMax].filter(Boolean).length;
+
+  if (valueCount > 1) {
+    errors.push("Mixed values — specify exactly one: $100, 100 USDC, 50%, 10 shares, or max");
+    return reject(errors);
+  }
+
+  // 4a. "max" → 100% (WITHDRAW ONLY, deterministic)
+  if (hasMax) {
+    if (action === "deposit") {
+      errors.push("\"max\" is only allowed for withdraw — specify USD amount for deposit");
     } else {
-      amount = pct;
+      amount = 100;
       amountType = "percent";
     }
   }
 
-  // 4b. Dollar sign: "$100", "$100.50"
+  // 4b. Percent: "50%"
+  if (!amountType) {
+    const pctMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*%/);
+    if (pctMatch) {
+      const pct = parseFloat(pctMatch[1]);
+      if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+        errors.push("Percent must be between 0 and 100");
+      } else {
+        amount = pct;
+        amountType = "percent";
+      }
+    }
+  }
+
+  // 4c. Dollar sign: "$100", "$100.50" → normalized to USDC
   if (!amountType) {
     const dollarMatch = trimmed.match(/\$\s*(\d+(?:\.\d+)?)/);
     if (dollarMatch) {
       const val = parseFloat(dollarMatch[1]);
       if (Number.isFinite(val) && val > 0) {
         amount = val;
-        amountType = "USD";
+        amountType = "USDC";
       }
     }
   }
 
-  // 4c. Token-qualified: "100 USDC", "50.5 usd"
+  // 4d. Token-qualified: "100 USDC", "50.5 usd", "100 dollars" → all normalize to USDC
   if (!amountType) {
     const tokenMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*(usdc|usd|dollars?)/i);
     if (tokenMatch) {
       const val = parseFloat(tokenMatch[1]);
       if (Number.isFinite(val) && val > 0) {
         amount = val;
-        amountType = "USD";
+        amountType = "USDC";
       }
     }
   }
 
-  // 4d. Shares: "10 shares"
+  // 4e. Shares: "10 shares"
   if (!amountType) {
     const sharesMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*shares?/i);
     if (sharesMatch) {
@@ -158,7 +184,7 @@ export function parseEarnCommand(input: string): EarnParseResult {
   }
 
   // ---- PHASE 6: Decimal precision ----
-  if (amount !== null && amountType === "USD") {
+  if (amount !== null && amountType === "USDC") {
     const decMatch = String(amount).match(/\.(\d+)/);
     if (decMatch && decMatch[1].length > MAX_USDC_DECIMALS) {
       errors.push(`Too many decimals — USDC supports up to ${MAX_USDC_DECIMALS}`);
@@ -208,15 +234,24 @@ export function parseEarnCommand(input: string): EarnParseResult {
     errors.push("Ambiguous amount — specify exact value (e.g. $100, 50%, 10 shares)");
   }
 
-  // ---- Build result ----
+  // ---- FINAL ASSERTION: verify structure is complete ----
   if (errors.length > 0) return reject(errors);
+
+  // Defensive: all required fields must be non-null
+  if (!action || !pool) return reject(["Incomplete instruction — missing action or pool"]);
+  if (action === "deposit" && (amount === null || amountType !== "USDC")) {
+    return reject(["Deposit must specify USDC amount"]);
+  }
+  if (action === "withdraw" && amount === null && shares === null) {
+    return reject(["Withdraw must specify amount, percent, or shares"]);
+  }
 
   return {
     status: "valid",
     errors: [],
     earn: {
-      action: action!,
-      pool: pool!,
+      action,
+      pool,
       amount,
       amount_type: amountType,
       shares,
