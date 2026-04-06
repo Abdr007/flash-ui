@@ -5,6 +5,9 @@
 // Caches for 30s to prevent API spam.
 // NO custom math — all APY/TVL from protocol.
 
+// Force dynamic — prevent Vercel from caching 404 for this route
+export const dynamic = "force-dynamic";
+
 // Flash official earn data API
 const EARN_API = "https://api.prod.flash.trade/earn-page/data";
 const CACHE_TTL_MS = 30_000;
