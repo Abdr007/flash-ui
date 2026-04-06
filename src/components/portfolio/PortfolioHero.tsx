@@ -146,7 +146,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
       <div className="flex flex-col items-center pt-12 pb-6 px-6 w-full" style={{ animation: "fadeIn 300ms ease-out" }}>
         <TradeFlow
           side={activeFlow}
-          onComplete={(cmd) => { setActiveFlow(null); onAction(cmd); }}
+          onComplete={(cmd) => { setActiveFlow(null); setTimeout(() => onAction(cmd), 0); }}
           onCancel={() => setActiveFlow(null)}
         />
       </div>
@@ -277,9 +277,9 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>} />
         <ActionCircle label="Short" onClick={() => setActiveFlow("SHORT")}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12l7 7 7-7" /></svg>} />
-        <ActionCircle label="Portfolio" onClick={() => onAction("portfolio")}
+        <ActionCircle label="Portfolio" onClick={() => setTimeout(() => onAction("portfolio"), 0)}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>} />
-        <ActionCircle label="Markets" onClick={() => onAction("show all prices")}
+        <ActionCircle label="Markets" onClick={() => setTimeout(() => onAction("show all prices"), 0)}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>} />
       </div>
 
