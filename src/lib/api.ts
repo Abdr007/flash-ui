@@ -91,7 +91,12 @@ async function apiPost<T>(
       signal: controller.signal,
     });
 
-    // Flash API returns 200 even on errors — check `err` field in body
+    // Flash API returns 200 on success with JSON. On errors it may return
+    // non-JSON (422 text). Guard against both cases.
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText);
+      throw new Error(`Flash API ${res.status}: ${text}`);
+    }
     return (await res.json()) as T;
   } finally {
     clearTimeout(timer);

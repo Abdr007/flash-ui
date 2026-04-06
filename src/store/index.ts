@@ -1074,21 +1074,70 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
     closeLock = true;
 
     try {
-      const { buildClosePosition } = await import("@/lib/api");
-      const result = await buildClosePosition({ market, side, owner: wallet });
+      // Find position key from current positions
+      const position = get().positions.find(
+        (p) => p.market === market && p.side === side,
+      );
+      if (!position?.pubkey) {
+        throw new Error(`No ${side} ${market} position found`);
+      }
+
+      // Use the close flow that includes positionKey (required by Flash API)
+      const { buildClosePositionTx } = await import("@/lib/api");
+      const result = await buildClosePositionTx({
+        positionKey: position.pubkey,
+        marketSymbol: market,
+        side: side === "LONG" ? "Long" : "Short",
+        owner: wallet,
+        closePercent: 100,
+        inputUsdUi: String(position.size_usd),
+        withdrawTokenSymbol: "USDC",
+      });
 
       if (result.err) {
         throw new Error(result.err);
       }
 
+      if (!result.transactionBase64) {
+        throw new Error("No transaction returned from API");
+      }
+
+      // Clean tx (strip Lighthouse) + set as active trade for signing
+      const cleanResp = await fetch("/api/clean-tx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txBase64: result.transactionBase64, payerKey: wallet }),
+      });
+      const cleanData = await cleanResp.json();
+      if (cleanData.error) throw new Error(cleanData.error);
+
+      // Create a trade object for the signing flow
+      const closeTrade: TradeObject = {
+        id: `close-${market}-${Date.now()}`,
+        market,
+        action: side,
+        collateral_usd: position.collateral_usd,
+        leverage: position.leverage,
+        position_size: position.size_usd,
+        entry_price: position.entry_price,
+        mark_price: position.mark_price,
+        liquidation_price: position.liquidation_price,
+        fees: 0,
+        fee_rate: null,
+        slippage_bps: null,
+        status: "SIGNING",
+        unsigned_tx: cleanData.txBase64,
+        missing_fields: [],
+      };
+      set({ activeTrade: closeTrade });
+
       const sysMsg: ChatMessage = {
         id: msgId(),
         role: "system",
-        content: `${market} ${side} position closed.`,
+        content: `Closing ${side} ${market} — sign in your wallet.`,
         timestamp: Date.now(),
       };
       set({ messages: [...get().messages, sysMsg] });
-      get().refreshPositions();
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Close failed";
       const sysMsg: ChatMessage = {
