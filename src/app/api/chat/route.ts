@@ -115,6 +115,55 @@ function createFafStreamResponse(toolName: string, result: Record<string, unknow
   return createUIMessageStreamResponse({ stream });
 }
 
+// ---- Conversational Intent Fast-Path (no AI needed) ----
+// Returns text prompts for button-triggered intents when AI is unavailable
+
+const CONVERSATIONAL_INTENTS: { pattern: RegExp; response: string }[] = [
+  {
+    pattern: /^I want to trade$/i,
+    response:
+      "What do you want to trade?\n\n" +
+      "Type a command like:\n" +
+      "• `long SOL 5x $25` — Long SOL with 5x leverage, $25 collateral\n" +
+      "• `short BTC 3x $50` — Short BTC with 3x leverage\n" +
+      "• `long ETH 5x $25` — Long ETH\n\n" +
+      "Format: `long/short <MARKET> <LEVERAGE>x $<AMOUNT>`",
+  },
+  {
+    pattern: /^I want to earn yield$/i,
+    response:
+      "What would you like to do?\n\n" +
+      "• `deposit 50 USDC into crypto pool` — Earn yield on Crypto pool\n" +
+      "• `deposit 100 USDC into defi pool` — Earn yield on DeFi pool\n\n" +
+      "Available pools: crypto, defi, gold, meme, wif, fart, ore",
+  },
+  {
+    pattern: /^I want to transfer tokens$/i,
+    response:
+      "What do you want to send?\n\n" +
+      "Tell me the token, amount, and recipient address.\n" +
+      "Example: `send 2 SOL to <wallet_address>`\n\n" +
+      "Or specify separately — I'll guide you step by step.",
+  },
+  {
+    pattern: /^show my portfolio$/i,
+    response:
+      "What would you like to see?\n\n" +
+      "• `positions` — Your open trading positions\n" +
+      "• `portfolio` — Full portfolio overview\n" +
+      "• `prices` — All market prices\n" +
+      "• `faf status` — FAF staking dashboard",
+  },
+];
+
+function matchConversationalIntent(input: string): string | null {
+  const trimmed = input.trim();
+  for (const intent of CONVERSATIONAL_INTENTS) {
+    if (intent.pattern.test(trimmed)) return intent.response;
+  }
+  return null;
+}
+
 function createFafTextResponse(text: string): Response {
   const id = `faf_text_${Date.now()}`;
   const stream = createUIMessageStream({
@@ -249,6 +298,15 @@ export async function POST(req: Request) {
     if (fast.matched && fast.response) {
       logInfo("fast_path", { wallet: walletAddress, data: { input: lastUserText.slice(0, 80) } });
       return fast.response;
+    }
+  }
+
+  // ---- CONVERSATIONAL FAST PATH: button intents → text prompts (NO AI needed) ----
+  {
+    const convResponse = matchConversationalIntent(lastUserText);
+    if (convResponse) {
+      logInfo("fast_path", { wallet: walletAddress, data: { type: "conversational", input: lastUserText.slice(0, 40) } });
+      return createFafTextResponse(convResponse);
     }
   }
 

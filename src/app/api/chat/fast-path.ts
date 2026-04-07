@@ -60,13 +60,22 @@ function recordHit(input: string): void {
 }
 
 // ---- Strict Regex (full-string match, no partial) ----
-// Uses RegExp constructor to avoid template literal $ escaping issues.
+// Format A: long SOL $25 5x (amount before leverage)
 // Groups: 1=side, 2=market, 3=collateral, 4=leverage, 5=tp1, 6=sl1, 7=tp2, 8=sl2
 const FAST_TRADE_RE = new RegExp(
   "^(long|short)\\s+(\\w+)\\s+[$]?(\\d+(?:\\.\\d+)?)\\s+(\\d+(?:\\.\\d+)?)x" +
   "(?:\\s+market)?" +
   "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
   "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?" +
+  "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
+  "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?$",
+  "i"
+);
+
+// Format B: long SOL 5x $25 (leverage before amount — common user pattern)
+// Groups: 1=side, 2=market, 3=leverage, 4=collateral
+const FAST_TRADE_RE_B = new RegExp(
+  "^(long|short)\\s+(\\w+)\\s+(\\d+(?:\\.\\d+)?)x\\s+[$]?(\\d+(?:\\.\\d+)?)" +
   "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
   "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?$",
   "i"
@@ -109,14 +118,24 @@ function resolveMarket(token: string): string | null {
 // ---- PHASE 1: Parse (synchronous, <1ms) ----
 
 function parse(input: string): ParsedTrade | null {
-  const m = FAST_TRADE_RE.exec(input);
-  if (!m) return null;
+  // Try format A: long SOL $25 5x
+  let m = FAST_TRADE_RE.exec(input);
+  let collateral: number;
+  let leverage: number;
+
+  if (m) {
+    collateral = parseFloat(m[3]);
+    leverage = parseFloat(m[4]);
+  } else {
+    // Try format B: long SOL 5x $25
+    m = FAST_TRADE_RE_B.exec(input);
+    if (!m) return null;
+    leverage = parseFloat(m[3]);
+    collateral = parseFloat(m[4]);
+  }
 
   const market = resolveMarket(m[2]);
   if (!market) return null;
-
-  const collateral = parseFloat(m[3]);
-  const leverage = parseFloat(m[4]);
 
   // Numeric safety — reject NaN/Infinity/out-of-bounds
   if (!Number.isFinite(collateral) || collateral < MIN_COLLATERAL) return null;
