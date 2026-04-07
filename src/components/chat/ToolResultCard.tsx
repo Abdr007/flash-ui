@@ -70,7 +70,7 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   earn_deposit: "Earn Deposit",
 };
 
-const ToolResultCard = memo(function ToolResultCard({ part }: { part: ToolPart }) {
+const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: ToolPart; onAction?: (cmd: string) => void }) {
   const output = part.output;
 
   if (part.state === "input-streaming") return <StreamingSteps toolName={part.toolName} step={1} input={part.input} />;
@@ -109,7 +109,7 @@ const ToolResultCard = memo(function ToolResultCard({ part }: { part: ToolPart }
     case "faf_claim":
     case "faf_requests":
     case "faf_cancel_unstake":
-    case "faf_tier": card = <FafCard toolName={part.toolName} output={output} />; break;
+    case "faf_tier": card = <FafCard toolName={part.toolName} output={output} onAction={onAction} />; break;
     default: card = <GenericCard toolName={part.toolName} output={output} />; break;
   }
 
@@ -2236,7 +2236,7 @@ function humanizeFafError(raw: string): string {
 // FAF Staking Cards (Dashboard, Stake, Unstake, Claim, Requests, Tier)
 // ============================================
 
-const FafCard = memo(function FafCard({ toolName, output }: { toolName: string; output: ToolOutput }) {
+const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName: string; output: ToolOutput; onAction?: (cmd: string) => void }) {
   const data = output.data as Record<string, unknown> | null;
   if (!data) return <ToolError toolName={toolName} error={output.error} />;
 
@@ -2470,6 +2470,29 @@ const FafCard = memo(function FafCard({ toolName, output }: { toolName: string; 
           </div>
         )}
 
+        {/* Action options (Galileo-style) */}
+        {onAction && (
+          <div className="flex flex-wrap gap-2 px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            {[
+              { label: "Stake FAF", intent: "I want to stake FAF tokens" },
+              { label: "Claim Rewards", intent: "claim my faf rewards" },
+              { label: "VIP Tiers", intent: "show me the vip tiers" },
+              { label: "Unstake", intent: "I want to unstake FAF" },
+              { label: "Requests", intent: "show my unstake requests" },
+            ].map((opt) => (
+              <button key={opt.label} onClick={() => onAction(opt.intent)}
+                className="px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer
+                  transition-all duration-100 hover:scale-[1.02] active:scale-[0.98]"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "var(--color-text-secondary)",
+                }}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

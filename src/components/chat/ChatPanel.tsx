@@ -491,6 +491,7 @@ const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { p
                         warnings?: string[];
                       } | undefined,
                     }}
+                    onAction={onAction}
                   />
                 </div>
               );
