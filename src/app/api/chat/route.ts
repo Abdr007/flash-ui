@@ -122,37 +122,36 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; response: string }[] = [
   {
     pattern: /^I want to trade$/i,
     response:
-      "What do you want to trade?\n\n" +
-      "Type a command like:\n" +
-      "• `long SOL 5x $25` — Long SOL with 5x leverage, $25 collateral\n" +
-      "• `short BTC 3x $50` — Short BTC with 3x leverage\n" +
-      "• `long ETH 5x $25` — Long ETH\n\n" +
-      "Format: `long/short <MARKET> <LEVERAGE>x $<AMOUNT>`",
+      "**What do you want to trade?**\n\n" +
+      "`long SOL 5x $25` — Long SOL, 5x leverage, $25 collateral\n" +
+      "`short BTC 3x $50` — Short BTC, 3x leverage\n" +
+      "`long ETH 5x $25` — Long ETH\n\n" +
+      "Format: `long/short MARKET LEVx $AMOUNT`",
   },
   {
     pattern: /^I want to earn yield$/i,
     response:
-      "What would you like to do?\n\n" +
-      "• `deposit 50 USDC into crypto pool` — Earn yield on Crypto pool\n" +
-      "• `deposit 100 USDC into defi pool` — Earn yield on DeFi pool\n\n" +
-      "Available pools: crypto, defi, gold, meme, wif, fart, ore",
+      "**Earn Yield**\n\n" +
+      "`deposit 50 USDC into crypto pool` — Crypto pool\n" +
+      "`deposit 100 USDC into defi pool` — DeFi pool\n\n" +
+      "Pools: crypto, defi, gold, meme, wif, fart, ore",
   },
   {
     pattern: /^I want to transfer tokens$/i,
     response:
-      "What do you want to send?\n\n" +
-      "Tell me the token, amount, and recipient address.\n" +
+      "**Transfer Tokens**\n\n" +
+      "Tell me the token, amount, and recipient.\n\n" +
       "Example: `send 2 SOL to <wallet_address>`\n\n" +
-      "Or specify separately — I'll guide you step by step.",
+      "I'll guide you step by step.",
   },
   {
     pattern: /^show my portfolio$/i,
     response:
-      "What would you like to see?\n\n" +
-      "• `positions` — Your open trading positions\n" +
-      "• `portfolio` — Full portfolio overview\n" +
-      "• `prices` — All market prices\n" +
-      "• `faf status` — FAF staking dashboard",
+      "**Portfolio**\n\n" +
+      "`positions` — Open trading positions\n" +
+      "`portfolio` — Full portfolio overview\n" +
+      "`prices` — All market prices\n" +
+      "`faf status` — FAF staking dashboard",
   },
 ];
 
@@ -322,20 +321,19 @@ export async function POST(req: Request) {
       if (fafMatch.action === "hub") {
         return createFafTextResponse(
           "**FAF Staking Hub**\n\n" +
-          "Type a command:\n" +
-          "• `faf status` — Dashboard (staked, rewards, tier)\n" +
-          "• `faf stake <amount>` — Stake FAF tokens\n" +
-          "• `faf claim` — Claim FAF rewards + USDC revenue\n" +
-          "• `faf tiers` — View VIP tier levels\n" +
-          "• `faf requests` — Pending unstake requests\n" +
-          "• `faf unstake <amount>` — Unstake FAF tokens"
+          "`faf status` — Dashboard (staked, rewards, tier)\n" +
+          "`faf stake 1000` — Stake FAF tokens\n" +
+          "`faf claim` — Claim FAF rewards + USDC revenue\n" +
+          "`faf tiers` — View VIP tier levels\n" +
+          "`faf requests` — Pending unstake requests\n" +
+          "`faf unstake 500` — Unstake FAF tokens"
         );
       }
       if (fafMatch.action === "stake_prompt") {
-        return createFafTextResponse("How much FAF do you want to stake? Type `faf stake <amount>`, e.g. `faf stake 1000`");
+        return createFafTextResponse("How much FAF do you want to stake?\n\nExample: `faf stake 1000`");
       }
       if (fafMatch.action === "unstake_prompt") {
-        return createFafTextResponse("How much FAF do you want to unstake? Type `faf unstake <amount>`, e.g. `faf unstake 500`");
+        return createFafTextResponse("How much FAF do you want to unstake?\n\nExample: `faf unstake 500`");
       }
 
       try {

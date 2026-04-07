@@ -340,6 +340,59 @@ const StreamingDot = memo(function StreamingDot({ inline }: { inline?: boolean }
   );
 });
 
+// Simple markdown renderer — handles bold, code, newlines, bullets
+const SimpleMarkdown = memo(function SimpleMarkdown({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <>
+      {lines.map((line, i) => {
+        if (!line.trim() && i > 0) return <div key={i} className="h-2" />;
+
+        // Process inline formatting
+        const parts: React.ReactNode[] = [];
+        let remaining = line;
+        let key = 0;
+
+        while (remaining.length > 0) {
+          // Bold: **text**
+          const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+          // Code: `text`
+          const codeMatch = remaining.match(/`(.+?)`/);
+
+          const firstMatch = [boldMatch, codeMatch]
+            .filter(Boolean)
+            .sort((a, b) => (a!.index ?? 999) - (b!.index ?? 999))[0];
+
+          if (!firstMatch || firstMatch.index === undefined) {
+            parts.push(<span key={key++}>{remaining}</span>);
+            break;
+          }
+
+          // Text before match
+          if (firstMatch.index > 0) {
+            parts.push(<span key={key++}>{remaining.slice(0, firstMatch.index)}</span>);
+          }
+
+          if (firstMatch === boldMatch) {
+            parts.push(<strong key={key++} className="font-semibold text-text-primary">{firstMatch[1]}</strong>);
+          } else {
+            parts.push(
+              <code key={key++} className="px-1.5 py-0.5 rounded text-[12px] font-mono text-accent-lime"
+                style={{ background: "rgba(200,245,71,0.08)" }}>
+                {firstMatch[1]}
+              </code>
+            );
+          }
+
+          remaining = remaining.slice(firstMatch.index + firstMatch[0].length);
+        }
+
+        return <div key={i}>{parts}</div>;
+      })}
+    </>
+  );
+});
+
 const UserMessage = memo(function UserMessage({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
@@ -403,7 +456,7 @@ const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Reco
               if (!text.trim()) return null;
               return (
                 <div key={i} className="text-[14px] text-text-secondary leading-relaxed">
-                  {text}
+                  <SimpleMarkdown text={text} />
                 </div>
               );
             }
