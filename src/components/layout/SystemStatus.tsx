@@ -30,6 +30,7 @@ export default function SystemStatus() {
         <span className="text-[16px] font-bold text-text-primary tracking-tight">
           Flash
         </span>
+        <span className="text-[9px] text-text-tertiary ml-1">v2</span>
       </div>
 
       <div className="flex-1" />
