@@ -24,9 +24,7 @@ import {
 } from "@solana/web3.js";
 import type { Wallet } from "@coral-xyz/anchor";
 
-// FAF SDK needs mainnet RPC (beta endpoint doesn't support all Flash SDK methods)
-const RPC_URL = (process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com")
-  .replace("beta.helius-rpc.com", "mainnet.helius-rpc.com");
+const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 const COMPUTE_UNITS = 100_000;
 const PRIORITY_FEE = 50_000; // microlamports
 

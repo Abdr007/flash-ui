@@ -71,12 +71,6 @@ export interface FafInstructionResult {
 
 const DEFAULT_POOL = "Crypto.1"; // FAF staking uses Crypto.1 pool
 
-// FAF SDK needs mainnet RPC (beta endpoint doesn't support all methods)
-function getFafRpcUrl(): string {
-  const url = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
-  // Replace beta with mainnet if needed
-  return url.replace("beta.helius-rpc.com", "mainnet.helius-rpc.com");
-}
 
 let _client: PerpetualsClient | null = null;
 let _lastWallet: string | null = null;

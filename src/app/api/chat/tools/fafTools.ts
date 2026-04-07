@@ -12,9 +12,7 @@ import type { Wallet } from "@coral-xyz/anchor";
 import type { ToolResponse } from "./shared";
 import { runReadGuards, runTradeGuards, logToolCall, logToolResult } from "./shared";
 
-// FAF SDK needs mainnet RPC (beta endpoint doesn't support all Flash SDK methods)
-const RPC_URL = (process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com")
-  .replace("beta.helius-rpc.com", "mainnet.helius-rpc.com");
+const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 
 function makeRequestId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -113,13 +111,19 @@ export function createFafStakeTool(wallet: string) {
         const pubkey = new PublicKey(wallet);
         const dummyWallet = makeDummyWallet(pubkey);
 
-        // Check FAF token balance in wallet BEFORE showing preview
+        // Check FAF balance — matches CLI faf-data.ts:getFafBalance() exactly
         let fafBalance = 0;
         try {
-          const { getAssociatedTokenAddress, getAccount } = await import("@solana/spl-token");
-          const fafAta = await getAssociatedTokenAddress(FAF_MINT, pubkey);
-          const account = await getAccount(conn, fafAta);
-          fafBalance = Number(account.amount) / Math.pow(10, FAF_DECIMALS);
+          const { TOKEN_PROGRAM_ID } = await import("@solana/spl-token");
+          const accounts = await conn.getTokenAccountsByOwner(pubkey, {
+            mint: FAF_MINT,
+            programId: TOKEN_PROGRAM_ID,
+          });
+          if (accounts.value.length > 0) {
+            const data = accounts.value[0].account.data;
+            const rawAmount = data.readBigUInt64LE(64);
+            fafBalance = Number(rawAmount) / Math.pow(10, FAF_DECIMALS);
+          }
         } catch {
           // No FAF token account = 0 balance
         }
