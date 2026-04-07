@@ -53,6 +53,33 @@ export function useWalletSign() {
 
         // 4. Execute via shared engine (broadcast + WS/HTTP confirm + rebroadcast)
         const signature = await executeSignedTransaction(signedBase64, connection);
+
+        // 5. Sign + broadcast TP/SL trigger orders (if any)
+        if (activeTrade.trigger_txs && activeTrade.trigger_txs.length > 0) {
+          for (const triggerBase64 of activeTrade.trigger_txs) {
+            try {
+              // Clean the trigger tx
+              const tCleanResp = await fetch("/api/clean-tx", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ txBase64: triggerBase64, payerKey: walletAddress }),
+              });
+              if (!tCleanResp.ok) continue;
+              const tClean = await tCleanResp.json().catch(() => null);
+              if (!tClean?.txBase64) continue;
+
+              const tBytes = Uint8Array.from(atob(tClean.txBase64), (c) => c.charCodeAt(0));
+              const tTx = VersionedTransaction.deserialize(tBytes);
+              const tSigned = await signTransaction(tTx);
+              const tBase64 = Buffer.from(tSigned.serialize()).toString("base64");
+              await executeSignedTransaction(tBase64, connection);
+            } catch (e) {
+              // TP/SL failure shouldn't fail the main trade
+              try { console.warn("[TP/SL trigger]", e instanceof Error ? e.message : e); } catch {}
+            }
+          }
+        }
+
         completeExecution(signature);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Transaction failed";

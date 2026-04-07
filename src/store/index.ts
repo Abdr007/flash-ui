@@ -904,17 +904,68 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         circuit_state: circuitState,
       });
 
-      const { result, latencyMs } = await withLatency(() =>
-        buildOpenPosition({
+      const { buildPlaceTriggerOrder } = await import("@/lib/api");
+
+      const { result, latencyMs } = await withLatency(async () => {
+        // 1. Build open position
+        const openResult = await buildOpenPosition({
           market: trade.market,
           side: trade.action,
           collateral,
           leverage,
           owner: wallet,
-          takeProfitPrice: trade.take_profit_price ?? undefined,
-          stopLossPrice: trade.stop_loss_price ?? undefined,
-        })
-      );
+        });
+
+        // 2. Build TP/SL trigger orders in parallel (if set)
+        if (openResult.transactionBase64 && (trade.take_profit_price || trade.stop_loss_price)) {
+          const posSize = collateral * leverage;
+          const entry = openResult.newEntryPrice || (trade.entry_price ?? 0);
+          const sizeAmount = entry > 0 ? String(Math.round((posSize / entry) * 10000) / 10000) : "0";
+
+          const triggerPromises: Promise<{ transactionBase64?: string; err: string | null }>[] = [];
+
+          if (trade.take_profit_price) {
+            triggerPromises.push(buildPlaceTriggerOrder({
+              owner: wallet,
+              marketSymbol: trade.market,
+              side: trade.action,
+              triggerPriceUi: String(trade.take_profit_price),
+              sizeUsdUi: String(posSize),
+              sizeAmountUi: sizeAmount,
+              isStopLoss: false,
+              collateralTokenSymbol: "USDC",
+            }));
+          }
+
+          if (trade.stop_loss_price) {
+            triggerPromises.push(buildPlaceTriggerOrder({
+              owner: wallet,
+              marketSymbol: trade.market,
+              side: trade.action,
+              triggerPriceUi: String(trade.stop_loss_price),
+              sizeUsdUi: String(posSize),
+              sizeAmountUi: sizeAmount,
+              isStopLoss: true,
+              collateralTokenSymbol: "USDC",
+            }));
+          }
+
+          const triggerResults = await Promise.allSettled(triggerPromises);
+
+          // Collect trigger tx base64s
+          const triggerTxs: string[] = [];
+          for (const r of triggerResults) {
+            if (r.status === "fulfilled" && r.value.transactionBase64 && !r.value.err) {
+              triggerTxs.push(r.value.transactionBase64);
+            }
+          }
+
+          // Attach trigger txs to result for the signing flow
+          (openResult as Record<string, unknown>)._triggerTxs = triggerTxs;
+        }
+
+        return openResult;
+      });
 
       // VERIFY: API didn't return a zero/invalid entry price
       if (
@@ -945,6 +996,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       }
 
       // Transaction built — move to SIGNING state.
+      const triggerTxs = ((result as unknown as Record<string, unknown>)._triggerTxs as string[] | undefined) ?? [];
       const signingTrade: TradeObject = {
         ...trade,
         status: "SIGNING",
@@ -954,6 +1006,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         leverage: apiLeverage,
         position_size: (collateral as number) * apiLeverage,
         unsigned_tx: result.transactionBase64,
+        trigger_txs: triggerTxs.length > 0 ? triggerTxs : undefined,
       };
       updateLastTradeCard(get, set, signingTrade);
       set({ activeTrade: signingTrade });
@@ -1048,57 +1101,6 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         set({ messages: msgs });
       }
     }, 8000);
-
-    // Place TP/SL trigger orders if set (fire-and-forget, separate transactions)
-    if (trade.take_profit_price || trade.stop_loss_price) {
-      const wallet = get().walletAddress;
-      if (wallet) {
-        import("@/lib/api").then(({ buildPlaceTriggerOrder }) => {
-          const posSize = trade.position_size ?? 0;
-          const sizeUsd = String(posSize);
-          // Approximate token amount from position size and entry price
-          const entry = trade.entry_price ?? 1;
-          const sizeAmount = String(Math.round((posSize / entry) * 10000) / 10000);
-
-          const placeTrigger = async (price: number, isSl: boolean) => {
-            try {
-              const result = await buildPlaceTriggerOrder({
-                owner: wallet,
-                marketSymbol: trade.market,
-                side: trade.action,
-                triggerPriceUi: String(price),
-                sizeUsdUi: sizeUsd,
-                sizeAmountUi: sizeAmount,
-                isStopLoss: isSl,
-                collateralTokenSymbol: "USDC",
-              });
-              if (result.err) {
-                try { console.warn(`[TP/SL] ${isSl ? "SL" : "TP"} failed:`, result.err); } catch {}
-              } else if (result.transactionBase64) {
-                // Clean + sign + broadcast (same pipeline as trades)
-                const cleanResp = await fetch("/api/clean-tx", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ txBase64: result.transactionBase64, payerKey: wallet }),
-                });
-                if (!cleanResp.ok) return;
-                const cleanData = await cleanResp.json().catch(() => null);
-                if (!cleanData?.txBase64) return;
-                // Store the unsigned tx for wallet signing via useWalletSign
-                // For now, log success — full signing flow requires wallet adapter context
-                try { console.info(`[TP/SL] ${isSl ? "SL" : "TP"} order built for ${trade.market} at $${price}`); } catch {}
-              }
-            } catch {}
-          };
-
-          // Small delay to let position confirm on-chain before placing triggers
-          setTimeout(() => {
-            if (trade.take_profit_price) placeTrigger(trade.take_profit_price, false);
-            if (trade.stop_loss_price) placeTrigger(trade.stop_loss_price, true);
-          }, 3000);
-        }).catch(() => {});
-      }
-    }
 
     // Record trade action for user pattern learning (fire-and-forget)
     try {

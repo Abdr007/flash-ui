@@ -42,6 +42,8 @@ export interface TradeObject {
   take_profit_price?: number | null;
   /** Stop loss price — passed to Flash API */
   stop_loss_price?: number | null;
+  /** Base64-encoded unsigned trigger order transactions (TP/SL) — signed after main tx */
+  trigger_txs?: string[];
 }
 
 export interface Position {
