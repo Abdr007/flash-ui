@@ -170,7 +170,9 @@ function createFafTextResponse(text: string): Response {
     execute: ({ writer }) => {
       writer.write({ type: "start" });
       writer.write({ type: "start-step" });
+      writer.write({ type: "text-start", id });
       writer.write({ type: "text-delta", delta: text, id });
+      writer.write({ type: "text-end", id });
       writer.write({ type: "finish-step" });
       writer.write({ type: "finish" });
     },
