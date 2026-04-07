@@ -16,6 +16,7 @@ import {
   streamText,
   convertToModelMessages,
   stepCountIs,
+  smoothStream,
   type UIMessage,
 } from "ai";
 import { groq } from "@ai-sdk/groq";
@@ -161,6 +162,7 @@ export async function POST(req: Request) {
       model: groq("llama-3.3-70b-versatile"),
       system: getSystemPrompt(context),
       messages: await convertToModelMessages(messages),
+      experimental_transform: smoothStream(),
       temperature: 0,
       maxOutputTokens: 80,
     });
@@ -179,6 +181,7 @@ export async function POST(req: Request) {
       messages: await convertToModelMessages(messages),
       tools,
       stopWhen: stepCountIs(3),
+      experimental_transform: smoothStream(),
       temperature: 0,
       maxOutputTokens: 200,
     });
@@ -193,6 +196,7 @@ export async function POST(req: Request) {
       messages: await convertToModelMessages(messages),
       tools,
       stopWhen: stepCountIs(5),
+      experimental_transform: smoothStream(),
       temperature: 0,
       maxOutputTokens: 400,
     });
