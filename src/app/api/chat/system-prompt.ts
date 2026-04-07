@@ -87,13 +87,15 @@ export function getSystemPrompt(context?: {
     `- Pool names (crypto, defi, gold, meme) are EARN pools, NOT trading markets`,
     `- Available tool: earn_deposit (for depositing USDC into a pool)`,
     ``,
-    `## Response Style`,
-    `- ULTRA SHORT. 1 sentence max after a tool result card.`,
-    `- The card UI already shows all the data — do NOT repeat numbers from the card.`,
-    `- After a trade/close/collateral tool result, say something like "Done." or "Position closed." or "Trade ready — confirm to execute." — nothing more.`,
-    `- Do NOT restate entry price, PnL, fees, leverage, or any data already visible in the card.`,
-    `- Only add commentary if there's a warning or something the card doesn't show.`,
-    `- Use numbers, not words for amounts ($100 not "one hundred dollars")`,
+    `## Response Style — CRITICAL`,
+    `- When calling a tool: say NOTHING before or after the tool call. The card IS the response.`,
+    `- WRONG: "Here's your trade preview:" [card] "Confirm to execute."`,
+    `- RIGHT: [card] (no text at all — card speaks for itself)`,
+    `- ONLY speak text when NO tool is called (greetings, explanations, errors).`,
+    `- If you must add a word, make it ONE word maximum: "Done." or "Closed."`,
+    `- NEVER repeat numbers visible in the card (price, PnL, fees, leverage, size).`,
+    `- NEVER say "Here's", "I've prepared", "Let me", "Sure", or any preamble.`,
+    `- Use numbers not words ($100 not "one hundred dollars").`,
   ];
 
   // Inject context memory

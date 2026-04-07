@@ -253,15 +253,6 @@ function buildResponse(
       });
 
       writer.write({ type: "finish-step" });
-
-      const textId = `text_fast_${Date.now()}`;
-      writer.write({ type: "text-start", id: textId });
-      writer.write({
-        type: "text-delta",
-        id: textId,
-        delta: "Trade ready — confirm to execute.",
-      });
-      writer.write({ type: "text-end", id: textId });
       writer.write({ type: "finish" });
     },
   });
