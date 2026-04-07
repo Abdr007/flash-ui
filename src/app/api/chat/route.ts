@@ -376,10 +376,18 @@ export async function POST(req: Request) {
         );
       }
       if (fafMatch.action === "stake_prompt") {
-        return createFafTextResponse("How much FAF do you want to stake?\n\nExample: `faf stake 1000`");
+        return createFafStreamResponse("faf_stake", {
+          status: "success",
+          data: { type: "faf_amount_picker", action: "stake", question: "How much FAF do you want to stake?", amounts: [50, 100, 500, 1000, 5000] },
+          request_id: `faf_sp_${Date.now()}`, latency_ms: 0,
+        });
       }
       if (fafMatch.action === "unstake_prompt") {
-        return createFafTextResponse("How much FAF do you want to unstake?\n\nExample: `faf unstake 500`");
+        return createFafStreamResponse("faf_unstake", {
+          status: "success",
+          data: { type: "faf_amount_picker", action: "unstake", question: "How much FAF do you want to unstake?", amounts: [50, 100, 200, 305] },
+          request_id: `faf_up_${Date.now()}`, latency_ms: 0,
+        });
       }
 
       try {

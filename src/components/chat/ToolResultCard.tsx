@@ -2351,6 +2351,45 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
     );
   }
 
+  // ── AMOUNT PICKER (Galileo-style) ──
+  if (type === "faf_amount_picker") {
+    const question = String(data.question ?? "How much?");
+    const amounts = (data.amounts as number[]) ?? [100, 500, 1000];
+    const action = String(data.action ?? "stake");
+    const cmd = action === "unstake" ? "faf unstake" : "faf stake";
+
+    return (
+      <div style={{ animation: "slideUp 200ms ease-out" }}>
+        <div className="text-[15px] text-text-secondary mb-3">{question}</div>
+        <div className="flex flex-col gap-1.5">
+          {amounts.map((amt) => (
+            <button key={amt} onClick={() => onAction?.(`${cmd} ${amt}`)}
+              className="quick-option group flex items-center justify-between w-full text-left
+                px-4 py-3 rounded-xl cursor-pointer transition-all"
+              style={{ background: "transparent", border: "1px solid var(--color-border-subtle)" }}>
+              <span className="text-[14px] font-semibold num text-text-primary group-hover:text-accent-lime transition-colors">
+                {amt.toLocaleString()} FAF
+              </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round"
+                className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </button>
+          ))}
+          <button onClick={() => onAction?.(`How much FAF should I ${action}?`)}
+            className="quick-option group flex items-center w-full text-left
+              px-4 py-3 rounded-xl cursor-pointer transition-all"
+            style={{ background: "transparent", border: "1px solid var(--color-border-subtle)" }}>
+            <span className="text-[14px] text-text-secondary group-hover:text-text-primary transition-colors">
+              Other amount...
+            </span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ── OPTIONS (Galileo-style action picker) ──
   if (type === "faf_options") {
     const options = [
