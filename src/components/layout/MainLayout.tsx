@@ -23,10 +23,13 @@ export default function MainLayout() {
   }, []);
 
   return (
-    <div className="flex flex-col bg-bg-root overflow-hidden" style={{ height: "100dvh" }}>
+    <div className="flex flex-col bg-bg-root overflow-hidden relative" style={{ height: "100dvh" }}>
+      {/* ---- Dotted Grid Background (Galileo-style) ---- */}
+      <div className="dot-grid-full" />
+
       {/* ---- Top Bar ---- */}
-      <header className="shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-        <SectionBoundary fallback={<div className="h-14 bg-bg-root" />}>
+      <header className="shrink-0 relative z-10" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <SectionBoundary fallback={<div className="h-12 bg-bg-root" />}>
           <SystemStatus />
         </SectionBoundary>
       </header>
@@ -37,7 +40,7 @@ export default function MainLayout() {
       </SectionBoundary>
 
       {/* ---- Single Column Content ---- */}
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col min-h-0 relative z-10">
         <SectionBoundary fallback={
           <div className="flex-1 flex items-center justify-center text-text-tertiary text-[14px]">
             Chat failed to load. <button onClick={() => window.location.reload()} className="ml-2 text-accent-blue underline cursor-pointer">Reload</button>

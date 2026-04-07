@@ -21,6 +21,7 @@ const RATE_LIMIT_MAX = 30;
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkRateLimit(ip: string): boolean {
+  cleanupRateLimits();
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
   if (!entry || now >= entry.resetAt) {
@@ -32,14 +33,18 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// Periodic cleanup
-if (typeof globalThis !== "undefined") {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [ip, entry] of rateLimitMap) {
-      if (now >= entry.resetAt) rateLimitMap.delete(ip);
-    }
-  }, 300_000);
+// Lazy cleanup — runs inside checkRateLimit, no setInterval needed on serverless
+function cleanupRateLimits() {
+  if (rateLimitMap.size < 50) return;
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap) {
+    if (now >= entry.resetAt) rateLimitMap.delete(ip);
+  }
+  // Hard cap to prevent memory leak under attack
+  if (rateLimitMap.size > 1000) {
+    const oldest = rateLimitMap.keys().next().value;
+    if (oldest) rateLimitMap.delete(oldest);
+  }
 }
 
 /**
@@ -85,8 +90,12 @@ async function sendToEndpoint(
 }
 
 export async function POST(req: NextRequest) {
+  // Use trusted IP headers — x-real-ip is set by Vercel/reverse proxy (not spoofable)
+  // Falls back to first x-forwarded-for entry
   const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    req.headers.get("x-real-ip")?.trim() ??
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "unknown";
   if (!checkRateLimit(ip)) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },

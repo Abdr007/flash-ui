@@ -138,10 +138,12 @@ async function waitForConfirmation(
       } catch {}
     }, POLL_INTERVAL_MS);
 
-    // ── Adaptive Rebroadcast ──
+    // ── Adaptive Rebroadcast (capped at 8 retries) ──
     let rebroadcastTimer: ReturnType<typeof setTimeout>;
+    let rebroadcastCount = 0;
+    const MAX_REBROADCASTS = 8;
     const scheduleRebroadcast = () => {
-      if (settled) return;
+      if (settled || rebroadcastCount >= MAX_REBROADCASTS) return;
       const elapsed = Date.now() - confirmStart;
       const progress = elapsed / timeoutMs;
       let interval: number;
@@ -151,15 +153,17 @@ async function waitForConfirmation(
 
       rebroadcastTimer = setTimeout(() => {
         if (settled) return;
+        rebroadcastCount++;
         rebroadcast(signedBase64);
         scheduleRebroadcast();
       }, interval);
     };
     scheduleRebroadcast();
 
-    // ── Timeout ──
+    // ── Timeout — REJECT, never false-confirm ──
     const timeoutTimer = setTimeout(() => {
       if (settled) return;
+      // Final status check before giving up
       conn.getSignatureStatuses([signature])
         .then(({ value }) => {
           const status = value[0];
@@ -167,11 +171,19 @@ async function waitForConfirmation(
             (status.confirmationStatus === "confirmed" || status.confirmationStatus === "finalized")) {
             onConfirmed(false);
           } else {
-            cleanup(false);
-            resolve(); // Timeout — resolve (tx was broadcast, likely included)
+            // CRITICAL FIX: reject on timeout — never tell user "confirmed" for unconfirmed tx
+            onError(new Error(
+              "Transaction was broadcast but not confirmed within 45 seconds. " +
+              "It may still land — check Solscan. Do NOT retry immediately to avoid double-send."
+            ));
           }
         })
-        .catch(() => { cleanup(false); resolve(); });
+        .catch(() => {
+          onError(new Error(
+            "Transaction confirmation timed out and status check failed. " +
+            "Check Solscan before retrying."
+          ));
+        });
     }, timeoutMs);
   });
 }

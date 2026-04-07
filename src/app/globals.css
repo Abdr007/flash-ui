@@ -1,19 +1,20 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* Flash.trade-aligned dark palette — deeper, more contrast */
-  --color-bg-root: #080B10;
-  --color-bg-surface: #0C1017;
-  --color-bg-card: #111620;
-  --color-bg-card-hover: #161D2A;
-  --color-bg-input: #111620;
-  --color-bg-elevated: #161D2A;
-  --color-border-subtle: #1A2332;
-  --color-border-focus: #243040;
-  --color-text-primary: #E4E8EF;
-  --color-text-secondary: #6B7D92;
-  --color-text-tertiary: #3A4A5C;
-  /* Trading colors — standard green/red */
+  /* Premium dark palette — deeper, richer contrast */
+  --color-bg-root: #070A0F;
+  --color-bg-surface: #0B0F16;
+  --color-bg-card: rgba(14, 19, 28, 0.75);
+  --color-bg-card-solid: #0E131C;
+  --color-bg-card-hover: #141B28;
+  --color-bg-input: #0E131C;
+  --color-bg-elevated: #141B28;
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-focus: rgba(255, 255, 255, 0.12);
+  --color-text-primary: #E8ECF3;
+  --color-text-secondary: #7B8DA3;
+  --color-text-tertiary: #3E5068;
+  /* Trading accents */
   --color-accent-long: #00D26A;
   --color-accent-short: #FF4D4D;
   --color-accent-blue: #3B82F6;
@@ -21,9 +22,8 @@
   --color-accent-purple: #8B5CF6;
   --color-accent-lime: #C8F547;
   --font-mono: var(--font-geist-mono), 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
-  /* Tighter radii — trading terminal feel */
-  --radius-card: 10px;
-  --radius-lg: 12px;
+  --radius-card: 16px;
+  --radius-lg: 20px;
   --radius-pill: 9999px;
 }
 
@@ -42,176 +42,226 @@ html, body {
   font-size: 14px;
 }
 
-/* ---- Scrollbar ---- */
-::-webkit-scrollbar { width: 6px; }
+/* ============================================
+   PREMIUM DOTTED GRID BACKGROUND
+   Galileo-style subtle dot pattern
+   ============================================ */
+
+.dot-grid-full {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(0,0,0,0.6) 0%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(0,0,0,0.6) 0%, transparent 100%);
+}
+
+/* Subtle ambient glow behind balance */
+.hero-glow {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200, 245, 71, 0.03) 0%, transparent 70%);
+  pointer-events: none;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%);
+  z-index: 0;
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border-subtle);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--color-border-focus); }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.14); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ---- Monospace Numbers ---- */
+/* ============================================
+   MONOSPACE NUMBERS
+   ============================================ */
+
 .num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
 
-/* ---- Focus ---- */
-input:focus-visible { outline: none; }
+/* ============================================
+   GLASS CARD (Premium frosted glass)
+   ============================================ */
 
-/* ---- Glass Card (trading terminal style) ---- */
 .glass-card {
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border-subtle);
+  background: rgba(14, 19, 28, 0.65);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: var(--radius-card);
 }
 
-/* ---- Dotted Grid Background ---- */
-.dot-grid {
-  background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
-  background-size: 24px 24px;
+.glass-card-solid {
+  background: var(--color-bg-card-solid);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-card);
 }
 
-/* ---- Action Circle (trading control style) ---- */
+/* ============================================
+   ACTION CIRCLES (Premium)
+   ============================================ */
+
 .action-circle {
-  width: 52px;
-  height: 52px;
   border-radius: 50%;
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border-subtle);
+  background: rgba(14, 19, 28, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 100ms ease, background 100ms ease, border-color 100ms ease;
+  transition: all 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 .action-circle:hover {
-  transform: translateY(-1px);
-  background: var(--color-bg-elevated);
-  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+  background: rgba(20, 27, 40, 0.9);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 .action-circle:active {
   transform: scale(0.95);
-  transition-duration: 40ms;
-}
-
-/* ---- Gradient accents ---- */
-.gradient-long {
-  background: linear-gradient(135deg, #10B981, #059669);
-}
-.gradient-short {
-  background: linear-gradient(135deg, #EF4444, #DC2626);
-}
-.gradient-blue {
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  transition-duration: 60ms;
 }
 
 /* ============================================
+   TOKEN LOGO
+   ============================================ */
+
+.token-logo {
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-bg-card-solid);
+}
+
+.token-logo-stack {
+  border: 2.5px solid var(--color-bg-card-solid);
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-bg-card-solid);
+}
+
+/* ============================================
+   DOTTED GRID (Hero area only fallback)
+   ============================================ */
+
+.dot-grid {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* ============================================
+   GRADIENT ACCENTS
+   ============================================ */
+
+.gradient-long { background: linear-gradient(135deg, #10B981, #059669); }
+.gradient-short { background: linear-gradient(135deg, #EF4444, #DC2626); }
+.gradient-blue { background: linear-gradient(135deg, #3B82F6, #2563EB); }
+
+/* ============================================
    ANIMATION SYSTEM (GPU-accelerated)
-   All animations use transform + opacity ONLY.
    ============================================ */
 
 @keyframes msgIn {
   from { opacity: 0; transform: translate3d(0, 6px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
-
-/* User messages: no animation (instant) */
 @keyframes msgInUser {
   from { opacity: 1; transform: none; }
   to { opacity: 1; transform: none; }
 }
-
 @keyframes cardIn {
   0% { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.98); }
   70% { opacity: 1; transform: translate3d(0, -1px, 0) scale(1.005); }
   100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
-
 @keyframes chipIn {
   from { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.94); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
 @keyframes slideUp {
   from { opacity: 0; transform: translate3d(0, 10px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
-
 @keyframes slideDown {
-  from { opacity: 0; transform: translate3d(0, -10px, 0); }
+  from { opacity: 0; transform: translate3d(0, -6px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
-
 @keyframes pulseDot {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
 }
-
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
-
 @keyframes livePulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
   50% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
 }
-
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-
 @keyframes numTick {
   0% { opacity: 0.5; transform: translate3d(0, -3px, 0); }
   40% { opacity: 1; transform: translate3d(0, 0, 0); }
   100% { opacity: 1; transform: translate3d(0, 0, 0); }
 }
-
 @keyframes numFlashUp {
   0% { color: var(--color-accent-long); }
   100% { color: inherit; }
 }
-
 @keyframes numFlashDown {
   0% { color: var(--color-accent-short); }
   100% { color: inherit; }
 }
-
 @keyframes breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.008); }
 }
-
 @keyframes successGlow {
   0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.3); }
   50% { box-shadow: 0 0 16px 4px rgba(16, 185, 129, 0.15); }
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
-
 @keyframes anticipateIn {
   0% { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.98); }
   15% { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.98); }
   60% { opacity: 1; transform: translate3d(0, -1px, 0) scale(1.01); }
   100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
-
 @keyframes focusDim {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes quickOptIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 /* ============================================
@@ -219,7 +269,7 @@ input:focus-visible { outline: none; }
    ============================================ */
 
 .skel {
-  background: linear-gradient(90deg, var(--color-bg-card) 25%, var(--color-bg-card-hover) 50%, var(--color-bg-card) 75%);
+  background: linear-gradient(90deg, var(--color-bg-card-solid) 25%, var(--color-bg-card-hover) 50%, var(--color-bg-card-solid) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: 8px;
@@ -247,32 +297,19 @@ input:focus-visible { outline: none; }
 
 .btn-primary {
   will-change: transform, opacity;
-  transition: transform 100ms cubic-bezier(0.2, 0, 0, 1),
-              filter 100ms ease-out;
+  transition: transform 100ms cubic-bezier(0.2, 0, 0, 1), filter 100ms ease-out;
   backface-visibility: hidden;
   border-radius: var(--radius-card);
 }
-.btn-primary:hover {
-  filter: brightness(1.1);
-}
-.btn-primary:active {
-  transform: scale(0.97);
-  transition-duration: 40ms;
-}
-.btn-primary:disabled {
-  transform: none;
-  filter: none;
-}
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-primary:active { transform: scale(0.97); transition-duration: 40ms; }
+.btn-primary:disabled { transform: none; filter: none; }
 
 .btn-secondary {
   will-change: transform;
-  transition: transform 100ms cubic-bezier(0.2, 0, 0, 1),
-              color 120ms ease-out;
+  transition: transform 100ms cubic-bezier(0.2, 0, 0, 1), color 120ms ease-out;
 }
-.btn-secondary:active {
-  transform: scale(0.97);
-  transition-duration: 40ms;
-}
+.btn-secondary:active { transform: scale(0.97); transition-duration: 40ms; }
 
 .card-anim {
   will-change: transform, opacity;
@@ -285,11 +322,28 @@ input:focus-visible { outline: none; }
   animation: msgIn 140ms cubic-bezier(0.2, 0, 0, 1) both;
   backface-visibility: hidden;
 }
+.msg-anim-instant { opacity: 1; }
 
-.msg-anim-instant {
-  /* User messages: appear immediately, no animation */
-  opacity: 1;
+/* ---- Quick Reply Options (Galileo-style) ---- */
+.quick-option {
+  will-change: transform, opacity;
+  animation: quickOptIn 180ms cubic-bezier(0.2, 0, 0, 1) both;
+  backface-visibility: hidden;
 }
+.quick-option:hover:not(:disabled) {
+  background: var(--color-bg-card-solid) !important;
+  border-color: rgba(200, 245, 71, 0.15) !important;
+  transform: translateX(4px);
+}
+.quick-option:active:not(:disabled) {
+  transform: translateX(2px) scale(0.99);
+  transition-duration: 40ms;
+}
+.quick-option:nth-child(1) { animation-delay: 0ms; }
+.quick-option:nth-child(2) { animation-delay: 50ms; }
+.quick-option:nth-child(3) { animation-delay: 100ms; }
+.quick-option:nth-child(4) { animation-delay: 150ms; }
+.quick-option:nth-child(5) { animation-delay: 200ms; }
 
 .chip-stagger:nth-child(1) { animation: chipIn 150ms cubic-bezier(0.2, 0, 0, 1) 0ms both; }
 .chip-stagger:nth-child(2) { animation: chipIn 150ms cubic-bezier(0.2, 0, 0, 1) 40ms both; }
@@ -301,9 +355,7 @@ input:focus-visible { outline: none; }
 .num-tick { animation: numTick 250ms cubic-bezier(0.2, 0, 0, 1); }
 .num-flash-up { animation: numFlashUp 600ms ease-out; }
 .num-flash-down { animation: numFlashDown 600ms ease-out; }
-
 .breathe { animation: breathe 4s ease-in-out infinite; }
-
 .success-glow { animation: successGlow 1s ease-out; }
 
 .anticipate-in {
@@ -361,8 +413,7 @@ input:focus-visible { outline: none; }
   30% { transform: translate3d(0, -4px, 0); }
 }
 .typing-dot {
-  width: 6px;
-  height: 6px;
+  width: 6px; height: 6px;
   border-radius: 50%;
   background: var(--color-accent-blue);
   display: inline-block;
@@ -371,21 +422,16 @@ input:focus-visible { outline: none; }
 .typing-dot:nth-child(2) { animation: typingBounce 1.2s ease-in-out infinite 150ms; }
 .typing-dot:nth-child(3) { animation: typingBounce 1.2s ease-in-out infinite 300ms; }
 
+/* ---- Focus ---- */
+input:focus-visible { outline: none; }
+
 /* ---- Mobile ---- */
 @media (max-width: 768px) {
-  .panel-transition {
-    transition: opacity 150ms ease-out;
-  }
+  .panel-transition { transition: opacity 150ms ease-out; }
 }
-
-/* ---- Mobile safe area ---- */
 @supports (padding: env(safe-area-inset-bottom)) {
-  .safe-bottom {
-    padding-bottom: calc(env(safe-area-inset-bottom) + 20px) !important;
-  }
+  .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 20px) !important; }
 }
-
-/* ---- Reduced motion preference ---- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

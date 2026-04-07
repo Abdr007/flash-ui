@@ -11,6 +11,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useFlashStore } from "@/store";
 import ToolResultCard from "./ToolResultCard";
+import QuickReply from "./QuickReply";
 import PortfolioHero from "@/components/portfolio/PortfolioHero";
 import {
   getSuggestedActions,
@@ -53,6 +54,11 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
         try { body = JSON.parse((init?.body as string) ?? "{}"); } catch {}
         body.wallet_address = state.walletAddress ?? "";
         body.context = state.getContextForAPI();
+        // Pass transfer history for insights tool (lightweight, last 50 only)
+        try {
+          const hist = localStorage.getItem("flash_transfer_history");
+          if (hist) body.transfer_history = hist;
+        } catch {}
         return fetch(url, { ...init, body: JSON.stringify(body) });
       } catch (e) {
         console.error("[ChatTransport]", e);
@@ -170,41 +176,41 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
         {!hasMessages ? (
           /* ---- Hero state: compact, pushes input close ---- */
           <div className="flex flex-col items-center dot-grid">
-            <PortfolioHero onAction={handleSubmit} onFillInput={(text) => {
-              setInput(text);
-              inputRef.current?.focus();
-            }} />
-
-            {/* Suggestions */}
-            {flatSuggestions.length > 0 && (
-              <div className="flex flex-wrap gap-2.5 justify-center max-w-[520px] px-6 pb-8">
-                {flatSuggestions.map((action, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleChipClick(action)}
-                    className="chip chip-stagger text-[13px] px-4 py-2.5
-                      text-text-secondary hover:text-text-primary cursor-pointer"
-                    style={{ background: "rgba(20,26,34,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "9999px" }}
-                  >
-                    {action.label}
-                  </button>
-                ))}
-              </div>
-            )}
+            <PortfolioHero onAction={handleSubmit} />
           </div>
         ) : (
           /* ---- Chat messages (Neur-style spacing) ---- */
           <div className="max-w-3xl mx-auto w-full px-4 pb-36 pt-4">
             {messages.map((message, idx) => {
               const prev = idx > 0 ? messages[idx - 1] : null;
+              const next = idx < messages.length - 1 ? messages[idx + 1] : null;
               const sameRole = prev?.role === message.role;
               const mt = idx === 0 ? "" : sameRole ? "mt-2" : "mt-6";
+              const userText = message.role === "user"
+                ? message.parts?.filter((p): p is { type: "text"; text: string } => p.type === "text").map((p) => p.text).join(" ") ?? ""
+                : "";
+
+              // Show quick replies only on the FIRST user message (button intent),
+              // not on follow-up messages from quick reply clicks (prevents loops)
+              const showQuickReply = message.role === "user"
+                && idx === 0
+                && messages.length === 1
+                && !isStreaming
+                && !isExecuting;
+
               return (
                 <div key={message.id} className={`${message.role === "user" ? "msg-anim-instant" : "msg-anim"} ${mt}`}>
                   {message.role === "user" ? (
-                    <UserMessage text={
-                      message.parts?.filter((p): p is { type: "text"; text: string } => p.type === "text").map((p) => p.text).join(" ") ?? ""
-                    } />
+                    <>
+                      <UserMessage text={userText} />
+                      {showQuickReply && (
+                        <QuickReply
+                          userMessage={userText}
+                          onSelect={handleSubmit}
+                          disabled={isStreaming || isExecuting}
+                        />
+                      )}
+                    </>
                   ) : (
                     <AssistantMessage parts={(message.parts ?? []) as Record<string, unknown>[]} />
                   )}
@@ -257,44 +263,52 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
             </div>
           )}
 
-          {/* Input box (Neur: rounded-xl bg-muted, min-h-[110px]) */}
-          <div className="relative rounded-lg overflow-hidden"
-            style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border-subtle)" }}>
+          {/* Input box (Galileo-style glass card) */}
+          <div className="relative overflow-hidden glass-card input-glow"
+            style={{ borderRadius: "16px" }}>
             <textarea
               ref={inputRef}
               value={input}
               onChange={handleTextareaInput}
               onKeyDown={handleKeyDown}
-              placeholder={isExecuting ? "Executing trade..." : isStreaming ? "Thinking..." : "Long SOL 5x $50..."}
+              placeholder={isExecuting ? "Executing trade..." : isStreaming ? "Thinking..." : "What's the price of...?"}
               disabled={isExecuting}
               rows={1}
-              className="w-full bg-transparent text-[14px] text-text-primary px-4 pt-3 pb-12
+              className="w-full bg-transparent text-[15px] text-text-primary px-5 pt-4 pb-14
                 placeholder:text-text-tertiary outline-none border-none resize-none no-scrollbar"
-              style={{ minHeight: "80px", maxHeight: "200px" }}
+              style={{ minHeight: "90px", maxHeight: "200px" }}
               autoFocus
             />
-            <div className="flex items-center justify-between border-t px-4 py-2"
-              style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+            <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3">
               <div className="flex items-center gap-2">
                 {isStreaming && <StreamingDot inline />}
-                <span className="text-[11px] text-text-tertiary num">{input.length > 0 ? `${input.length}/500` : ""}</span>
               </div>
-              <button
-                onClick={() => {
-                  handleSubmit();
-                  try { navigator?.vibrate?.(10); } catch {}
-                }}
-                disabled={!input.trim() || isStreaming || isExecuting}
-                className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer shrink-0
-                  transition-all duration-100 disabled:opacity-20 disabled:cursor-default
-                  hover:bg-text-primary hover:scale-110 active:scale-95"
-                style={{ color: "var(--color-text-tertiary)" }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="19" x2="12" y2="5" />
-                  <polyline points="5 12 12 5 19 12" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-3">
+                <span className="text-[13px] font-medium" style={{ color: "var(--color-text-tertiary)" }}>Feedback</span>
+                <button
+                  onClick={() => {
+                    handleSubmit();
+                    try { navigator?.vibrate?.(10); } catch {}
+                  }}
+                  disabled={!input.trim() || isStreaming || isExecuting}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer shrink-0
+                    transition-all duration-150 disabled:opacity-20 disabled:cursor-default
+                    active:scale-90"
+                  style={{
+                    background: input.trim() && !isStreaming && !isExecuting
+                      ? "var(--color-accent-lime)"
+                      : "rgba(255,255,255,0.06)",
+                    color: input.trim() && !isStreaming && !isExecuting
+                      ? "#070A0F"
+                      : "var(--color-text-tertiary)",
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="19" x2="12" y2="5" />
+                    <polyline points="5 12 12 5 19 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>

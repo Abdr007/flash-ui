@@ -5,6 +5,30 @@
 export const FLASH_API_URL =
   process.env.NEXT_PUBLIC_FLASH_API_URL || "https://flashapi.trade";
 
+// Token metadata — logos, full names, colors
+// Logos use CoinGecko CDN (reliable, public, no auth needed)
+export const TOKEN_META: Record<string, { name: string; logo: string; color: string }> = {
+  SOL:      { name: "Solana",            logo: "https://assets.coingecko.com/coins/images/4128/standard/solana.png",          color: "#9945FF" },
+  BTC:      { name: "Bitcoin",           logo: "https://assets.coingecko.com/coins/images/1/standard/bitcoin.png",            color: "#F7931A" },
+  WBTC:     { name: "Wrapped BTC",       logo: "https://assets.coingecko.com/coins/images/7598/standard/wrapped_bitcoin_wbtc.png", color: "#F7931A" },
+  ETH:      { name: "Ethereum",          logo: "https://assets.coingecko.com/coins/images/279/standard/ethereum.png",         color: "#627EEA" },
+  BNB:      { name: "BNB",              logo: "https://assets.coingecko.com/coins/images/825/standard/bnb-icon2_2x.png",     color: "#F3BA2F" },
+  USDC:     { name: "USD Coin",          logo: "https://assets.coingecko.com/coins/images/6319/standard/usdc.png",            color: "#2775CA" },
+  USDT:     { name: "Tether",            logo: "https://assets.coingecko.com/coins/images/325/standard/Tether.png",           color: "#50AF95" },
+  JUP:      { name: "Jupiter",           logo: "https://assets.coingecko.com/coins/images/34188/standard/jup.png",            color: "#00D18C" },
+  PYTH:     { name: "Pyth Network",      logo: "https://assets.coingecko.com/coins/images/31924/standard/pyth.png",           color: "#7142CF" },
+  JTO:      { name: "Jito",              logo: "https://assets.coingecko.com/coins/images/33228/standard/jto.png",            color: "#4E7CFF" },
+  RAY:      { name: "Raydium",           logo: "https://assets.coingecko.com/coins/images/13928/standard/PSigc4ie_400x400.jpg", color: "#4F46E5" },
+  BONK:     { name: "Bonk",              logo: "https://assets.coingecko.com/coins/images/28600/standard/bonk.jpg",           color: "#F59E0B" },
+  WIF:      { name: "dogwifhat",         logo: "https://assets.coingecko.com/coins/images/33566/standard/dogwifhat.jpg",      color: "#A855F7" },
+  PENGU:    { name: "Pudgy Penguins",    logo: "https://assets.coingecko.com/coins/images/44411/standard/PENGU.jpg",          color: "#7DD3FC" },
+  FARTCOIN: { name: "Fartcoin",          logo: "https://assets.coingecko.com/coins/images/43527/standard/fartcoin.jpg",       color: "#86EFAC" },
+  ORE:      { name: "Ore",               logo: "https://assets.coingecko.com/coins/images/36523/standard/ore_logo.png",       color: "#F97316" },
+  XAU:      { name: "Gold",              logo: "https://assets.coingecko.com/coins/images/34558/standard/tether-gold.png",    color: "#FCD34D" },
+  NVDA:     { name: "Nvidia",            logo: "https://assets.coingecko.com/coins/images/33033/standard/nvidia.png",         color: "#76B900" },
+  TSLA:     { name: "Tesla",             logo: "https://assets.coingecko.com/coins/images/33031/standard/tesla.png",          color: "#CC0000" },
+};
+
 // Supported markets (from flash-x pool resolver)
 export const MARKETS: Record<string, { pool: string; dotColor: string }> = {
   SOL:      { pool: "Crypto.1",     dotColor: "#9945FF" },

@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "assets.coingecko.com" },
+      { protocol: "https", hostname: "raw.githubusercontent.com" },
+      { protocol: "https", hostname: "arweave.net" },
+      { protocol: "https", hostname: "cdn.jsdelivr.net" },
+    ],
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // flash-sdk → @coral-xyz/anchor → nodewallet.js requires 'fs'

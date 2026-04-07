@@ -15,6 +15,17 @@ import { createAddCollateralTool } from "./addCollateral";
 import { createRemoveCollateralTool } from "./removeCollateral";
 import { createReversePositionTool } from "./reversePosition";
 import { createEarnDepositTool } from "./earnDeposit";
+import { createTransferPreviewTool } from "./transferPreview";
+import { createTransferHistoryTool } from "./transferHistory";
+import {
+  createFafDashboardTool,
+  createFafStakeTool,
+  createFafUnstakeTool,
+  createFafClaimTool,
+  createFafRequestsTool,
+  createFafCancelUnstakeTool,
+  createFafTierTool,
+} from "./fafTools";
 
 export function buildTools(wallet: string) {
   return {
@@ -29,5 +40,14 @@ export function buildTools(wallet: string) {
     remove_collateral: createRemoveCollateralTool(wallet),
     reverse_position_preview: createReversePositionTool(wallet),
     earn_deposit: createEarnDepositTool(wallet),
+    transfer_preview: createTransferPreviewTool(wallet),
+    transfer_history: createTransferHistoryTool(wallet),
+    faf_dashboard: createFafDashboardTool(wallet),
+    faf_stake: createFafStakeTool(wallet),
+    faf_unstake: createFafUnstakeTool(wallet),
+    faf_claim: createFafClaimTool(wallet),
+    faf_requests: createFafRequestsTool(wallet),
+    faf_cancel_unstake: createFafCancelUnstakeTool(wallet),
+    faf_tier: createFafTierTool(wallet),
   };
 }

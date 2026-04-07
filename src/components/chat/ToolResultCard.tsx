@@ -4,7 +4,7 @@
 // Flash AI — Tool Result Card (Galileo-Style)
 // ============================================
 
-import { memo, useState, useEffect, useMemo, useCallback } from "react";
+import { memo, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { validateTrade, type TradePreview } from "@/lib/trade-firewall";
 import { getTradeConfidence, type TradeConfidence } from "@/lib/predictive-actions";
@@ -49,6 +49,15 @@ function ToolStatusDot({ state, status }: { state: string; status?: string }) {
 
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
   build_trade: "Trade Preview",
+  transfer_preview: "Transfer Preview",
+  transfer_history: "Transfer History",
+  faf_dashboard: "FAF Dashboard",
+  faf_stake: "Stake FAF",
+  faf_unstake: "Unstake FAF",
+  faf_claim: "Claim Rewards",
+  faf_requests: "Unstake Requests",
+  faf_cancel_unstake: "Cancel Unstake",
+  faf_tier: "VIP Tiers",
   close_position_preview: "Close Preview",
   get_positions: "Positions",
   get_portfolio: "Portfolio",
@@ -92,6 +101,15 @@ const ToolResultCard = memo(function ToolResultCard({ part }: { part: ToolPart }
     case "remove_collateral": card = <CollateralCard output={output} />; break;
     case "reverse_position_preview": card = <ReversePositionCard output={output} />; break;
     case "earn_deposit": card = <EarnDepositCard output={output} />; break;
+    case "transfer_preview": card = <TransferPreviewCard output={output} />; break;
+    case "transfer_history": card = <TransferHistoryCard output={output} />; break;
+    case "faf_dashboard":
+    case "faf_stake":
+    case "faf_unstake":
+    case "faf_claim":
+    case "faf_requests":
+    case "faf_cancel_unstake":
+    case "faf_tier": card = <FafCard toolName={part.toolName} output={output} />; break;
     default: card = <GenericCard toolName={part.toolName} output={output} />; break;
   }
 
@@ -104,6 +122,16 @@ export default ToolResultCard;
 
 const TOOL_STEPS: Record<string, string[]> = {
   build_trade: ["Fetching price", "Calculating position", "Validating trade"],
+  earn_deposit: ["Checking pool", "Building deposit preview"],
+  transfer_preview: ["Validating address", "Checking balance", "Building preview"],
+  transfer_history: ["Loading history", "Analyzing patterns"],
+  faf_dashboard: ["Loading stake data"],
+  faf_stake: ["Checking balance", "Building preview"],
+  faf_unstake: ["Checking stake", "Building preview"],
+  faf_claim: ["Loading rewards"],
+  faf_requests: ["Loading requests"],
+  faf_cancel_unstake: ["Validating request"],
+  faf_tier: ["Loading tiers"],
   close_position_preview: ["Loading position", "Fetching exit price", "Calculating PnL"],
   add_collateral: ["Loading position", "Calculating new leverage"],
   remove_collateral: ["Loading position", "Validating removal", "Calculating new leverage"],
@@ -1521,6 +1549,1230 @@ const EarnDepositCard = memo(function EarnDepositCard({ output }: { output: Tool
           </button>
         </div>
       )}
+    </div>
+  );
+});
+
+// ============================================
+// Transfer Preview Card (Premium Trust UX)
+// ============================================
+// State diff view, address intelligence, risk warnings,
+// step confirmation, explorer feedback.
+// Execution engine UNCHANGED.
+
+// ---- Address Intelligence ----
+const KNOWN_ADDRESSES: Record<string, { label: string; type: "cex" | "protocol" | "bridge" }> = {
+  // Major CEX hot wallets (Solana)
+  "5tzFkiKscjHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9": { label: "Binance", type: "cex" },
+  "2AQdpHJ2JpcEgPiATUXjQxA8QmafFegfQwSLWSprPicm": { label: "Coinbase", type: "cex" },
+  "ASTyfSima4LLAdDgoFGkgqoKowG1LZFDr9fAQrg7iaJZ": { label: "FTX (Inactive)", type: "cex" },
+  "HN7cABqLq46Es1jh92dQQisAq662SmxELLLsHHe4YWrH": { label: "Kraken", type: "cex" },
+  "4wBqpZM9xaSheekzYoGKNteMCRPqBKKCbuMgmuKn3R2V": { label: "OKX", type: "cex" },
+  "GJRs4FwHtemZ5ZE9x3FNvJ8TMwitKTh21yxdRPqn7npE": { label: "Bybit", type: "cex" },
+};
+
+function getAddressLabel(addr: string): { label: string; type: string } | null {
+  const known = KNOWN_ADDRESSES[addr];
+  if (known) return known;
+  // Check localStorage contacts
+  try {
+    const contacts = JSON.parse(localStorage.getItem("flash_contacts") ?? "{}");
+    if (contacts[addr]) return { label: contacts[addr], type: "contact" };
+  } catch {}
+  return null;
+}
+
+function getRecentRecipients(): { address: string; label: string; lastUsed: number }[] {
+  try {
+    return JSON.parse(localStorage.getItem("flash_recent_recipients") ?? "[]");
+  } catch { return []; }
+}
+
+function saveRecentRecipient(address: string, label: string) {
+  try {
+    const recents = getRecentRecipients().filter((r) => r.address !== address);
+    recents.unshift({ address, label, lastUsed: Date.now() });
+    localStorage.setItem("flash_recent_recipients", JSON.stringify(recents.slice(0, 10)));
+  } catch {}
+}
+
+// ---- Transfer History (localStorage) ----
+interface TransferRecord {
+  token: string;
+  amount: number;
+  recipient: string;
+  recipientLabel: string | null;
+  txSignature: string;
+  timestamp: number;
+  status: "success" | "failed";
+}
+
+function saveTransferHistory(record: TransferRecord) {
+  try {
+    const key = "flash_transfer_history";
+    const history: TransferRecord[] = JSON.parse(localStorage.getItem(key) ?? "[]");
+    history.unshift(record);
+    // Keep last 100 transfers
+    localStorage.setItem(key, JSON.stringify(history.slice(0, 100)));
+  } catch {}
+}
+
+function getTransferHistory(): TransferRecord[] {
+  try {
+    return JSON.parse(localStorage.getItem("flash_transfer_history") ?? "[]");
+  } catch { return []; }
+}
+
+function ConfirmStep({ done, label }: { done: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-2">
+      <span className="w-4 h-4 rounded-full flex items-center justify-center" style={{
+        background: done ? "rgba(0,210,106,0.15)" : "rgba(59,130,246,0.12)",
+      }}>
+        {done ? (
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-long)" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+        ) : (
+          <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-accent-blue)", animation: "pulseDot 1s infinite" }} />
+        )}
+      </span>
+      <span className="text-[12px]" style={{ color: done ? "var(--color-text-secondary)" : "var(--color-accent-blue)" }}>{label}</span>
+    </div>
+  );
+}
+
+function humanizeError(raw: string): { message: string; suggestion: string } {
+  const lower = raw.toLowerCase();
+  if (lower.includes("insufficient sol"))
+    return { message: "You don't have enough SOL to complete this transfer.", suggestion: "Deposit more SOL or reduce the amount." };
+  if (lower.includes("insufficient"))
+    return { message: "You don't have enough tokens to complete this transfer.", suggestion: "Check your balance and try a smaller amount." };
+  if (lower.includes("simulation failed"))
+    return { message: "This transaction would fail on-chain.", suggestion: "The token may have transfer restrictions. Try a smaller amount or check the token." };
+  if (lower.includes("rejected"))
+    return { message: "You cancelled the transaction in your wallet.", suggestion: "Click Confirm Transfer to try again." };
+  if (lower.includes("wallet not available"))
+    return { message: "Your wallet isn't connected.", suggestion: "Connect your wallet and try again." };
+  if (lower.includes("frozen"))
+    return { message: "This token account is frozen by the token issuer.", suggestion: "Contact the token issuer or check their announcements." };
+  return { message: raw, suggestion: "Try again or contact support if this persists." };
+}
+
+const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { output: ToolOutput }) {
+  const [status, setStatus] = useState<"preview" | "executing" | "signing" | "confirming" | "success" | "error">("preview");
+  const [txSig, setTxSig] = useState<string | null>(null);
+  const [txConfirmed, setTxConfirmed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"addr" | "tx" | null>(null);
+  const [confirmInput, setConfirmInput] = useState("");
+  const walletAddress = useFlashStore((s) => s.walletAddress);
+
+  const data = output.data as {
+    token: string;
+    token_name: string;
+    amount: number;
+    amount_display: string;
+    recipient: string;
+    recipient_short: string;
+    sender: string;
+    sender_short: string;
+    estimated_fee_sol: number;
+    needs_ata: boolean;
+    ata_fee_sol: number;
+    total_fee_sol: number;
+    mint: string | null;
+    mint_short: string | null;
+    decimals: number;
+    is_native_sol: boolean;
+    is_verified: boolean;
+    sender_balance?: number;
+    warnings: string[];
+  } | null;
+
+  if (!data) return <ToolError toolName="transfer_preview" error={output.error} />;
+
+  // Address intelligence
+  const recipientLabel = getAddressLabel(data.recipient);
+  const recipientDisplay = recipientLabel?.label ?? data.recipient_short;
+  const recentMatch = getRecentRecipients().find((r) => r.address === data.recipient);
+  const isFirstTime = !recentMatch && !recipientLabel;
+
+  // Balance impact
+  const balanceImpactPct = data.sender_balance && data.sender_balance > 0
+    ? Math.round((data.amount / data.sender_balance) * 100)
+    : null;
+  const isLargeTransfer = (balanceImpactPct !== null && balanceImpactPct >= 50) ||
+    (data.is_native_sol && data.amount >= 10) ||
+    (!data.is_native_sol && data.amount >= 1000);
+  const requiresTypeConfirm = balanceImpactPct !== null && balanceImpactPct >= 80;
+
+  // Risk signals
+  const risks: { level: "warn" | "caution"; message: string }[] = [];
+  if (!data.is_verified && !data.is_native_sol) {
+    risks.push({ level: "warn", message: "This token is not verified. Double-check the mint address." });
+  }
+  if (isFirstTime) {
+    risks.push({ level: "caution", message: "First time sending to this address." });
+  }
+  if (balanceImpactPct !== null && balanceImpactPct >= 80) {
+    risks.push({ level: "warn", message: `You're sending ${balanceImpactPct}% of your ${data.token} balance.` });
+  } else if (balanceImpactPct !== null && balanceImpactPct >= 50) {
+    risks.push({ level: "caution", message: `This is ${balanceImpactPct}% of your ${data.token} balance.` });
+  }
+  for (const w of data.warnings) {
+    if (w.toLowerCase().includes("large") || w.includes("verified")) continue; // already handled above
+    if (!w.includes("ATA") || data.needs_ata) {
+      risks.push({ level: "caution", message: w });
+    }
+  }
+
+  function copyToClipboard(text: string, type: "addr" | "tx") {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(type);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  // Execution lock — prevents double-click across renders
+  const executionLockRef = useRef(false);
+  // Attempt counter — ensures each retry gets a fresh blockhash (not stale cache)
+  const attemptRef = useRef(0);
+
+  async function handleConfirm() {
+    // Triple guard: state + wallet + lock
+    if (status !== "preview" || !walletAddress || executionLockRef.current) return;
+
+    // Verify wallet hasn't changed since preview
+    if (walletAddress !== data!.sender) {
+      setError("Wallet changed since preview. Please request a new transfer preview.");
+      setStatus("error");
+      return;
+    }
+
+    executionLockRef.current = true;
+    attemptRef.current++;
+    setStatus("executing");
+    setError(null);
+
+    // Idempotency key: stable within same click (prevents double-click),
+    // but changes on retry (ensures fresh blockhash after error)
+    const requestId = `txf_${data!.sender.slice(0,6)}_${data!.recipient.slice(0,6)}_${data!.amount}_${attemptRef.current}`;
+
+    try {
+      // Step 1: Build unsigned transaction (idempotent)
+      const buildController = new AbortController();
+      const buildTimer = setTimeout(() => buildController.abort(), 15000);
+
+      const buildResp = await fetch("/api/transfer/build", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender: data!.sender,
+          recipient: data!.recipient,
+          token: data!.token,
+          amount: data!.amount,
+          mint: data!.mint,
+          decimals: data!.decimals,
+          is_native_sol: data!.is_native_sol,
+          is_token2022: (data as Record<string, unknown>).is_token2022 ?? false,
+          request_id: requestId,
+        }),
+        signal: buildController.signal,
+      }).finally(() => clearTimeout(buildTimer));
+
+      const buildJson = await buildResp.json().catch(() => null);
+      if (!buildResp.ok || !buildJson) {
+        throw new Error(buildJson?.error ?? "Failed to build transaction");
+      }
+
+      const txBase64 = buildJson.transaction;
+      if (!txBase64 || typeof txBase64 !== "string") {
+        throw new Error("Server returned invalid transaction data");
+      }
+
+      // Step 2: Sign with wallet (60s timeout)
+      setStatus("signing");
+
+      const { VersionedTransaction } = await import("@solana/web3.js");
+      const txBytes = Uint8Array.from(atob(txBase64), (c) => c.charCodeAt(0));
+      const tx = VersionedTransaction.deserialize(txBytes);
+
+      // HIGH FIX: Use wallet adapter from window.solana with proper validation
+      // Note: window.solana works for Phantom, Solflare, Backpack — the major Solana wallets
+      // The wallet-adapter-react signTransaction requires component-level hook access which
+      // we can't use inside a memo callback. This is the standard pattern for signing in
+      // event handlers outside of hooks.
+      const walletAdapter = (window as unknown as { solana?: { signTransaction: (tx: unknown) => Promise<unknown> } }).solana;
+      if (!walletAdapter?.signTransaction) {
+        throw new Error("Wallet not available. Please connect your wallet.");
+      }
+
+      // Wallet signing with 60s timeout (user may need time to approve)
+      const signTimeout = new Promise<never>((_, reject) => {
+        const t = setTimeout(() => reject(new Error("Wallet signing timed out. Please try again.")), 60_000);
+        // Don't block Node.js exit
+        if (typeof t === "object" && "unref" in t) (t as NodeJS.Timeout).unref();
+      });
+      const signed = await Promise.race([
+        walletAdapter.signTransaction(tx),
+        signTimeout,
+      ]) as { serialize?: () => Uint8Array } | null;
+
+      if (!signed || typeof signed.serialize !== "function") {
+        throw new Error("Wallet returned invalid signed transaction");
+      }
+
+      // CRITICAL FIX: Chunked base64 encoding (no spread operator overflow)
+      const signedBytes = signed.serialize();
+      let signedBase64 = "";
+      const CHUNK = 8192;
+      for (let i = 0; i < signedBytes.length; i += CHUNK) {
+        const slice = signedBytes.subarray(i, Math.min(i + CHUNK, signedBytes.length));
+        signedBase64 += String.fromCharCode(...slice);
+      }
+      signedBase64 = btoa(signedBase64);
+
+      // Step 3: Broadcast
+      const broadcastController = new AbortController();
+      const broadcastTimer = setTimeout(() => broadcastController.abort(), 20000);
+
+      const broadcastResp = await fetch("/api/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transaction: signedBase64 }),
+        signal: broadcastController.signal,
+      }).finally(() => clearTimeout(broadcastTimer));
+
+      const broadcastJson = await broadcastResp.json().catch(() => null);
+      if (!broadcastResp.ok || !broadcastJson) {
+        throw new Error("Failed to broadcast transaction");
+      }
+
+      // Validate signature format
+      const sig = broadcastJson.signature;
+      if (!sig || typeof sig !== "string" || sig.length < 80) {
+        throw new Error("Broadcast returned invalid signature");
+      }
+
+      // Step 4: Wait for on-chain confirmation (poll getSignatureStatuses)
+      // Never show "Confirmed on-chain" until actually confirmed
+      setTxSig(sig);
+      setStatus("confirming");
+
+      const { Connection } = await import("@solana/web3.js");
+      const conn = new Connection("/api/rpc", "confirmed");
+
+      let confirmed = false;
+      const confirmStart = Date.now();
+      const CONFIRM_TIMEOUT = 30_000;
+      const POLL_MS = 2_000;
+
+      while (Date.now() - confirmStart < CONFIRM_TIMEOUT) {
+        try {
+          const { value } = await conn.getSignatureStatuses([sig]);
+          const s = value[0];
+          if (s?.err) {
+            throw new Error("Transaction failed on-chain. Check Solscan for details.");
+          }
+          if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") {
+            confirmed = true;
+            break;
+          }
+        } catch (pollErr) {
+          if (pollErr instanceof Error && pollErr.message.includes("failed on-chain")) throw pollErr;
+        }
+        await new Promise((r) => setTimeout(r, POLL_MS));
+      }
+
+      setTxConfirmed(confirmed);
+
+      if (confirmed) {
+        setStatus("success");
+        // Only save as success when ACTUALLY confirmed on-chain
+        saveRecentRecipient(data!.recipient, recipientLabel?.label ?? data!.recipient_short);
+        saveTransferHistory({
+          token: data!.token, amount: data!.amount, recipient: data!.recipient,
+          recipientLabel: recipientLabel?.label ?? null,
+          txSignature: sig, timestamp: Date.now(), status: "success",
+        });
+      } else {
+        // Tx broadcast but NOT confirmed — show honest error, not false success
+        throw new Error(
+          "Transaction was broadcast but not confirmed within 30 seconds. " +
+          "It may still land — check Solscan before retrying. Signature: " + sig.slice(0, 12) + "..."
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Transfer failed";
+      setError(msg);
+      setStatus("error");
+    } finally {
+      executionLockRef.current = false;
+    }
+  }
+
+  // ======== SUCCESS STATE ========
+  if (status === "success" && txSig) {
+    return (
+      <div className="glass-card-solid overflow-hidden success-glow" style={{ borderColor: "rgba(0,210,106,0.15)" }}>
+        {/* Success header */}
+        <div className="px-5 py-5 flex items-center gap-4">
+          <span className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: "rgba(0,210,106,0.1)", border: "1px solid rgba(0,210,106,0.2)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-long)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+          <div>
+            <div className="text-[15px] font-semibold text-text-primary">Transfer Complete</div>
+            <div className="text-[13px] text-text-tertiary mt-0.5">
+              {data.amount_display} sent to {recipientDisplay}
+            </div>
+          </div>
+        </div>
+
+        {/* Confirmation steps — honest status */}
+        <div className="px-5 pb-2">
+          <ConfirmStep done label="Transaction signed" />
+          <ConfirmStep done label="Broadcast to Solana" />
+          <ConfirmStep done={txConfirmed} label={txConfirmed ? "Confirmed on-chain" : "Awaiting confirmation..."} />
+        </div>
+
+        {/* Explorer + copy + trust signal */}
+        <div className="px-5 pb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noopener noreferrer"
+              className="text-[12px] font-medium text-accent-blue hover:underline flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+              </svg>
+              View on Solscan
+            </a>
+            <button onClick={() => copyToClipboard(txSig!, "tx")}
+              className="text-[11px] font-mono text-text-tertiary hover:text-text-secondary cursor-pointer flex items-center gap-1 transition-colors">
+              {copied === "tx" ? (
+                <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-long)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg> Copied</>
+              ) : (
+                <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg> Copy hash</>
+              )}
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+            Secured and verified on the Solana network
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ======== ERROR STATE ========
+  if (status === "error" && error) {
+    const { message, suggestion } = humanizeError(error);
+    return (
+      <div className="glass-card-solid overflow-hidden" style={{ borderColor: "rgba(255,77,77,0.15)" }}>
+        <div className="px-5 py-5 flex items-start gap-3">
+          <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+            style={{ background: "rgba(255,77,77,0.1)", border: "1px solid rgba(255,77,77,0.2)" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-short)" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          </span>
+          <div>
+            <div className="text-[14px] font-semibold text-text-primary mb-1">Transfer Failed</div>
+            <div className="text-[13px] text-text-secondary leading-relaxed">{message}</div>
+            <div className="text-[12px] text-text-tertiary mt-2">{suggestion}</div>
+          </div>
+        </div>
+        <div className="flex border-t" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+          <button onClick={() => { setStatus("preview"); setError(null); }}
+            className="btn-secondary flex-1 py-3 text-[13px] font-semibold text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ======== PREVIEW STATE ========
+  return (
+    <div className="glass-card-solid overflow-hidden">
+      {/* ---- Header: "You are sending..." ---- */}
+      <div className="px-5 pt-5 pb-4">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.15)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-blue)" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </span>
+          <div>
+            <div className="text-[11px] font-semibold tracking-wider uppercase" style={{ color: "var(--color-text-tertiary)" }}>
+              You are sending
+            </div>
+            <div className="text-[22px] font-bold tracking-tight num text-text-primary leading-tight mt-0.5">
+              {data.amount_display}
+            </div>
+          </div>
+        </div>
+
+        {/* ---- Transfer flow visualization ---- */}
+        <div className="flex items-center gap-3 px-1">
+          {/* From */}
+          <div className="flex-1 rounded-xl px-3.5 py-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--color-text-tertiary)" }}>From</div>
+            <div className="text-[13px] font-mono font-medium text-text-primary">{data.sender_short}</div>
+          </div>
+
+          {/* Arrow */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="1.5" strokeLinecap="round" className="shrink-0">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+
+          {/* To */}
+          <div className="flex-1 rounded-xl px-3.5 py-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--color-text-tertiary)" }}>To</div>
+            <div className="text-[13px] font-mono font-medium text-text-primary">
+              {recipientLabel ? (
+                <span className="flex items-center gap-1.5">
+                  {recipientLabel.label}
+                  {recipientLabel.type === "cex" && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full font-sans"
+                      style={{ background: "rgba(59,130,246,0.12)", color: "var(--color-accent-blue)" }}>
+                      Exchange
+                    </span>
+                  )}
+                </span>
+              ) : data.recipient_short}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---- Details ---- */}
+      <div className="px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="flex items-center justify-between py-1.5">
+          <span className="text-[12px] text-text-tertiary">Token</span>
+          <span className="text-[12px] font-medium text-text-primary flex items-center gap-1.5">
+            {data.token_name}
+            {data.is_verified ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--color-accent-blue)">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(245,166,35,0.12)", color: "var(--color-accent-warn)" }}>
+                Unverified
+              </span>
+            )}
+          </span>
+        </div>
+        {data.mint_short && (
+          <div className="flex items-center justify-between py-1.5">
+            <span className="text-[12px] text-text-tertiary">Mint</span>
+            <span className="text-[11px] font-mono text-text-secondary">{data.mint_short}</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between py-1.5">
+          <span className="text-[12px] text-text-tertiary">Network Fee</span>
+          <span className="text-[12px] num text-text-secondary">{data.total_fee_sol.toFixed(6)} SOL</span>
+        </div>
+        {data.needs_ata && (
+          <div className="flex items-center justify-between py-1.5">
+            <span className="text-[12px] text-text-tertiary">Account Creation</span>
+            <span className="text-[12px] num text-text-secondary">~{data.ata_fee_sol.toFixed(4)} SOL</span>
+          </div>
+        )}
+      </div>
+
+      {/* ---- Risk signals ---- */}
+      {risks.length > 0 && (
+        <div className="px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          {risks.map((r, i) => (
+            <div key={i} className="flex items-start gap-2 mb-1.5 last:mb-0">
+              <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                style={{ background: r.level === "warn" ? "rgba(245,166,35,0.12)" : "rgba(59,130,246,0.12)" }}>
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none"
+                  stroke={r.level === "warn" ? "var(--color-accent-warn)" : "var(--color-accent-blue)"} strokeWidth="3" strokeLinecap="round">
+                  <line x1="12" y1="9" x2="12" y2="13" /><circle cx="12" cy="17" r="1" fill={r.level === "warn" ? "var(--color-accent-warn)" : "var(--color-accent-blue)"} />
+                </svg>
+              </span>
+              <span className="text-[12px] leading-relaxed"
+                style={{ color: r.level === "warn" ? "var(--color-accent-warn)" : "var(--color-text-secondary)" }}>
+                {r.message}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ---- Balance impact ---- */}
+      {balanceImpactPct !== null && data.sender_balance != null && data.sender_balance > 0 && (
+        <div className="px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] text-text-tertiary">Balance Impact</span>
+            <span className="text-[11px] num" style={{
+              color: balanceImpactPct >= 80 ? "var(--color-accent-short)" : balanceImpactPct >= 50 ? "var(--color-accent-warn)" : "var(--color-text-secondary)"
+            }}>
+              {balanceImpactPct}% of your {data.token}
+            </span>
+          </div>
+          <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <div className="h-full rounded-full transition-all duration-300" style={{
+              width: `${Math.min(balanceImpactPct, 100)}%`,
+              background: balanceImpactPct >= 80 ? "var(--color-accent-short)" : balanceImpactPct >= 50 ? "var(--color-accent-warn)" : "var(--color-accent-blue)",
+            }} />
+          </div>
+          <div className="flex items-center justify-between mt-1.5 text-[10px] num text-text-tertiary">
+            <span>Before: {data.sender_balance < 1 ? data.sender_balance.toFixed(4) : data.sender_balance.toFixed(2)} {data.token}</span>
+            <span>After: {(data.sender_balance - data.amount) < 0.0001 ? "0" : (data.sender_balance - data.amount).toFixed(data.sender_balance < 1 ? 4 : 2)} {data.token}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Recipient full address (copyable) ---- */}
+      <div className="px-5 py-3 flex items-center justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] text-text-tertiary">Recipient Address</span>
+            {recentMatch && (
+              <span className="text-[9px] text-text-tertiary">
+                (sent before)
+              </span>
+            )}
+          </div>
+          <div className="text-[11px] font-mono text-text-secondary break-all leading-relaxed">{data.recipient}</div>
+        </div>
+        <button onClick={() => copyToClipboard(data!.recipient, "addr")}
+          className="shrink-0 ml-3 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:bg-white/[0.05]"
+          title="Copy address">
+          {copied === "addr" ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-long)" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+            </svg>
+          )}
+        </button>
+      </div>
+
+      {/* ---- In-flight status ---- */}
+      {(status === "executing" || status === "signing" || status === "confirming") && (
+        <div className="px-5 py-4 flex items-center gap-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <span className="w-4 h-4 border-2 border-accent-blue border-t-transparent rounded-full shrink-0" style={{ animation: "spin 0.8s linear infinite" }} />
+          <span className="text-[13px] text-text-secondary">
+            {status === "executing" ? "Building transaction..." : status === "signing" ? "Approve in your wallet..." : "Confirming on-chain..."}
+          </span>
+        </div>
+      )}
+
+      {/* ---- Confirm section ---- */}
+      {status === "preview" && (
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          {/* Type CONFIRM gate for large transfers */}
+          {requiresTypeConfirm && walletAddress && (
+            <div className="px-5 pt-3 pb-2">
+              <div className="text-[11px] text-text-tertiary mb-2">
+                Type <span className="font-bold text-text-secondary">CONFIRM</span> to proceed with this large transfer
+              </div>
+              <input
+                type="text"
+                value={confirmInput}
+                onChange={(e) => setConfirmInput(e.target.value)}
+                placeholder="Type CONFIRM"
+                className="w-full px-3 py-2 rounded-lg text-[13px] font-mono bg-transparent outline-none
+                  text-text-primary placeholder:text-text-tertiary"
+                style={{ border: "1px solid var(--color-border-subtle)" }}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+          )}
+
+          <div className="flex">
+            <button onClick={handleConfirm}
+              disabled={!walletAddress || (requiresTypeConfirm && confirmInput.trim().toUpperCase() !== "CONFIRM") || status !== "preview"}
+              className="btn-primary flex-1 py-4 text-[14px] font-bold tracking-wide cursor-pointer disabled:opacity-25 disabled:cursor-default"
+              style={{ color: "#070A0F", background: "var(--color-accent-lime)", borderRadius: "0 0 16px 16px" }}>
+              {!walletAddress
+                ? "Connect Wallet"
+                : `Send ${data.amount_display} to ${recipientDisplay}`}
+            </button>
+          </div>
+
+          {/* Trust signal */}
+          <div className="flex items-center justify-center gap-1.5 py-2 text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+            Executed on-chain via Solana
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// ============================================
+// FAF Staking Cards (Dashboard, Stake, Unstake, Claim, Requests, Tier)
+// ============================================
+
+const FafCard = memo(function FafCard({ toolName, output }: { toolName: string; output: ToolOutput }) {
+  const data = output.data as Record<string, unknown> | null;
+  if (!data) return <ToolError toolName={toolName} error={output.error} />;
+
+  const type = String(data.type ?? "");
+  const walletAddress = useFlashStore((s) => s.walletAddress);
+  const [status, setStatus] = useState<"idle" | "executing" | "signing" | "confirming" | "success" | "error">("idle");
+  const [txSig, setTxSig] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const lockRef = useRef(false);
+
+  async function executeFafAction(action: string, params: Record<string, unknown> = {}) {
+    if (lockRef.current || !walletAddress) return;
+    lockRef.current = true;
+    setStatus("executing");
+    setError(null);
+    try {
+      const buildResp = await fetch("/api/faf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, wallet: walletAddress, ...params }),
+      });
+      const buildJson = await buildResp.json().catch(() => null);
+      if (!buildResp.ok || !buildJson?.transaction) throw new Error(buildJson?.error ?? "Failed to build transaction");
+
+      setStatus("signing");
+      const { VersionedTransaction } = await import("@solana/web3.js");
+      const txBytes = Uint8Array.from(atob(buildJson.transaction), (c) => c.charCodeAt(0));
+      const tx = VersionedTransaction.deserialize(txBytes);
+      const wa = (window as unknown as { solana?: { signTransaction: (t: unknown) => Promise<unknown> } }).solana;
+      if (!wa?.signTransaction) throw new Error("Wallet not available");
+      const signed = await wa.signTransaction(tx) as { serialize: () => Uint8Array };
+
+      const signedBytes = signed.serialize();
+      let signedB64 = "";
+      const CHUNK = 8192;
+      for (let i = 0; i < signedBytes.length; i += CHUNK) {
+        signedB64 += String.fromCharCode(...signedBytes.subarray(i, Math.min(i + CHUNK, signedBytes.length)));
+      }
+      signedB64 = btoa(signedB64);
+
+      const bResp = await fetch("/api/broadcast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transaction: signedB64 }) });
+      const bJson = await bResp.json().catch(() => null);
+      if (!bResp.ok || !bJson?.signature) throw new Error("Broadcast failed");
+
+      setTxSig(bJson.signature);
+      setStatus("confirming");
+
+      // Poll for confirmation
+      const { Connection } = await import("@solana/web3.js");
+      const conn = new Connection("/api/rpc", "confirmed");
+      let confirmed = false;
+      const start = Date.now();
+      while (Date.now() - start < 30000) {
+        try {
+          const { value } = await conn.getSignatureStatuses([bJson.signature]);
+          const s = value[0];
+          if (s?.err) throw new Error("Transaction failed on-chain");
+          if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") { confirmed = true; break; }
+        } catch (e) { if (e instanceof Error && e.message.includes("failed on-chain")) throw e; }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      if (!confirmed) throw new Error("Transaction not confirmed in 30s. Check Solscan.");
+      setStatus("success");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed");
+      setStatus("error");
+    } finally {
+      lockRef.current = false;
+    }
+  }
+
+  // Success state
+  if (status === "success" && txSig) {
+    return (
+      <div className="glass-card-solid overflow-hidden success-glow" style={{ borderColor: "rgba(0,210,106,0.15)" }}>
+        <div className="px-5 py-4 flex items-center gap-3">
+          <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(0,210,106,0.1)" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-long)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
+          </span>
+          <div>
+            <div className="text-[14px] font-semibold text-text-primary">Transaction Confirmed</div>
+            <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noopener noreferrer" className="text-[12px] font-mono text-accent-blue hover:underline">{txSig.slice(0, 16)}...</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (status === "error") {
+    return (
+      <div className="glass-card-solid overflow-hidden" style={{ borderColor: "rgba(255,77,77,0.15)" }}>
+        <div className="px-5 py-4">
+          <div className="text-[14px] font-semibold text-accent-short mb-1">Failed</div>
+          <div className="text-[12px] text-text-tertiary">{error}</div>
+        </div>
+        <div className="flex border-t border-border-subtle">
+          <button onClick={() => { setStatus("idle"); setError(null); }} className="btn-secondary flex-1 py-2.5 text-[12px] font-semibold text-text-secondary cursor-pointer">Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  // In-flight
+  if (status !== "idle") {
+    return (
+      <div className="glass-card-solid overflow-hidden px-5 py-4 flex items-center gap-3">
+        <span className="w-4 h-4 border-2 border-accent-blue border-t-transparent rounded-full" style={{ animation: "spin 0.8s linear infinite" }} />
+        <span className="text-[13px] text-text-secondary">{status === "executing" ? "Building..." : status === "signing" ? "Sign in wallet..." : "Confirming..."}</span>
+      </div>
+    );
+  }
+
+  // ── DASHBOARD (Progression-Driven) ──
+  if (type === "faf_dashboard") {
+    if (!data.hasAccount) return (
+      <div className="glass-card-solid overflow-hidden">
+        <div className="px-5 py-5">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(200,245,71,0.08)", border: "1px solid rgba(200,245,71,0.12)" }}>
+              <span className="text-[16px] font-bold" style={{ color: "var(--color-accent-lime)" }}>F</span>
+            </span>
+            <div>
+              <div className="text-[15px] font-semibold text-text-primary">Start Earning with FAF</div>
+              <div className="text-[12px] text-text-tertiary">Stake FAF to earn rewards + fee discounts</div>
+            </div>
+          </div>
+          <div className="text-[13px] text-text-secondary leading-relaxed">
+            Stake 20,000 FAF to unlock VIP Level 1 with 2.5% trading fee discount and USDC revenue share from protocol fees.
+          </div>
+        </div>
+      </div>
+    );
+
+    const staked = safe(data.stakedAmount as number);
+    const fafR = safe(data.pendingRewardsFaf as number);
+    const usdcR = safe(data.pendingRevenueUsdc as number);
+    const rebate = safe(data.pendingRebateUsdc as number);
+    const tier = String(data.tierName ?? "None");
+    const discount = safe(data.feeDiscount as number);
+    const level = safe(data.level as number);
+    const nextTier = data.nextTier as Record<string, unknown> | null;
+    const toNext = safe(data.amountToNextTier as number);
+    const hasRewards = fafR > 0 || usdcR > 0 || rebate > 0;
+
+    // Tier progress calculation
+    const nextReq = nextTier ? safe(nextTier.fafRequired as number) : 0;
+    const currentReq = level > 0
+      ? [0, 20000, 40000, 100000, 200000, 1000000, 2000000][level] ?? 0
+      : 0;
+    const tierRange = nextReq - currentReq;
+    const tierProgress = tierRange > 0
+      ? Math.min(100, Math.max(0, ((staked - currentReq) / tierRange) * 100))
+      : 100;
+
+    return (
+      <div className="glass-card-solid overflow-hidden">
+        {/* Header with tier badge */}
+        <div className="px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(200,245,71,0.08)", border: "1px solid rgba(200,245,71,0.12)" }}>
+              <span className="text-[16px] font-bold" style={{ color: "var(--color-accent-lime)" }}>F</span>
+            </span>
+            <div>
+              <div className="text-[15px] font-semibold text-text-primary">{staked.toLocaleString()} FAF</div>
+              <div className="text-[12px] text-text-tertiary">staked</div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-[12px] font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: level > 0 ? "rgba(200,245,71,0.1)" : "rgba(255,255,255,0.04)", color: level > 0 ? "var(--color-accent-lime)" : "var(--color-text-tertiary)" }}>
+              VIP {tier}
+            </div>
+            <div className="text-[10px] num text-text-tertiary mt-1">{discount}% fee discount</div>
+          </div>
+        </div>
+
+        {/* Tier progress bar */}
+        {nextTier && toNext > 0 && (
+          <div className="px-5 pb-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] text-text-tertiary uppercase tracking-wider">Progress to {String(nextTier.name)}</span>
+              <span className="text-[11px] num font-medium" style={{ color: "var(--color-accent-lime)" }}>{Math.round(tierProgress)}%</span>
+            </div>
+            <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+              <div className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${tierProgress}%`, background: "linear-gradient(90deg, var(--color-accent-lime), rgba(200,245,71,0.6))" }} />
+            </div>
+            <div className="flex items-center justify-between mt-1.5 text-[10px] text-text-tertiary">
+              <span>Stake {toNext.toLocaleString()} more</span>
+              <span>+{safe((nextTier as Record<string, unknown>).feeDiscount as number) - discount}% fee discount</span>
+            </div>
+          </div>
+        )}
+
+        {/* Rewards section */}
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <div className="px-5 py-3">
+            <div className="text-[10px] uppercase tracking-wider text-text-tertiary mb-2">Earnings</div>
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="text-[18px] font-bold num" style={{ color: fafR > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}>
+                  {fafR.toFixed(2)} <span className="text-[11px] font-normal text-text-tertiary">FAF</span>
+                </div>
+                <div className="text-[10px] text-text-tertiary mt-0.5">staking rewards</div>
+              </div>
+              <div className="w-px h-8" style={{ background: "rgba(255,255,255,0.06)" }} />
+              <div className="flex-1">
+                <div className="text-[18px] font-bold num" style={{ color: usdcR > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}>
+                  ${usdcR.toFixed(2)} <span className="text-[11px] font-normal text-text-tertiary">USDC</span>
+                </div>
+                <div className="text-[10px] text-text-tertiary mt-0.5">revenue share</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action triggers */}
+        {hasRewards && (
+          <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "rgba(0,210,106,0.03)" }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-long)", animation: "pulseDot 2s infinite" }} />
+            <span className="text-[12px] text-accent-long">You have rewards waiting to be claimed</span>
+          </div>
+        )}
+
+        {nextTier && toNext > 0 && toNext < staked * 0.2 && !hasRewards && (
+          <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "rgba(200,245,71,0.02)" }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-lime)" }} />
+            <span className="text-[12px]" style={{ color: "var(--color-accent-lime)" }}>You're close to {String(nextTier.name)}!</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── STAKE PREVIEW ──
+  if (type === "faf_stake_preview") {
+    const amount = safe(data.amount as number);
+    const newTier = String(data.newTier ?? "None");
+    const newDiscount = safe(data.newFeeDiscount as number);
+    const tierChanged = data.tierChanged as boolean;
+
+    return (
+      <div className="glass-card-solid overflow-hidden">
+        <div className="px-5 py-4">
+          <div className="text-[11px] uppercase tracking-wider text-text-tertiary mb-1">You are staking</div>
+          <div className="text-[22px] font-bold num text-text-primary">{amount.toLocaleString()} FAF</div>
+        </div>
+        <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
+          <Cell label="Current Stake" value={`${safe(data.currentStake as number).toLocaleString()} FAF`} />
+          <Cell label="New Stake" value={`${safe(data.newStake as number).toLocaleString()} FAF`} />
+          <Cell label="New Tier" value={newTier} color={tierChanged ? "var(--color-accent-lime)" : undefined} />
+          <Cell label="Fee Discount" value={`${newDiscount}%`} />
+        </div>
+        {tierChanged && <div className="px-5 py-3 text-[12px] text-accent-lime" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>Tier upgrade! You'll reach {newTier} with this stake.</div>}
+        <div className="flex" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <button onClick={() => executeFafAction("stake", { amount })} disabled={!walletAddress}
+            className="btn-primary flex-1 py-3.5 text-[14px] font-bold cursor-pointer disabled:opacity-25"
+            style={{ color: "#070A0F", background: "var(--color-accent-lime)", borderRadius: "0 0 16px 16px" }}>
+            Confirm Stake
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── UNSTAKE PREVIEW ──
+  if (type === "faf_unstake_preview") {
+    const amount = safe(data.amount as number);
+
+    return (
+      <div className="glass-card-solid overflow-hidden">
+        <div className="px-5 py-4">
+          <div className="text-[11px] uppercase tracking-wider text-text-tertiary mb-1">You are unstaking</div>
+          <div className="text-[22px] font-bold num text-text-primary">{amount.toLocaleString()} FAF</div>
+        </div>
+        <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
+          <Cell label="Remaining Stake" value={`${safe(data.remainingStake as number).toLocaleString()} FAF`} />
+          <Cell label="New Tier" value={String(data.newTier ?? "None")} />
+          <Cell label="Lock Period" value="90 days" color="var(--color-accent-warn)" />
+          <Cell label="Unlock Date" value={String(data.unlockDate ?? "")} />
+        </div>
+        <div className="px-5 py-3 flex items-start gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-warn)" strokeWidth="2" className="mt-0.5 shrink-0"><path d="M12 9v4M12 17h.01" /><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+          <span className="text-[12px] text-accent-warn leading-relaxed">{String(data.warning)}</span>
+        </div>
+        <div className="flex" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <button onClick={() => executeFafAction("unstake", { amount })} disabled={!walletAddress}
+            className="btn-primary flex-1 py-3.5 text-[14px] font-bold cursor-pointer disabled:opacity-25"
+            style={{ color: "#070A0F", background: "var(--color-accent-warn)", borderRadius: "0 0 16px 16px" }}>
+            Confirm Unstake (90-day lock)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── CLAIM PREVIEW ──
+  if (type === "faf_claim_preview") {
+    const fafR = safe(data.fafRewards as number);
+    const usdcR = safe(data.usdcRevenue as number);
+    const claimType = String(data.claim_type ?? "all");
+
+    return (
+      <div className="glass-card-solid overflow-hidden">
+        <div className="px-5 py-4">
+          <div className="text-[15px] font-semibold text-text-primary">Claim Rewards</div>
+        </div>
+        <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
+          {fafR > 0 && <Cell label="FAF Rewards" value={`${fafR.toFixed(4)} FAF`} color="var(--color-accent-long)" />}
+          {usdcR > 0 && <Cell label="USDC Revenue" value={`$${usdcR.toFixed(2)}`} color="var(--color-accent-long)" />}
+        </div>
+        <div className="flex" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          {(claimType === "all" || claimType === "rewards") && fafR > 0 && (
+            <button onClick={() => executeFafAction("claim_rewards")} disabled={!walletAddress}
+              className="btn-primary flex-1 py-3 text-[13px] font-bold cursor-pointer disabled:opacity-25"
+              style={{ color: "#070A0F", background: "var(--color-accent-lime)", borderRadius: usdcR > 0 ? "0" : "0 0 16px 16px" }}>
+              Claim FAF
+            </button>
+          )}
+          {(claimType === "all" || claimType === "revenue") && usdcR > 0 && (
+            <button onClick={() => executeFafAction("claim_revenue")} disabled={!walletAddress}
+              className="btn-primary flex-1 py-3 text-[13px] font-bold cursor-pointer disabled:opacity-25"
+              style={{ color: "#070A0F", background: "var(--color-accent-blue)", borderRadius: fafR > 0 ? "0 0 16px 0" : "0 0 16px 16px" }}>
+              Claim USDC
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── REQUESTS LIST ──
+  if (type === "faf_requests") {
+    const requests = (data.requests as Record<string, unknown>[]) ?? [];
+    if (requests.length === 0) return (
+      <div className="glass-card-solid overflow-hidden px-5 py-5">
+        <div className="text-[14px] text-text-secondary">No pending unstake requests.</div>
+      </div>
+    );
+
+    return (
+      <div className="glass-card-solid overflow-hidden">
+        <div className="px-5 py-4">
+          <div className="text-[15px] font-semibold text-text-primary">Unstake Requests</div>
+          <div className="text-[12px] text-text-tertiary">{requests.length} pending</div>
+        </div>
+        {requests.map((req, i) => {
+          const locked = safe(req.lockedAmount as number);
+          const withdrawable = safe(req.withdrawableAmount as number);
+          const progress = safe(req.progressPercent as number);
+          const timeLeft = safe(req.timeRemainingSeconds as number);
+          const daysLeft = Math.ceil(timeLeft / 86400);
+
+          return (
+            <div key={i} className="px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[13px] font-medium text-text-primary">#{i} · {(locked + withdrawable).toFixed(2)} FAF</span>
+                <span className="text-[11px] num text-text-tertiary">{daysLeft > 0 ? `${daysLeft}d left` : "Unlocked"}</span>
+              </div>
+              <div className="w-full h-1.5 rounded-full overflow-hidden mb-2" style={{ background: "rgba(255,255,255,0.06)" }}>
+                <div className="h-full rounded-full" style={{ width: `${progress}%`, background: progress >= 100 ? "var(--color-accent-long)" : "var(--color-accent-blue)", transition: "width 300ms" }} />
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-text-tertiary">
+                <span>{progress}% unlocked</span>
+                {progress < 100 && (
+                  <button onClick={() => executeFafAction("cancel_unstake", { index: i })} disabled={!walletAddress}
+                    className="text-accent-short hover:underline cursor-pointer">Cancel</button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // ── CANCEL PREVIEW ──
+  if (type === "faf_cancel_preview") {
+    const amount = safe(data.amount as number);
+    const idx = safe(data.index as number);
+
+    return (
+      <div className="glass-card-solid overflow-hidden">
+        <div className="px-5 py-4">
+          <div className="text-[15px] font-semibold text-text-primary">Cancel Unstake Request #{idx}</div>
+          <div className="text-[13px] text-text-tertiary mt-1">{amount.toFixed(2)} FAF will be returned to your active stake.</div>
+        </div>
+        <div className="flex" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <button onClick={() => executeFafAction("cancel_unstake", { index: idx })} disabled={!walletAddress}
+            className="btn-primary flex-1 py-3.5 text-[14px] font-bold cursor-pointer disabled:opacity-25"
+            style={{ color: "#070A0F", background: "var(--color-accent-lime)", borderRadius: "0 0 16px 16px" }}>
+            Confirm Cancel → Re-stake
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── TIERS ──
+  if (type === "faf_tiers") {
+    const tiers = (data.tiers as Record<string, unknown>[]) ?? [];
+    const currentLevel = safe(data.currentLevel as number);
+    const staked = safe(data.stakedAmount as number);
+
+    return (
+      <div className="glass-card-solid overflow-hidden">
+        <div className="px-5 py-4">
+          <div className="text-[15px] font-semibold text-text-primary">VIP Tiers</div>
+          <div className="text-[12px] text-text-tertiary">You have {staked.toLocaleString()} FAF staked</div>
+        </div>
+        {tiers.map((t, i) => {
+          const level = safe(t.level as number);
+          const name = String(t.name ?? `Level ${level}`);
+          const req = safe(t.fafRequired as number);
+          const discount = safe(t.feeDiscount as number);
+          const isActive = level === currentLevel;
+
+          return (
+            <div key={i} className="flex items-center justify-between px-5 py-2.5"
+              style={{
+                borderTop: "1px solid rgba(255,255,255,0.04)",
+                background: isActive ? "rgba(200,245,71,0.04)" : "transparent",
+              }}>
+              <div className="flex items-center gap-2">
+                {isActive && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-lime)" }} />}
+                <span className={`text-[13px] ${isActive ? "font-semibold text-text-primary" : "text-text-secondary"}`}>{name}</span>
+              </div>
+              <div className="flex items-center gap-4 text-[11px] num text-text-tertiary">
+                <span>{req > 0 ? `${(req / 1000).toFixed(0)}K FAF` : "Free"}</span>
+                <span className="w-12 text-right">{discount}% off</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Fallback
+  return <GenericCard toolName={toolName} output={output} />;
+});
+
+// ============================================
+// Transfer History + Insights Card
+// ============================================
+
+const TransferHistoryCard = memo(function TransferHistoryCard({ output }: { output: ToolOutput }) {
+  const data = output.data as {
+    total_transfers: number;
+    total_successful: number;
+    recent_transfers: TransferRecord[];
+    top_tokens: { token: string; count: number; total_amount: number }[];
+    top_recipients: { address: string; label: string | null; count: number }[];
+    volume_summary: {
+      last_24h: { count: number; tokens: string[] };
+      last_7d: { count: number; tokens: string[] };
+      last_30d: { count: number; tokens: string[] };
+    };
+  } | null;
+
+  if (!data) return <ToolError toolName="transfer_history" error={output.error} />;
+
+  if (data.total_transfers === 0) {
+    return (
+      <div className="glass-card-solid overflow-hidden px-5 py-5">
+        <div className="text-[14px] text-text-secondary">No transfer history yet. Send your first transfer to start tracking.</div>
+      </div>
+    );
+  }
+
+  function timeAgo(ts: number): string {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  }
+
+  return (
+    <div className="glass-card-solid overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 flex items-center gap-3">
+        <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+          style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.15)" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-purple)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="10" />
+          </svg>
+        </span>
+        <div>
+          <div className="text-[15px] font-semibold text-text-primary">Transfer History</div>
+          <div className="text-[12px] text-text-tertiary">{data.total_successful} successful transfer{data.total_successful !== 1 ? "s" : ""}</div>
+        </div>
+      </div>
+
+      {/* Insights row */}
+      {data.top_tokens.length > 0 && (
+        <div className="px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <div className="text-[10px] uppercase tracking-wider text-text-tertiary mb-2">Most used tokens</div>
+          <div className="flex flex-wrap gap-2">
+            {data.top_tokens.map((t) => (
+              <span key={t.token} className="text-[12px] px-2.5 py-1 rounded-full font-medium"
+                style={{ background: "rgba(255,255,255,0.04)", color: "var(--color-text-secondary)" }}>
+                {t.token} <span className="num text-text-tertiary">({t.count}x)</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Top recipients */}
+      {data.top_recipients.length > 0 && (
+        <div className="px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <div className="text-[10px] uppercase tracking-wider text-text-tertiary mb-2">Frequent recipients</div>
+          {data.top_recipients.slice(0, 3).map((r) => (
+            <div key={r.address} className="flex items-center justify-between py-1">
+              <span className="text-[12px] font-mono text-text-secondary">
+                {r.label ?? `${r.address.slice(0, 4)}...${r.address.slice(-4)}`}
+              </span>
+              <span className="text-[11px] num text-text-tertiary">{r.count} transfer{r.count !== 1 ? "s" : ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Recent transfers */}
+      <div className="px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="text-[10px] uppercase tracking-wider text-text-tertiary mb-2">Recent</div>
+        {data.recent_transfers.slice(0, 5).map((t, i) => (
+          <div key={i} className="flex items-center justify-between py-1.5"
+            style={{ borderBottom: i < Math.min(data.recent_transfers.length, 5) - 1 ? "1px solid rgba(255,255,255,0.03)" : "none" }}>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-long)" }} />
+              <span className="text-[12px] font-medium text-text-primary">{t.amount} {t.token}</span>
+              <span className="text-[11px] text-text-tertiary">→ {t.recipientLabel ?? `${t.recipient.slice(0, 4)}...${t.recipient.slice(-4)}`}</span>
+            </div>
+            <span className="text-[10px] text-text-tertiary">{timeAgo(t.timestamp)}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Volume summary */}
+      <div className="grid grid-cols-3 gap-px" style={{ background: "var(--color-border-subtle)", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="px-3 py-3 text-center" style={{ background: "var(--color-bg-card-solid)" }}>
+          <div className="text-[16px] num font-bold text-text-primary">{data.volume_summary.last_24h.count}</div>
+          <div className="text-[10px] text-text-tertiary mt-0.5">Last 24h</div>
+        </div>
+        <div className="px-3 py-3 text-center" style={{ background: "var(--color-bg-card-solid)" }}>
+          <div className="text-[16px] num font-bold text-text-primary">{data.volume_summary.last_7d.count}</div>
+          <div className="text-[10px] text-text-tertiary mt-0.5">Last 7d</div>
+        </div>
+        <div className="px-3 py-3 text-center" style={{ background: "var(--color-bg-card-solid)" }}>
+          <div className="text-[16px] num font-bold text-text-primary">{data.volume_summary.last_30d.count}</div>
+          <div className="text-[10px] text-text-tertiary mt-0.5">Last 30d</div>
+        </div>
+      </div>
     </div>
   );
 });
