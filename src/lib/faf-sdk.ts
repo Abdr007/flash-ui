@@ -139,7 +139,13 @@ export async function getFafStakeInfo(
   const client = getClient(connection, wallet);
   const poolConfig = getPoolConfig();
 
-  const account = await client.getTokenStakeAccount(poolConfig, userPubkey);
+  let account;
+  try {
+    account = await client.getTokenStakeAccount(poolConfig, userPubkey);
+  } catch {
+    // RPC error or method not supported — treat as no stake account
+    return null;
+  }
   if (!account) return null;
 
   const stakedAmount = bnToUi(account.activeStakeAmount);
@@ -169,7 +175,12 @@ export async function getFafUnstakeRequests(
   const client = getClient(connection, wallet);
   const poolConfig = getPoolConfig();
 
-  const account = await client.getTokenStakeAccount(poolConfig, userPubkey);
+  let account;
+  try {
+    account = await client.getTokenStakeAccount(poolConfig, userPubkey);
+  } catch {
+    return [];
+  }
   if (!account || !account.withdrawRequest) return [];
 
   return account.withdrawRequest.map((req, index) => {
