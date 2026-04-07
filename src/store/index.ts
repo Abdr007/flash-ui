@@ -961,7 +961,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
           }
 
           // Attach trigger txs to result for the signing flow
-          (openResult as Record<string, unknown>)._triggerTxs = triggerTxs;
+          (openResult as unknown as Record<string, unknown>)._triggerTxs = triggerTxs;
         }
 
         return openResult;
