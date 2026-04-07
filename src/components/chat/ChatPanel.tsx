@@ -211,51 +211,50 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
         )}
       </div>
 
-      {/* ---- Grouped Chips (above input when chat active) ---- */}
-      {hasMessages && actionGroups.length > 0 && !isStreaming && !isExecuting && (
-        <div className="px-5 pb-2 pt-1">
-          <div className="max-w-[720px] mx-auto flex flex-wrap gap-2">
-            {actionGroups.flatMap((g) => g.actions).slice(0, 5).map((action, i) => (
-              <button
-                key={i}
-                onClick={() => handleChipClick(action)}
-                className="chip chip-stagger text-[12px] px-3.5 py-1.5
-                  text-text-secondary hover:text-text-primary cursor-pointer"
-                style={{ background: "rgba(20,26,34,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "9999px" }}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ---- Gradient fade (Neur: h-40, pointer-events-none) ---- */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-40"
+        style={{ background: "linear-gradient(to top, var(--color-bg-root), var(--color-bg-root) 20%, transparent)" }} />
 
-      {/* ---- Gradient fade (Neur pattern) ---- */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-32"
-        style={{ background: "linear-gradient(to top, var(--color-bg-root) 30%, transparent)" }} />
+      {/* ---- Input (sticky bottom, Neur layout) ---- */}
+      <div className="sticky bottom-0 z-10 safe-bottom">
+        <div className="relative mx-auto w-full max-w-3xl px-4 py-4">
+          {/* Autocomplete */}
+          {autocomplete.length > 0 && (
+            <div className="absolute bottom-full left-4 right-4 mb-2 overflow-hidden rounded-xl"
+              style={{ background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 100ms ease-out" }}>
+              {autocomplete.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSubmit(s)}
+                  className={`autocomplete-item w-full text-left px-4 py-2.5 text-[14px] cursor-pointer
+                    ${i === selectedAC ? "bg-bg-card-hover text-text-primary" : "text-text-secondary hover:bg-bg-card-hover hover:text-text-primary"}`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
 
-      {/* ---- Input (sticky bottom, above gradient) ---- */}
-      <div className="sticky bottom-0 z-10 px-4 pb-5 pt-2 relative safe-bottom">
-        {/* Autocomplete */}
-        {autocomplete.length > 0 && (
-          <div className="absolute bottom-full left-5 right-5 mb-2 max-w-[720px] mx-auto overflow-hidden"
-            style={{ borderRadius: "16px", background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 100ms ease-out" }}>
-            {autocomplete.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => handleSubmit(s)}
-                className={`autocomplete-item w-full text-left px-5 py-2.5 text-[14px] cursor-pointer
-                  ${i === selectedAC ? "bg-bg-card-hover text-text-primary" : "text-text-secondary hover:bg-bg-card-hover hover:text-text-primary"}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
+          {/* Suggestion chips (above input when chat active) */}
+          {hasMessages && actionGroups.length > 0 && !isStreaming && !isExecuting && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {actionGroups.flatMap((g) => g.actions).slice(0, 4).map((action, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleChipClick(action)}
+                  className="chip chip-stagger text-[12px] px-3 py-1.5
+                    text-text-secondary hover:text-text-primary cursor-pointer"
+                  style={{ background: "rgba(20,26,34,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "9999px" }}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          )}
 
-        <div className="max-w-[720px] mx-auto">
-          <div className="input-glow relative rounded-2xl overflow-hidden transition-all duration-200"
-            style={{ background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          {/* Input box (Neur: rounded-xl bg-muted, min-h-[110px]) */}
+          <div className="relative rounded-xl overflow-hidden"
+            style={{ background: "var(--color-bg-card)" }}>
             <textarea
               ref={inputRef}
               value={input}
@@ -264,28 +263,29 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               placeholder={isExecuting ? "Executing trade..." : isStreaming ? "Thinking..." : "Long SOL 5x $50..."}
               disabled={isExecuting}
               rows={1}
-              className="w-full bg-transparent text-[15px] text-text-primary px-5 pt-4 pb-12
-                placeholder:text-text-tertiary outline-none border-none resize-none"
-              style={{ minHeight: "60px", maxHeight: "120px" }}
+              className="w-full bg-transparent text-[14px] text-text-primary px-4 pt-4 pb-14
+                placeholder:text-text-tertiary outline-none border-none resize-none no-scrollbar"
+              style={{ minHeight: "100px", maxHeight: "350px" }}
               autoFocus
             />
-            <div className="absolute bottom-3 right-3 flex items-center gap-3">
-              {isStreaming && <StreamingDot inline />}
+            <div className="flex items-center justify-between border-t px-4 py-2"
+              style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+              <div className="flex items-center gap-2">
+                {isStreaming && <StreamingDot inline />}
+                <span className="text-[11px] text-text-tertiary num">{input.length > 0 ? `${input.length}/500` : ""}</span>
+              </div>
               <button
                 onClick={() => {
                   handleSubmit();
-                  // Micro-interaction: pulse the button
-                  const btn = document.activeElement as HTMLElement;
-                  btn?.classList.add("send-pulse");
-                  setTimeout(() => btn?.classList.remove("send-pulse"), 200);
+                  try { navigator?.vibrate?.(10); } catch {}
                 }}
                 disabled={!input.trim() || isStreaming || isExecuting}
-                className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer shrink-0
-                  transition-all duration-150 disabled:opacity-20 disabled:cursor-default
-                  hover:scale-105 active:scale-95"
-                style={{ background: input.trim() ? "var(--color-accent-lime)" : "rgba(200,245,71,0.3)" }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer shrink-0
+                  transition-all duration-100 disabled:opacity-20 disabled:cursor-default
+                  hover:bg-text-primary hover:scale-110 active:scale-95"
+                style={{ color: "var(--color-text-tertiary)" }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0E13" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="19" x2="12" y2="5" />
                   <polyline points="5 12 12 5 19 12" />
                 </svg>
@@ -302,20 +302,20 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
 
 const StreamingDot = memo(function StreamingDot({ inline }: { inline?: boolean }) {
   if (inline) {
-    return <div className="w-2.5 h-2.5 rounded-full bg-accent-blue shrink-0" style={{ animation: "pulseDot 1s infinite" }} />;
+    return <div className="w-2 h-2 rounded-full shrink-0" style={{ background: "var(--color-text-tertiary)", animation: "pulseDot 1s infinite" }} />;
   }
   return (
-    <div className="flex items-center gap-3 py-2 msg-anim">
-      <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center"
-        style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)" }}>
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <path d="M3 12L8 3L13 12H3Z" fill="white" fillOpacity="0.9" />
+    <div className="flex items-center gap-3 py-2 mt-6 msg-anim">
+      <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center"
+        style={{ background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <path d="M3 12L8 3L13 12H3Z" fill="var(--color-accent-blue)" fillOpacity="0.9" />
         </svg>
       </div>
-      <div className="flex items-center gap-2">
-        <span className="typing-dot" />
-        <span className="typing-dot" />
-        <span className="typing-dot" />
+      <div className="flex items-center gap-1.5">
+        <div className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-text-tertiary)", animation: "typingBounce 1.2s ease-in-out infinite -0.3s" }} />
+        <div className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-text-tertiary)", animation: "typingBounce 1.2s ease-in-out infinite -0.15s" }} />
+        <div className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-text-tertiary)", animation: "typingBounce 1.2s ease-in-out infinite 0s" }} />
       </div>
     </div>
   );
