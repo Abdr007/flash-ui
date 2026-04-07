@@ -17,23 +17,24 @@ export default function SystemStatus() {
   };
 
   return (
-    <div className="flex items-center gap-3 px-5 h-14 shrink-0 bg-bg-root">
+    <div className="flex items-center gap-3 px-4 h-12 shrink-0 bg-bg-root"
+      style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
       {/* Logo */}
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)" }}>
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-            <path d="M3 12L8 3L13 12H3Z" fill="white" fillOpacity="0.9" />
+      <div className="flex items-center gap-2">
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+          style={{ background: "var(--color-accent-lime)" }}>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+            <path d="M3 12L8 3L13 12H3Z" fill="#080B10" fillOpacity="0.9" />
           </svg>
         </div>
-        <span className="text-[16px] font-semibold text-text-primary tracking-tight">Flash</span>
+        <span className="text-[15px] font-bold text-text-primary tracking-tight">Flash</span>
       </div>
 
       {/* Stream status */}
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-        style={{ background: streamStatus === "connected" ? "rgba(16,185,129,0.08)" : "rgba(68,81,96,0.12)" }}>
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md"
+        style={{ background: streamStatus === "connected" ? "rgba(0,210,106,0.06)" : "rgba(68,81,96,0.08)" }}>
         <span
-          className="w-2 h-2 rounded-full"
+          className="w-1.5 h-1.5 rounded-full"
           style={{
             background: streamStatus === "connected" ? "var(--color-accent-long)" : streamStatus === "reconnecting" ? "var(--color-accent-warn)" : "var(--color-text-tertiary)",
             animation: streamStatus === "connected" ? "livePulse 2s infinite" : "none",
@@ -50,13 +51,13 @@ export default function SystemStatus() {
       {/* Wallet */}
       <button
         onClick={handleWallet}
-        className="flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium cursor-pointer transition-all duration-150"
+        className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all duration-100"
         style={{
           background: walletConnected
-            ? "rgba(16,185,129,0.08)"
+            ? "var(--color-bg-card)"
             : "var(--color-accent-lime)",
-          color: walletConnected ? "var(--color-accent-long)" : "#0A0E13",
-          border: walletConnected ? "1px solid rgba(16,185,129,0.15)" : "none",
+          color: walletConnected ? "var(--color-accent-long)" : "#080B10",
+          border: `1px solid ${walletConnected ? "var(--color-border-subtle)" : "transparent"}`,
         }}
       >
         {walletConnected ? (

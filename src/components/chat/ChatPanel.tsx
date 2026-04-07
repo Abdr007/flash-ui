@@ -258,8 +258,8 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
           )}
 
           {/* Input box (Neur: rounded-xl bg-muted, min-h-[110px]) */}
-          <div className="relative rounded-xl overflow-hidden"
-            style={{ background: "var(--color-bg-card)" }}>
+          <div className="relative rounded-lg overflow-hidden"
+            style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border-subtle)" }}>
             <textarea
               ref={inputRef}
               value={input}
@@ -268,9 +268,9 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               placeholder={isExecuting ? "Executing trade..." : isStreaming ? "Thinking..." : "Long SOL 5x $50..."}
               disabled={isExecuting}
               rows={1}
-              className="w-full bg-transparent text-[14px] text-text-primary px-4 pt-4 pb-14
+              className="w-full bg-transparent text-[14px] text-text-primary px-4 pt-3 pb-12
                 placeholder:text-text-tertiary outline-none border-none resize-none no-scrollbar"
-              style={{ minHeight: "100px", maxHeight: "350px" }}
+              style={{ minHeight: "80px", maxHeight: "200px" }}
               autoFocus
             />
             <div className="flex items-center justify-between border-t px-4 py-2"
@@ -329,9 +329,9 @@ const StreamingDot = memo(function StreamingDot({ inline }: { inline?: boolean }
 const UserMessage = memo(function UserMessage({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm"
-        style={{ background: "var(--color-text-primary)", color: "var(--color-bg-root)" }}>
-        <span className="text-[14px] leading-relaxed">{text}</span>
+      <div className="max-w-[85%] rounded-lg px-3.5 py-2.5"
+        style={{ background: "rgba(200,245,71,0.12)", border: "1px solid rgba(200,245,71,0.15)" }}>
+        <span className="text-[13px] text-text-primary leading-relaxed">{text}</span>
       </div>
     </div>
   );

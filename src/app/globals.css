@@ -1,26 +1,29 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-bg-root: #0A0E13;
-  --color-bg-surface: #0E1319;
-  --color-bg-card: #141A22;
-  --color-bg-card-hover: #1A222E;
-  --color-bg-input: #141A22;
-  --color-bg-elevated: #1A222E;
-  --color-border-subtle: #1E2A36;
-  --color-border-focus: #2A3A4E;
-  --color-text-primary: #E8ECF2;
-  --color-text-secondary: #7A8B9E;
-  --color-text-tertiary: #445160;
-  --color-accent-long: #10B981;
-  --color-accent-short: #EF4444;
+  /* Flash.trade-aligned dark palette — deeper, more contrast */
+  --color-bg-root: #080B10;
+  --color-bg-surface: #0C1017;
+  --color-bg-card: #111620;
+  --color-bg-card-hover: #161D2A;
+  --color-bg-input: #111620;
+  --color-bg-elevated: #161D2A;
+  --color-border-subtle: #1A2332;
+  --color-border-focus: #243040;
+  --color-text-primary: #E4E8EF;
+  --color-text-secondary: #6B7D92;
+  --color-text-tertiary: #3A4A5C;
+  /* Trading colors — standard green/red */
+  --color-accent-long: #00D26A;
+  --color-accent-short: #FF4D4D;
   --color-accent-blue: #3B82F6;
-  --color-accent-warn: #F59E0B;
+  --color-accent-warn: #F5A623;
   --color-accent-purple: #8B5CF6;
   --color-accent-lime: #C8F547;
   --font-mono: var(--font-geist-mono), 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
-  --radius-card: 16px;
-  --radius-lg: 20px;
+  /* Tighter radii — trading terminal feel */
+  --radius-card: 10px;
+  --radius-lg: 12px;
   --radius-pill: 9999px;
 }
 
@@ -35,7 +38,8 @@ html, body {
   -webkit-font-smoothing: antialiased;
   height: 100%;
   overflow: hidden;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  font-size: 14px;
 }
 
 /* ---- Scrollbar ---- */
@@ -57,12 +61,10 @@ html, body {
 /* ---- Focus ---- */
 input:focus-visible { outline: none; }
 
-/* ---- Glass Card ---- */
+/* ---- Glass Card (trading terminal style) ---- */
 .glass-card {
-  background: linear-gradient(145deg, rgba(20, 26, 34, 0.9), rgba(26, 34, 46, 0.7));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-card);
 }
 
@@ -72,27 +74,27 @@ input:focus-visible { outline: none; }
   background-size: 24px 24px;
 }
 
-/* ---- Action Circle (Galileo-style) ---- */
+/* ---- Action Circle (trading control style) ---- */
 .action-circle {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: var(--color-bg-card);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--color-border-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+  transition: transform 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 .action-circle:hover {
-  transform: translateY(-2px);
-  background: var(--color-bg-card-hover);
-  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+  background: var(--color-bg-elevated);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 .action-circle:active {
   transform: scale(0.95);
-  transition-duration: 60ms;
+  transition-duration: 40ms;
 }
 
 /* ---- Gradient accents ---- */

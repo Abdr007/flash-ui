@@ -275,11 +275,11 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
   }
 
   return (
-    <div className="flex flex-col items-center pt-12 pb-6 px-6 w-full" style={{ animation: "fadeIn 500ms ease-out" }}>
+    <div className="flex flex-col items-center pt-8 pb-4 px-6 w-full" style={{ animation: "fadeIn 300ms ease-out" }}>
 
       {/* ---- BALANCE ---- */}
-      <div className="text-[12px] text-text-tertiary tracking-[0.2em] uppercase mb-3">Total Balance</div>
-      <div className="text-[52px] font-semibold tracking-tight leading-none num mb-3"
+      <div className="text-[11px] text-text-tertiary tracking-[0.2em] uppercase mb-2">Total Balance</div>
+      <div className="text-[44px] font-bold tracking-tight leading-none num mb-2"
         style={{ color: walletConnected && walletDataError ? "var(--color-text-tertiary)" : "var(--color-text-primary)" }}>
         {!walletConnected ? "$0.00"
           : walletDataLoading && totalWalletUsd === 0 ? "..."
@@ -288,7 +288,7 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
       </div>
 
       {walletConnected ? (
-        <div className="flex items-center gap-3 mb-8 text-[13px]">
+        <div className="flex items-center gap-3 mb-6 text-[13px]">
           {walletDataError && totalWalletUsd === 0 ? (
             <span className="text-text-tertiary">Balance unavailable</span>
           ) : (
@@ -308,11 +308,11 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
           )}
         </div>
       ) : (
-        <div className="text-[14px] text-text-tertiary mb-8">Connect wallet to start trading</div>
+        <div className="text-[13px] text-text-tertiary mb-6">Connect wallet to start trading</div>
       )}
 
       {/* ---- Action Circles ---- */}
-      <div className="flex items-center gap-6 mb-8 flex-wrap justify-center">
+      <div className="flex items-center gap-5 mb-6 flex-wrap justify-center">
         <ActionCircle label="Long" onClick={() => setActiveFlow("LONG")}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>} />
         <ActionCircle label="Short" onClick={() => setActiveFlow("SHORT")}
@@ -327,8 +327,8 @@ export default function PortfolioHero({ onAction, onFillInput }: PortfolioHeroPr
 
       {/* ---- Protocol Stats (fstats) ---- */}
       {volume7d > 0 && (
-        <div className="flex items-center gap-5 px-6 py-3 rounded-full mb-6"
-          style={{ background: "rgba(20,26,34,0.9)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="flex items-center gap-4 px-5 py-2.5 rounded-full mb-5"
+          style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border-subtle)" }}>
           <StatPill label="7d Vol" value={formatCompact(volume7d)} color="var(--color-accent-long)" />
           <span className="w-px h-4" style={{ background: "rgba(255,255,255,0.08)" }} />
           <StatPill label="Trades" value={safe(trades7d).toLocaleString()} />
