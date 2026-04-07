@@ -188,19 +188,24 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
             )}
           </div>
         ) : (
-          /* ---- Chat messages ---- */
-          <div className="max-w-[720px] mx-auto px-5 py-6 flex flex-col gap-3">
-            {messages.map((message) => (
-              <div key={message.id} className="msg-anim">
-                {message.role === "user" ? (
-                  <UserMessage text={
-                    message.parts?.filter((p): p is { type: "text"; text: string } => p.type === "text").map((p) => p.text).join(" ") ?? ""
-                  } />
-                ) : (
-                  <AssistantMessage parts={(message.parts ?? []) as Record<string, unknown>[]} />
-                )}
-              </div>
-            ))}
+          /* ---- Chat messages (Neur-style spacing) ---- */
+          <div className="max-w-3xl mx-auto w-full px-4 pb-36 pt-4">
+            {messages.map((message, idx) => {
+              const prev = idx > 0 ? messages[idx - 1] : null;
+              const sameRole = prev?.role === message.role;
+              const mt = idx === 0 ? "" : sameRole ? "mt-2" : "mt-6";
+              return (
+                <div key={message.id} className={`msg-anim ${mt}`}>
+                  {message.role === "user" ? (
+                    <UserMessage text={
+                      message.parts?.filter((p): p is { type: "text"; text: string } => p.type === "text").map((p) => p.text).join(" ") ?? ""
+                    } />
+                  ) : (
+                    <AssistantMessage parts={(message.parts ?? []) as Record<string, unknown>[]} />
+                  )}
+                </div>
+              );
+            })}
             {(isStreaming || optimisticPending) && <StreamingDot />}
           </div>
         )}
@@ -225,8 +230,12 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
         </div>
       )}
 
-      {/* ---- Input (Galileo-style: full-width rounded box, bottom-pinned) ---- */}
-      <div className="px-5 pb-5 pt-2 relative safe-bottom">
+      {/* ---- Gradient fade (Neur pattern) ---- */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-32"
+        style={{ background: "linear-gradient(to top, var(--color-bg-root) 30%, transparent)" }} />
+
+      {/* ---- Input (sticky bottom, above gradient) ---- */}
+      <div className="sticky bottom-0 z-10 px-4 pb-5 pt-2 relative safe-bottom">
         {/* Autocomplete */}
         {autocomplete.length > 0 && (
           <div className="absolute bottom-full left-5 right-5 mb-2 max-w-[720px] mx-auto overflow-hidden"
@@ -315,9 +324,9 @@ const StreamingDot = memo(function StreamingDot({ inline }: { inline?: boolean }
 const UserMessage = memo(function UserMessage({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[80%] rounded-2xl rounded-tr-md px-5 py-3"
-        style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.15)" }}>
-        <span className="text-[15px] text-text-primary leading-relaxed">{text}</span>
+      <div className="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm"
+        style={{ background: "var(--color-text-primary)", color: "var(--color-bg-root)" }}>
+        <span className="text-[14px] leading-relaxed">{text}</span>
       </div>
     </div>
   );
@@ -352,10 +361,10 @@ const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Reco
 
   return (
     <div className="flex items-start gap-3">
-      <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center mt-0.5"
-        style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)" }}>
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <path d="M3 12L8 3L13 12H3Z" fill="white" fillOpacity="0.9" />
+      <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center mt-0.5"
+        style={{ background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <path d="M3 12L8 3L13 12H3Z" fill="var(--color-accent-blue)" fillOpacity="0.9" />
         </svg>
       </div>
 
@@ -374,7 +383,10 @@ const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Reco
               const text = String(part.text ?? "");
               if (!text.trim()) return null;
               return (
-                <div key={i} className="text-[15px] text-text-secondary leading-relaxed">{text}</div>
+                <div key={i} className="max-w-[85%] rounded-2xl px-4 py-3 text-[14px] text-text-secondary leading-relaxed shadow-sm"
+                  style={{ background: "rgba(255,255,255,0.03)" }}>
+                  {text}
+                </div>
               );
             }
 
