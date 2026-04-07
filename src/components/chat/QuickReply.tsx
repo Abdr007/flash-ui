@@ -51,10 +51,10 @@ const INTENT_OPTIONS: {
     patterns: [/^faf$/i],
     title: "FAF Staking Hub",
     options: [
-      { label: "Dashboard", intent: "show my faf staking dashboard", description: "Staked FAF, rewards, tier progress" },
+      { label: "Dashboard", intent: "faf status", description: "Staked FAF, rewards, tier progress" },
       { label: "Stake FAF", intent: "faf stake", description: "Earn rewards + fee discounts" },
       { label: "Claim Rewards", intent: "faf claim", description: "FAF rewards + USDC revenue" },
-      { label: "VIP Tiers", intent: "faf tier", description: "See all tiers and benefits" },
+      { label: "VIP Tiers", intent: "faf tiers", description: "See all tiers and benefits" },
       { label: "Unstake Requests", intent: "faf requests", description: "Pending unlocks + progress" },
     ],
   },

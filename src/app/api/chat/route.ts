@@ -30,6 +30,89 @@ import { buildTools } from "./tools";
 import { isReplay } from "@/lib/tool-dedup";
 import { logInfo, logError, setTraceId } from "@/lib/logger";
 
+// ---- FAF Fast Path (deterministic, no AI needed) ----
+
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+
+interface FafCommand {
+  action: string;
+  toolName: string;
+  params: Record<string, unknown>;
+}
+
+const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract?: (m: RegExpExecArray) => Record<string, unknown> }[] = [
+  { pattern: /^faf$/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^faf\s+(status|dashboard|info)$/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^show\s+(?:my\s+)?faf(?:\s+staking)?(?:\s+dashboard)?$/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^faf\s+stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "faf_dashboard" }, // show dashboard, AI will ask amount
+  { pattern: /^faf\s+unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  { pattern: /^faf\s+claim(?:\s+(all|rewards|revenue))?$/i, action: "claim", toolName: "faf_claim", extract: (m) => ({ claim_type: m[1] ?? "all" }) },
+  { pattern: /^faf\s+(tier|tiers|vip)$/i, action: "tier", toolName: "faf_tier" },
+  { pattern: /^faf\s+(rewards?|earnings?)$/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^faf\s+(requests?|pending|unstake\s+requests?)$/i, action: "requests", toolName: "faf_requests" },
+  { pattern: /^faf\s+cancel\s+(\d+)$/i, action: "cancel", toolName: "faf_cancel_unstake", extract: (m) => ({ index: parseInt(m[1], 10) }) },
+  { pattern: /^faf\s+(points?|voltage)$/i, action: "dashboard", toolName: "faf_dashboard" },
+];
+
+function matchFafCommand(input: string): FafCommand | null {
+  const trimmed = input.trim();
+  for (const p of FAF_PATTERNS) {
+    const m = p.pattern.exec(trimmed);
+    if (m) {
+      return {
+        action: p.action,
+        toolName: p.toolName,
+        params: p.extract ? p.extract(m) : {},
+      };
+    }
+  }
+  return null;
+}
+
+async function executeFafTool(
+  cmd: FafCommand,
+  wallet: string,
+  tools: ReturnType<typeof buildTools>,
+): Promise<Record<string, unknown> | null> {
+  const toolFn = tools[cmd.toolName as keyof typeof tools];
+  if (!toolFn || !("execute" in toolFn)) return null;
+
+  // Call the tool's execute function directly
+  const execFn = (toolFn as unknown as { execute: (params: Record<string, unknown>) => Promise<unknown> }).execute;
+  const result = await execFn(cmd.params);
+  return result as Record<string, unknown>;
+}
+
+function createFafStreamResponse(toolName: string, result: Record<string, unknown>): Response {
+  const toolCallId = `faf_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+  const stream = createUIMessageStream({
+    execute: ({ writer }) => {
+      writer.write({ type: "start" });
+      writer.write({ type: "start-step" });
+
+      writer.write({
+        type: "tool-input-available",
+        toolCallId,
+        toolName,
+        input: {},
+      });
+
+      writer.write({
+        type: "tool-output-available",
+        toolCallId,
+        output: result,
+      });
+
+      writer.write({ type: "finish-step" });
+      writer.write({ type: "finish" });
+    },
+  });
+
+  return createUIMessageStreamResponse({ stream });
+}
+
 // ---- IP Rate Limiting ----
 
 const ipRequests = new Map<string, { count: number; resetAt: number }>();
@@ -150,6 +233,23 @@ export async function POST(req: Request) {
     if (fast.matched && fast.response) {
       logInfo("fast_path", { wallet: walletAddress, data: { input: lastUserText.slice(0, 80) } });
       return fast.response;
+    }
+  }
+
+  // ---- FAF FAST PATH: deterministic FAF command routing (NO AI needed) ----
+  {
+    const fafMatch = matchFafCommand(lastUserText);
+    if (fafMatch) {
+      logInfo("fast_path", { wallet: walletAddress, data: { type: "faf", command: fafMatch.action } });
+      try {
+        const toolResult = await executeFafTool(fafMatch, walletAddress, tools);
+        if (toolResult) {
+          return createFafStreamResponse(fafMatch.toolName, toolResult);
+        }
+      } catch (err) {
+        logError("fast_path", { wallet: walletAddress, error: err instanceof Error ? err.message : "unknown" });
+        // Fall through to AI path
+      }
     }
   }
 
