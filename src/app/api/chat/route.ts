@@ -19,7 +19,7 @@ import {
   smoothStream,
   type UIMessage,
 } from "ai";
-import { groq } from "@ai-sdk/groq";
+import { google } from "@ai-sdk/google";
 
 import { getSystemPrompt } from "./system-prompt";
 import { resolveIntent } from "./hybrid-engine";
@@ -353,7 +353,7 @@ export async function POST(req: Request) {
 
   if (greetingPattern.test(lastUserText.trim())) {
     const result = streamText({
-      model: groq("llama-3.3-70b-versatile"),
+      model: google("gemini-2.5-flash"),
       system: getSystemPrompt(context),
       messages: await convertToModelMessages(messages),
       experimental_transform: smoothStream(),
@@ -370,7 +370,7 @@ export async function POST(req: Request) {
     hybrid.parseResult.type !== "unknown"
   ) {
     const result = streamText({
-      model: groq("llama-3.3-70b-versatile"),
+      model: google("gemini-2.5-flash"),
       system: getSystemPrompt(context),
       messages: await convertToModelMessages(messages),
       tools,
@@ -385,7 +385,7 @@ export async function POST(req: Request) {
 
   // Full AI path
     const result = streamText({
-      model: groq("llama-3.3-70b-versatile"),
+      model: google("gemini-2.5-flash"),
       system: getSystemPrompt(context),
       messages: await convertToModelMessages(messages),
       tools,
