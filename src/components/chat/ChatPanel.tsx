@@ -212,7 +212,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                       )}
                     </>
                   ) : (
-                    <AssistantMessage parts={(message.parts ?? []) as Record<string, unknown>[]} />
+                    <AssistantMessage parts={(message.parts ?? []) as Record<string, unknown>[]} onAction={handleSubmit} />
                   )}
                 </div>
               );
@@ -340,23 +340,20 @@ const StreamingDot = memo(function StreamingDot({ inline }: { inline?: boolean }
   );
 });
 
-// Simple markdown renderer — handles bold, code, newlines, bullets
-const SimpleMarkdown = memo(function SimpleMarkdown({ text }: { text: string }) {
+// Markdown renderer — bold, clickable code commands, newlines
+const SimpleMarkdown = memo(function SimpleMarkdown({ text, onAction }: { text: string; onAction?: (cmd: string) => void }) {
   const lines = text.split("\n");
   return (
     <>
       {lines.map((line, i) => {
         if (!line.trim() && i > 0) return <div key={i} className="h-2" />;
 
-        // Process inline formatting
         const parts: React.ReactNode[] = [];
         let remaining = line;
         let key = 0;
 
         while (remaining.length > 0) {
-          // Bold: **text**
           const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
-          // Code: `text`
           const codeMatch = remaining.match(/`(.+?)`/);
 
           const firstMatch = [boldMatch, codeMatch]
@@ -368,7 +365,6 @@ const SimpleMarkdown = memo(function SimpleMarkdown({ text }: { text: string }) 
             break;
           }
 
-          // Text before match
           if (firstMatch.index > 0) {
             parts.push(<span key={key++}>{remaining.slice(0, firstMatch.index)}</span>);
           }
@@ -376,18 +372,29 @@ const SimpleMarkdown = memo(function SimpleMarkdown({ text }: { text: string }) 
           if (firstMatch === boldMatch) {
             parts.push(<strong key={key++} className="font-semibold text-text-primary">{firstMatch[1]}</strong>);
           } else {
+            // Code blocks are CLICKABLE — sends the command to chat
+            const cmd = firstMatch[1];
             parts.push(
-              <code key={key++} className="px-1.5 py-0.5 rounded text-[12px] font-mono text-accent-lime"
-                style={{ background: "rgba(200,245,71,0.08)" }}>
-                {firstMatch[1]}
-              </code>
+              <button
+                key={key++}
+                onClick={() => onAction?.(cmd)}
+                className="inline-flex px-2 py-1 rounded-md text-[12px] font-mono cursor-pointer
+                  transition-all duration-100 hover:scale-[1.02] active:scale-[0.98]"
+                style={{
+                  background: "rgba(200,245,71,0.1)",
+                  border: "1px solid rgba(200,245,71,0.15)",
+                  color: "var(--color-accent-lime)",
+                }}
+              >
+                {cmd}
+              </button>
             );
           }
 
           remaining = remaining.slice(firstMatch.index + firstMatch[0].length);
         }
 
-        return <div key={i}>{parts}</div>;
+        return <div key={i} className="flex items-center gap-1 flex-wrap">{parts}</div>;
       })}
     </>
   );
@@ -404,7 +411,7 @@ const UserMessage = memo(function UserMessage({ text }: { text: string }) {
   );
 });
 
-const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Record<string, unknown>[] }) {
+const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { parts: Record<string, unknown>[]; onAction?: (cmd: string) => void }) {
   // Guard: parts could be undefined/null/not-array from bad API response
   const safeParts = Array.isArray(parts) ? parts : [];
 
@@ -456,7 +463,7 @@ const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Reco
               if (!text.trim()) return null;
               return (
                 <div key={i} className="text-[14px] text-text-secondary leading-relaxed">
-                  <SimpleMarkdown text={text} />
+                  <SimpleMarkdown text={text} onAction={onAction} />
                 </div>
               );
             }
