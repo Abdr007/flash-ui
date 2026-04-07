@@ -179,10 +179,15 @@ export async function POST(req: NextRequest) {
     // Simulate
     const sim = await connection.simulateTransaction(transaction, { sigVerify: false });
     if (sim.value.err) {
-      return NextResponse.json({
-        error: `Simulation failed: ${JSON.stringify(sim.value.err)}`,
-        logs: sim.value.logs?.slice(-5),
-      }, { status: 400 });
+      const errStr = JSON.stringify(sim.value.err);
+      // Humanize common errors
+      let msg = `Simulation failed: ${errStr}`;
+      if (errStr.includes("AccountNotFound")) {
+        msg = "You don't have FAF tokens in your wallet. Buy FAF first to start staking.";
+      } else if (errStr.includes("InstructionError")) {
+        msg = "Transaction would fail. Check your FAF balance and try again.";
+      }
+      return NextResponse.json({ error: msg, logs: sim.value.logs?.slice(-5) }, { status: 400 });
     }
 
     const serialized = transaction.serialize();

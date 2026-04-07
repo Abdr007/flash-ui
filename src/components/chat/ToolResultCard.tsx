@@ -2215,12 +2215,14 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
 // ---- FAF Error Humanization ----
 function humanizeFafError(raw: string): string {
   const lower = raw.toLowerCase();
+  if (lower.includes("accountnotfound") || lower.includes("account not found"))
+    return "You don't have FAF tokens in your wallet. Buy FAF first to start staking.";
   if (lower.includes("instructionerror") && lower.includes("custom"))
-    return "Transaction failed on-chain. You may not have enough FAF tokens, or the staking program rejected the request.";
+    return "You may not have enough FAF tokens for this action. Check your FAF balance.";
   if (lower.includes("not been authorized"))
-    return "Your wallet couldn't connect to the staking program. Try disconnecting and reconnecting your wallet.";
+    return "RPC connection issue. Try again in a moment.";
   if (lower.includes("simulation failed"))
-    return "This transaction would fail. Check your FAF balance and try a different amount.";
+    return "This transaction would fail. You may not have enough FAF tokens in your wallet.";
   if (lower.includes("insufficient"))
     return "Not enough tokens to complete this action. Check your balance.";
   if (lower.includes("not confirmed"))
