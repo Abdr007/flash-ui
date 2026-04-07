@@ -108,10 +108,31 @@ export function createFafStakeTool(wallet: string) {
       }
 
       try {
-        const { getFafStakeInfo, getVipTier } = await import("@/lib/faf-sdk");
+        const { getFafStakeInfo, getVipTier, FAF_MINT, FAF_DECIMALS } = await import("@/lib/faf-sdk");
         const conn = new Connection(RPC_URL, { commitment: "confirmed" });
         const pubkey = new PublicKey(wallet);
         const dummyWallet = makeDummyWallet(pubkey);
+
+        // Check FAF token balance in wallet BEFORE showing preview
+        let fafBalance = 0;
+        try {
+          const { getAssociatedTokenAddress, getAccount } = await import("@solana/spl-token");
+          const fafAta = await getAssociatedTokenAddress(FAF_MINT, pubkey);
+          const account = await getAccount(conn, fafAta);
+          fafBalance = Number(account.amount) / Math.pow(10, FAF_DECIMALS);
+        } catch {
+          // No FAF token account = 0 balance
+        }
+
+        if (fafBalance < amount) {
+          return {
+            status: "error", data: null,
+            error: fafBalance === 0
+              ? "You don't have any FAF tokens in your wallet. Buy FAF first to start staking."
+              : `Insufficient FAF balance. You have ${fafBalance.toFixed(2)} FAF but want to stake ${amount}.`,
+            request_id: requestId, latency_ms: Date.now() - start,
+          };
+        }
 
         const info = await getFafStakeInfo(conn, dummyWallet, pubkey);
         const currentStake = info?.stakedAmount ?? 0;
