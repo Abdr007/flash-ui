@@ -41,11 +41,13 @@ interface FafCommand {
 }
 
 const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract?: (m: RegExpExecArray) => Record<string, unknown> }[] = [
-  // NOTE: bare "faf" is NOT here — it goes to QuickReply hub first
+  // Bare "faf" → show hub menu as text (no tool card, user picks next action)
+  { pattern: /^faf$/i, action: "hub", toolName: "__hub__" },
   { pattern: /^faf\s+(status|dashboard|info)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^show\s+(?:my\s+)?faf(?:\s+staking)?(?:\s+dashboard)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^faf\s+stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "faf_dashboard" }, // show dashboard, AI will ask amount
+  { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "__prompt__" },
+  { pattern: /^faf\s+unstake$/i, action: "unstake_prompt", toolName: "__prompt__" },
   { pattern: /^faf\s+unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
   { pattern: /^faf\s+claim(?:\s+(all|rewards|revenue))?$/i, action: "claim", toolName: "faf_claim", extract: (m) => ({ claim_type: m[1] ?? "all" }) },
   { pattern: /^faf\s+(tier|tiers|vip)$/i, action: "tier", toolName: "faf_tier" },
@@ -110,6 +112,20 @@ function createFafStreamResponse(toolName: string, result: Record<string, unknow
     },
   });
 
+  return createUIMessageStreamResponse({ stream });
+}
+
+function createFafTextResponse(text: string): Response {
+  const id = `faf_text_${Date.now()}`;
+  const stream = createUIMessageStream({
+    execute: ({ writer }) => {
+      writer.write({ type: "start" });
+      writer.write({ type: "start-step" });
+      writer.write({ type: "text-delta", delta: text, id });
+      writer.write({ type: "finish-step" });
+      writer.write({ type: "finish" });
+    },
+  });
   return createUIMessageStreamResponse({ stream });
 }
 
@@ -241,6 +257,27 @@ export async function POST(req: Request) {
     const fafMatch = matchFafCommand(lastUserText);
     if (fafMatch) {
       logInfo("fast_path", { wallet: walletAddress, data: { type: "faf", command: fafMatch.action } });
+
+      // Hub and prompt actions return text — no tool card
+      if (fafMatch.action === "hub") {
+        return createFafTextResponse(
+          "**FAF Staking Hub**\n\n" +
+          "Type a command:\n" +
+          "• `faf status` — Dashboard (staked, rewards, tier)\n" +
+          "• `faf stake <amount>` — Stake FAF tokens\n" +
+          "• `faf claim` — Claim FAF rewards + USDC revenue\n" +
+          "• `faf tiers` — View VIP tier levels\n" +
+          "• `faf requests` — Pending unstake requests\n" +
+          "• `faf unstake <amount>` — Unstake FAF tokens"
+        );
+      }
+      if (fafMatch.action === "stake_prompt") {
+        return createFafTextResponse("How much FAF do you want to stake? Type `faf stake <amount>`, e.g. `faf stake 1000`");
+      }
+      if (fafMatch.action === "unstake_prompt") {
+        return createFafTextResponse("How much FAF do you want to unstake? Type `faf unstake <amount>`, e.g. `faf unstake 500`");
+      }
+
       try {
         const toolResult = await executeFafTool(fafMatch, walletAddress, tools);
         if (toolResult) {
@@ -248,7 +285,6 @@ export async function POST(req: Request) {
         }
       } catch (err) {
         logError("fast_path", { wallet: walletAddress, error: err instanceof Error ? err.message : "unknown" });
-        // Fall through to AI path
       }
     }
   }
