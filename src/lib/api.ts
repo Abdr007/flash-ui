@@ -347,6 +347,28 @@ export async function buildClosePositionTx(
   );
 }
 
+// ---- Trigger Orders (TP/SL) ----
+
+export interface BuildTriggerParams {
+  owner: string;
+  marketSymbol: string;
+  side: "LONG" | "SHORT";
+  triggerPriceUi: string;
+  sizeUsdUi: string;
+  sizeAmountUi: string;
+  isStopLoss: boolean;
+  collateralTokenSymbol: string;
+}
+
+export async function buildPlaceTriggerOrder(
+  params: BuildTriggerParams
+): Promise<{ transactionBase64?: string; err: string | null }> {
+  return apiPost<{ transactionBase64?: string; err: string | null }>(
+    "/transaction-builder/place-trigger-order",
+    { ...params },
+  );
+}
+
 // ---- Reverse Position ----
 
 export interface BuildReverseParams {

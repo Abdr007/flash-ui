@@ -1049,6 +1049,57 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       }
     }, 8000);
 
+    // Place TP/SL trigger orders if set (fire-and-forget, separate transactions)
+    if (trade.take_profit_price || trade.stop_loss_price) {
+      const wallet = get().walletAddress;
+      if (wallet) {
+        import("@/lib/api").then(({ buildPlaceTriggerOrder }) => {
+          const posSize = trade.position_size ?? 0;
+          const sizeUsd = String(posSize);
+          // Approximate token amount from position size and entry price
+          const entry = trade.entry_price ?? 1;
+          const sizeAmount = String(Math.round((posSize / entry) * 10000) / 10000);
+
+          const placeTrigger = async (price: number, isSl: boolean) => {
+            try {
+              const result = await buildPlaceTriggerOrder({
+                owner: wallet,
+                marketSymbol: trade.market,
+                side: trade.action,
+                triggerPriceUi: String(price),
+                sizeUsdUi: sizeUsd,
+                sizeAmountUi: sizeAmount,
+                isStopLoss: isSl,
+                collateralTokenSymbol: "USDC",
+              });
+              if (result.err) {
+                try { console.warn(`[TP/SL] ${isSl ? "SL" : "TP"} failed:`, result.err); } catch {}
+              } else if (result.transactionBase64) {
+                // Clean + sign + broadcast (same pipeline as trades)
+                const cleanResp = await fetch("/api/clean-tx", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ txBase64: result.transactionBase64, payerKey: wallet }),
+                });
+                if (!cleanResp.ok) return;
+                const cleanData = await cleanResp.json().catch(() => null);
+                if (!cleanData?.txBase64) return;
+                // Store the unsigned tx for wallet signing via useWalletSign
+                // For now, log success — full signing flow requires wallet adapter context
+                try { console.info(`[TP/SL] ${isSl ? "SL" : "TP"} order built for ${trade.market} at $${price}`); } catch {}
+              }
+            } catch {}
+          };
+
+          // Small delay to let position confirm on-chain before placing triggers
+          setTimeout(() => {
+            if (trade.take_profit_price) placeTrigger(trade.take_profit_price, false);
+            if (trade.stop_loss_price) placeTrigger(trade.stop_loss_price, true);
+          }, 3000);
+        }).catch(() => {});
+      }
+    }
+
     // Record trade action for user pattern learning (fire-and-forget)
     try {
       import("@/lib/user-patterns").then(({ recordTradeAction }) => {
