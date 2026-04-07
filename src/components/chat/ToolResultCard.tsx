@@ -2360,7 +2360,7 @@ const FafCard = memo(function FafCard({ toolName, output }: { toolName: string; 
     const level = safe(data.level as number);
     const nextTier = data.nextTier as Record<string, unknown> | null;
     const toNext = safe(data.amountToNextTier as number);
-    const hasRewards = fafR > 0 || usdcR > 0 || rebate > 0;
+    const hasRewards = fafR > 0.001 || usdcR > 0.001 || rebate > 0.001;
 
     // Tier progress calculation
     const nextReq = nextTier ? safe(nextTier.fafRequired as number) : 0;

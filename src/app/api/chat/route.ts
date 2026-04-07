@@ -41,9 +41,9 @@ interface FafCommand {
 }
 
 const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract?: (m: RegExpExecArray) => Record<string, unknown> }[] = [
-  { pattern: /^faf$/i, action: "dashboard", toolName: "faf_dashboard" },
+  // NOTE: bare "faf" is NOT here — it goes to QuickReply hub first
   { pattern: /^faf\s+(status|dashboard|info)$/i, action: "dashboard", toolName: "faf_dashboard" },
-  { pattern: /^show\s+(?:my\s+)?faf(?:\s+staking)?(?:\s+dashboard)?$/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^show\s+(?:my\s+)?faf(?:\s+staking)?(?:\s+dashboard)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^faf\s+stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
   { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "faf_dashboard" }, // show dashboard, AI will ask amount
   { pattern: /^faf\s+unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
