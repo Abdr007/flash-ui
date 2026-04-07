@@ -41,8 +41,8 @@ interface FafCommand {
 }
 
 const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract?: (m: RegExpExecArray) => Record<string, unknown> }[] = [
-  // ── Bare "faf" → show dashboard directly (not a command menu) ──
-  { pattern: /^faf$/i, action: "dashboard", toolName: "faf_dashboard" },
+  // ── Bare "faf" → show options (NOT dashboard) ──
+  { pattern: /^faf$/i, action: "options", toolName: "__options__" },
 
   // ── Dashboard (many natural forms) ──
   { pattern: /^faf\s+(status|dashboard|info)$/i, action: "dashboard", toolName: "faf_dashboard" },
@@ -352,6 +352,16 @@ export async function POST(req: Request) {
     const fafMatch = matchFafCommand(lastUserText);
     if (fafMatch) {
       logInfo("fast_path", { wallet: walletAddress, data: { type: "faf", command: fafMatch.action } });
+
+      // Options → return a tool card with type "faf_options" (rendered as buttons by FafCard)
+      if (fafMatch.action === "options") {
+        return createFafStreamResponse("faf_dashboard", {
+          status: "success",
+          data: { type: "faf_options" },
+          request_id: `faf_opt_${Date.now()}`,
+          latency_ms: 0,
+        });
+      }
 
       // Hub and prompt actions return text — no tool card
       if (fafMatch.action === "hub") {
