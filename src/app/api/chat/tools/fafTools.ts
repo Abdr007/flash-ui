@@ -2,21 +2,35 @@
 // Flash AI — FAF Staking Tools
 // ============================================
 // AI tools for FAF staking operations.
-// Query tools read on-chain state via /api/faf.
-// Action tools return previews for user confirmation.
+// Calls faf-sdk DIRECTLY (no HTTP self-fetch).
+// Works on Vercel serverless — no localhost dependency.
 
 import { z } from "zod";
 import { tool } from "ai";
+import { Connection, PublicKey, Keypair } from "@solana/web3.js";
+import type { Wallet } from "@coral-xyz/anchor";
 import type { ToolResponse } from "./shared";
 import { runReadGuards, runTradeGuards, logToolCall, logToolResult } from "./shared";
+
+const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 
 function makeRequestId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-const FAF_API = process.env.NEXT_PUBLIC_APP_URL
-  ? `${process.env.NEXT_PUBLIC_APP_URL}/api/faf`
-  : "http://localhost:3000/api/faf";
+function makeDummyWallet(pubkey: PublicKey): Wallet {
+  const kp = Keypair.generate();
+  return {
+    publicKey: pubkey,
+    signTransaction: async (tx: unknown) => tx,
+    signAllTransactions: async (txs: unknown[]) => txs,
+    payer: kp,
+  } as unknown as Wallet;
+}
+
+function isValidPubkey(addr: string): boolean {
+  try { new PublicKey(addr); return addr.length >= 32; } catch { return false; }
+}
 
 // ---- faf_dashboard ----
 
@@ -35,30 +49,31 @@ export function createFafDashboardTool(wallet: string) {
       const guardErr = runReadGuards(requestId, wallet);
       if (guardErr) return guardErr;
 
+      if (!isValidPubkey(wallet)) {
+        return { status: "error", data: null, error: "Connect your wallet to view FAF staking.", request_id: requestId, latency_ms: Date.now() - start };
+      }
+
       try {
-        const resp = await fetch(`${FAF_API}?action=info&wallet=${encodeURIComponent(wallet)}`, {
-          signal: AbortSignal.timeout(8000),
-        });
-        const json = await resp.json().catch(() => null);
-        if (!resp.ok || !json?.data) {
-          // User may not have a stake account yet
-          if (json?.data === null) {
-            return {
-              status: "success",
-              data: { type: "faf_dashboard", hasAccount: false, message: "No FAF stake found. Stake FAF to start earning rewards and fee discounts." },
-              request_id: requestId,
-              latency_ms: Date.now() - start,
-            };
-          }
-          throw new Error(json?.error ?? "Failed to fetch FAF data");
+        const { getFafStakeInfo } = await import("@/lib/faf-sdk");
+        const conn = new Connection(RPC_URL, { commitment: "confirmed" });
+        const pubkey = new PublicKey(wallet);
+        const dummyWallet = makeDummyWallet(pubkey);
+
+        const info = await getFafStakeInfo(conn, dummyWallet, pubkey);
+
+        if (!info) {
+          return {
+            status: "success",
+            data: { type: "faf_dashboard", hasAccount: false, message: "No FAF stake found. Stake FAF to start earning rewards and fee discounts." },
+            request_id: requestId, latency_ms: Date.now() - start,
+          };
         }
 
         logToolResult("faf_dashboard", requestId, wallet, Date.now() - start, "success");
         return {
           status: "success",
-          data: { type: "faf_dashboard", hasAccount: true, ...json.data },
-          request_id: requestId,
-          latency_ms: Date.now() - start,
+          data: { type: "faf_dashboard", hasAccount: true, ...info },
+          request_id: requestId, latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to load FAF data";
@@ -91,16 +106,14 @@ export function createFafStakeTool(wallet: string) {
       }
 
       try {
-        // Get current stake info for tier comparison
-        const infoResp = await fetch(`${FAF_API}?action=info&wallet=${encodeURIComponent(wallet)}`, {
-          signal: AbortSignal.timeout(8000),
-        });
-        const infoJson = await infoResp.json().catch(() => null);
-        const currentStake = infoJson?.data?.stakedAmount ?? 0;
-        const currentTier = infoJson?.data?.tierName ?? "None";
+        const { getFafStakeInfo, getVipTier } = await import("@/lib/faf-sdk");
+        const conn = new Connection(RPC_URL, { commitment: "confirmed" });
+        const pubkey = new PublicKey(wallet);
+        const dummyWallet = makeDummyWallet(pubkey);
 
-        // Calculate new tier after staking
-        const { getVipTier } = await import("@/lib/faf-sdk");
+        const info = await getFafStakeInfo(conn, dummyWallet, pubkey);
+        const currentStake = info?.stakedAmount ?? 0;
+        const currentTier = info?.tierName ?? "None";
         const newTier = getVipTier(currentStake + amount);
 
         logToolResult("faf_stake", requestId, wallet, Date.now() - start, "success");
@@ -116,8 +129,7 @@ export function createFafStakeTool(wallet: string) {
             newFeeDiscount: newTier.feeDiscount,
             tierChanged: currentTier !== newTier.name,
           },
-          request_id: requestId,
-          latency_ms: Date.now() - start,
+          request_id: requestId, latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to build stake preview";
@@ -146,17 +158,18 @@ export function createFafUnstakeTool(wallet: string) {
       if (guardErr) return guardErr;
 
       try {
-        const infoResp = await fetch(`${FAF_API}?action=info&wallet=${encodeURIComponent(wallet)}`, {
-          signal: AbortSignal.timeout(8000),
-        });
-        const infoJson = await infoResp.json().catch(() => null);
-        const currentStake = infoJson?.data?.stakedAmount ?? 0;
+        const { getFafStakeInfo, getVipTier } = await import("@/lib/faf-sdk");
+        const conn = new Connection(RPC_URL, { commitment: "confirmed" });
+        const pubkey = new PublicKey(wallet);
+        const dummyWallet = makeDummyWallet(pubkey);
+
+        const info = await getFafStakeInfo(conn, dummyWallet, pubkey);
+        const currentStake = info?.stakedAmount ?? 0;
 
         if (amount > currentStake) {
           return { status: "error", data: null, error: `Cannot unstake ${amount} FAF. You only have ${currentStake} FAF staked.`, request_id: requestId, latency_ms: Date.now() - start };
         }
 
-        const { getVipTier } = await import("@/lib/faf-sdk");
         const newTier = getVipTier(currentStake - amount);
         const unlockDate = new Date(Date.now() + 90 * 24 * 3600 * 1000);
 
@@ -164,8 +177,7 @@ export function createFafUnstakeTool(wallet: string) {
           status: "success",
           data: {
             type: "faf_unstake_preview",
-            amount,
-            currentStake,
+            amount, currentStake,
             remainingStake: currentStake - amount,
             newTier: newTier.name,
             newFeeDiscount: newTier.feeDiscount,
@@ -173,8 +185,7 @@ export function createFafUnstakeTool(wallet: string) {
             lockDays: 90,
             warning: "Unstaked FAF will be locked for 90 days. You can cancel during this period to re-stake.",
           },
-          request_id: requestId,
-          latency_ms: Date.now() - start,
+          request_id: requestId, latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to build unstake preview";
@@ -192,7 +203,7 @@ export function createFafClaimTool(wallet: string) {
       "Claim FAF staking rewards and/or USDC revenue. " +
       "Call when user says 'faf claim', 'claim rewards', 'claim revenue'.",
     inputSchema: z.object({
-      claim_type: z.enum(["all", "rewards", "revenue"]).optional().describe("What to claim: FAF rewards, USDC revenue, or both"),
+      claim_type: z.enum(["all", "rewards", "revenue"]).optional().describe("What to claim"),
     }),
     execute: async ({ claim_type }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId("faf_claim");
@@ -203,27 +214,23 @@ export function createFafClaimTool(wallet: string) {
       if (guardErr) return guardErr;
 
       try {
-        const infoResp = await fetch(`${FAF_API}?action=info&wallet=${encodeURIComponent(wallet)}`, {
-          signal: AbortSignal.timeout(8000),
-        });
-        const infoJson = await infoResp.json().catch(() => null);
-        if (!infoJson?.data) {
+        const { getFafStakeInfo } = await import("@/lib/faf-sdk");
+        const conn = new Connection(RPC_URL, { commitment: "confirmed" });
+        const pubkey = new PublicKey(wallet);
+        const dummyWallet = makeDummyWallet(pubkey);
+
+        const info = await getFafStakeInfo(conn, dummyWallet, pubkey);
+        if (!info) {
           return { status: "error", data: null, error: "No FAF stake account found.", request_id: requestId, latency_ms: Date.now() - start };
         }
 
         const type = claim_type ?? "all";
-        const fafRewards = infoJson.data.pendingRewardsFaf ?? 0;
-        const usdcRevenue = infoJson.data.pendingRevenueUsdc ?? 0;
+        const fafRewards = info.pendingRewardsFaf ?? 0;
+        const usdcRevenue = info.pendingRevenueUsdc ?? 0;
 
-        if (type === "rewards" && fafRewards <= 0) {
-          return { status: "error", data: null, error: "No FAF rewards to claim.", request_id: requestId, latency_ms: Date.now() - start };
-        }
-        if (type === "revenue" && usdcRevenue <= 0) {
-          return { status: "error", data: null, error: "No USDC revenue to claim.", request_id: requestId, latency_ms: Date.now() - start };
-        }
-        if (type === "all" && fafRewards <= 0 && usdcRevenue <= 0) {
-          return { status: "error", data: null, error: "No rewards or revenue to claim.", request_id: requestId, latency_ms: Date.now() - start };
-        }
+        if (type === "rewards" && fafRewards <= 0) return { status: "error", data: null, error: "No FAF rewards to claim.", request_id: requestId, latency_ms: Date.now() - start };
+        if (type === "revenue" && usdcRevenue <= 0) return { status: "error", data: null, error: "No USDC revenue to claim.", request_id: requestId, latency_ms: Date.now() - start };
+        if (type === "all" && fafRewards <= 0 && usdcRevenue <= 0) return { status: "error", data: null, error: "No rewards or revenue to claim.", request_id: requestId, latency_ms: Date.now() - start };
 
         return {
           status: "success",
@@ -233,8 +240,7 @@ export function createFafClaimTool(wallet: string) {
             fafRewards: type === "revenue" ? 0 : fafRewards,
             usdcRevenue: type === "rewards" ? 0 : usdcRevenue,
           },
-          request_id: requestId,
-          latency_ms: Date.now() - start,
+          request_id: requestId, latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed";
@@ -261,16 +267,17 @@ export function createFafRequestsTool(wallet: string) {
       if (guardErr) return guardErr;
 
       try {
-        const resp = await fetch(`${FAF_API}?action=requests&wallet=${encodeURIComponent(wallet)}`, {
-          signal: AbortSignal.timeout(8000),
-        });
-        const json = await resp.json().catch(() => null);
+        const { getFafUnstakeRequests } = await import("@/lib/faf-sdk");
+        const conn = new Connection(RPC_URL, { commitment: "confirmed" });
+        const pubkey = new PublicKey(wallet);
+        const dummyWallet = makeDummyWallet(pubkey);
+
+        const requests = await getFafUnstakeRequests(conn, dummyWallet, pubkey);
 
         return {
           status: "success",
-          data: { type: "faf_requests", requests: json?.data ?? [] },
-          request_id: requestId,
-          latency_ms: Date.now() - start,
+          data: { type: "faf_requests", requests },
+          request_id: requestId, latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed";
@@ -299,12 +306,12 @@ export function createFafCancelUnstakeTool(wallet: string) {
       if (guardErr) return guardErr;
 
       try {
-        // Verify request exists
-        const reqResp = await fetch(`${FAF_API}?action=requests&wallet=${encodeURIComponent(wallet)}`, {
-          signal: AbortSignal.timeout(8000),
-        });
-        const reqJson = await reqResp.json().catch(() => null);
-        const requests = reqJson?.data ?? [];
+        const { getFafUnstakeRequests } = await import("@/lib/faf-sdk");
+        const conn = new Connection(RPC_URL, { commitment: "confirmed" });
+        const pubkey = new PublicKey(wallet);
+        const dummyWallet = makeDummyWallet(pubkey);
+
+        const requests = await getFafUnstakeRequests(conn, dummyWallet, pubkey);
 
         if (index >= requests.length) {
           return { status: "error", data: null, error: `Request #${index} not found. You have ${requests.length} pending request(s).`, request_id: requestId, latency_ms: Date.now() - start };
@@ -321,8 +328,7 @@ export function createFafCancelUnstakeTool(wallet: string) {
             progressPercent: target.progressPercent,
             timeRemainingSeconds: target.timeRemainingSeconds,
           },
-          request_id: requestId,
-          latency_ms: Date.now() - start,
+          request_id: requestId, latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed";
@@ -349,14 +355,14 @@ export function createFafTierTool(wallet: string) {
       if (guardErr) return guardErr;
 
       try {
-        const { VIP_TIERS } = await import("@/lib/faf-sdk");
+        const { VIP_TIERS, getFafStakeInfo } = await import("@/lib/faf-sdk");
+        const conn = new Connection(RPC_URL, { commitment: "confirmed" });
+        const pubkey = new PublicKey(wallet);
+        const dummyWallet = makeDummyWallet(pubkey);
 
-        const infoResp = await fetch(`${FAF_API}?action=info&wallet=${encodeURIComponent(wallet)}`, {
-          signal: AbortSignal.timeout(8000),
-        });
-        const infoJson = await infoResp.json().catch(() => null);
-        const stakedAmount = infoJson?.data?.stakedAmount ?? 0;
-        const currentLevel = infoJson?.data?.level ?? 0;
+        const info = await getFafStakeInfo(conn, dummyWallet, pubkey);
+        const stakedAmount = info?.stakedAmount ?? 0;
+        const currentLevel = info?.level ?? 0;
 
         return {
           status: "success",
@@ -366,8 +372,7 @@ export function createFafTierTool(wallet: string) {
             stakedAmount,
             tiers: VIP_TIERS,
           },
-          request_id: requestId,
-          latency_ms: Date.now() - start,
+          request_id: requestId, latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed";
