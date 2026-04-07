@@ -41,20 +41,56 @@ interface FafCommand {
 }
 
 const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract?: (m: RegExpExecArray) => Record<string, unknown> }[] = [
-  // Bare "faf" → show hub menu as text (no tool card, user picks next action)
+  // ── Hub ──
   { pattern: /^faf$/i, action: "hub", toolName: "__hub__" },
+
+  // ── Dashboard (many natural forms) ──
   { pattern: /^faf\s+(status|dashboard|info)$/i, action: "dashboard", toolName: "faf_dashboard" },
-  { pattern: /^show\s+(?:my\s+)?faf(?:\s+staking)?(?:\s+dashboard)$/i, action: "dashboard", toolName: "faf_dashboard" },
-  { pattern: /^faf\s+stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "__prompt__" },
-  { pattern: /^faf\s+unstake$/i, action: "unstake_prompt", toolName: "__prompt__" },
-  { pattern: /^faf\s+unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /^faf\s+claim(?:\s+(all|rewards|revenue))?$/i, action: "claim", toolName: "faf_claim", extract: (m) => ({ claim_type: m[1] ?? "all" }) },
-  { pattern: /^faf\s+(tier|tiers|vip)$/i, action: "tier", toolName: "faf_tier" },
-  { pattern: /^faf\s+(rewards?|earnings?)$/i, action: "dashboard", toolName: "faf_dashboard" },
-  { pattern: /^faf\s+(requests?|pending|unstake\s+requests?)$/i, action: "requests", toolName: "faf_requests" },
-  { pattern: /^faf\s+cancel\s+(\d+)$/i, action: "cancel", toolName: "faf_cancel_unstake", extract: (m) => ({ index: parseInt(m[1], 10) }) },
+  { pattern: /^show\s+(?:my\s+)?faf/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^(?:my\s+)?faf\s+(?:staking|stake)\s*(?:status|info|dashboard)?$/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^(?:what(?:'s| is)\s+)?my\s+faf/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^faf\s+(rewards?|earnings?|balance)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^faf\s+(points?|voltage)$/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^how much (?:faf )?(?:do i have |have i )?stak/i, action: "dashboard", toolName: "faf_dashboard" },
+
+  // ── Stake (with amount) ──
+  { pattern: /^(?:faf\s+)?stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  { pattern: /^faf\s+stake\s+(\d+(?:\.\d+)?)/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  { pattern: /^stake\s+(\d+(?:\.\d+)?)\s+faf/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+
+  // ── Stake (no amount → prompt) ──
+  { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "__prompt__" },
+  { pattern: /^(?:i\s+)?want\s+to\s+stake\s+(?:my\s+)?faf/i, action: "stake_prompt", toolName: "__prompt__" },
+  { pattern: /^stake\s+(?:my\s+)?faf/i, action: "stake_prompt", toolName: "__prompt__" },
+
+  // ── Unstake (with amount) ──
+  { pattern: /^(?:faf\s+)?unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  { pattern: /^unstake\s+(\d+(?:\.\d+)?)\s+faf/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+
+  // ── Unstake (no amount → prompt) ──
+  { pattern: /^faf\s+unstake$/i, action: "unstake_prompt", toolName: "__prompt__" },
+  { pattern: /^(?:i\s+)?want\s+to\s+unstake/i, action: "unstake_prompt", toolName: "__prompt__" },
+  { pattern: /^unstake\s+(?:my\s+)?faf/i, action: "unstake_prompt", toolName: "__prompt__" },
+
+  // ── Claim (many natural forms) ──
+  { pattern: /^faf\s+claim(?:\s+(all|rewards?|revenue))?$/i, action: "claim", toolName: "faf_claim", extract: (m) => ({ claim_type: m[1]?.replace(/s$/, "") ?? "all" }) },
+  { pattern: /^claim\s+(?:my\s+)?(?:faf\s+)?(?:rewards?|revenue|earnings?)/i, action: "claim", toolName: "faf_claim", extract: () => ({ claim_type: "all" }) },
+  { pattern: /^claim\s+(?:my\s+)?faf$/i, action: "claim", toolName: "faf_claim", extract: () => ({ claim_type: "all" }) },
+  { pattern: /^(?:i\s+)?want\s+to\s+claim/i, action: "claim", toolName: "faf_claim", extract: () => ({ claim_type: "all" }) },
+  { pattern: /^collect\s+(?:my\s+)?(?:faf\s+)?rewards?/i, action: "claim", toolName: "faf_claim", extract: () => ({ claim_type: "all" }) },
+
+  // ── Tiers ──
+  { pattern: /^faf\s+(tier|tiers|vip)$/i, action: "tier", toolName: "faf_tier" },
+  { pattern: /^(?:show\s+)?(?:vip\s+)?tiers?$/i, action: "tier", toolName: "faf_tier" },
+  { pattern: /^(?:what(?:'s| is|are)\s+)?(?:the\s+)?(?:vip\s+)?tier/i, action: "tier", toolName: "faf_tier" },
+
+  // ── Requests ──
+  { pattern: /^faf\s+(requests?|pending|unstake\s+requests?)$/i, action: "requests", toolName: "faf_requests" },
+  { pattern: /^(?:show\s+)?(?:my\s+)?(?:unstake\s+)?(?:pending\s+)?requests?$/i, action: "requests", toolName: "faf_requests" },
+
+  // ── Cancel ──
+  { pattern: /^faf\s+cancel\s+(\d+)$/i, action: "cancel", toolName: "faf_cancel_unstake", extract: (m) => ({ index: parseInt(m[1], 10) }) },
+  { pattern: /^cancel\s+(?:unstake\s+)?(?:request\s+)?#?(\d+)$/i, action: "cancel", toolName: "faf_cancel_unstake", extract: (m) => ({ index: parseInt(m[1], 10) }) },
 ];
 
 function matchFafCommand(input: string): FafCommand | null {
