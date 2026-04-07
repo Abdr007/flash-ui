@@ -2215,20 +2215,16 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
 // ---- FAF Error Humanization ----
 function humanizeFafError(raw: string): string {
   const lower = raw.toLowerCase();
-  if (lower.includes("accountnotfound") || lower.includes("account not found"))
+  if (lower.includes("accountnotfound") || lower.includes("account not found") || lower.includes("not been authorized"))
     return "You don't have FAF tokens in your wallet. Buy FAF first to start staking.";
-  if (lower.includes("instructionerror") && lower.includes("custom"))
-    return "You may not have enough FAF tokens for this action. Check your FAF balance.";
-  if (lower.includes("not been authorized"))
-    return "RPC connection issue. Try again in a moment.";
-  if (lower.includes("simulation failed"))
-    return "This transaction would fail. You may not have enough FAF tokens in your wallet.";
+  if (lower.includes("instructionerror") || lower.includes("simulation failed") || lower.includes("custom"))
+    return "You may not have enough FAF tokens. Check your FAF balance and try again.";
   if (lower.includes("insufficient"))
-    return "Not enough tokens to complete this action. Check your balance.";
+    return "Not enough tokens to complete this action.";
   if (lower.includes("not confirmed"))
-    return "Transaction was sent but not confirmed. Check Solscan before retrying.";
+    return "Transaction sent but not confirmed. Check Solscan before retrying.";
   if (lower.includes("wallet not available") || lower.includes("connect"))
-    return "Wallet not connected. Please connect your wallet and try again.";
+    return "Connect your wallet first.";
   if (lower.includes("rejected"))
     return "Transaction cancelled in your wallet.";
   return raw;
