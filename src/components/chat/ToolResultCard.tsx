@@ -2232,6 +2232,80 @@ function humanizeFafError(raw: string): string {
   return raw;
 }
 
+// ---- FAF Amount Picker (inline input for custom amount) ----
+function FafAmountPicker({ data, onAction }: { data: Record<string, unknown>; onAction?: (cmd: string) => void }) {
+  const [customAmount, setCustomAmount] = useState("");
+  const [showInput, setShowInput] = useState(false);
+  const question = String(data.question ?? "How much?");
+  const amounts = (data.amounts as number[]) ?? [100, 500, 1000];
+  const action = String(data.action ?? "stake");
+  const cmd = action === "unstake" ? "faf unstake" : "faf stake";
+
+  function submitCustom() {
+    const num = parseFloat(customAmount);
+    if (num > 0) onAction?.(`${cmd} ${num}`);
+  }
+
+  return (
+    <div style={{ animation: "slideUp 200ms ease-out" }}>
+      <div className="text-[15px] text-text-secondary mb-3">{question}</div>
+      <div className="flex flex-col gap-1.5">
+        {amounts.map((amt) => (
+          <button key={amt} onClick={() => onAction?.(`${cmd} ${amt}`)}
+            className="quick-option group flex items-center justify-between w-full text-left
+              px-4 py-3 rounded-xl cursor-pointer transition-all"
+            style={{ background: "transparent", border: "1px solid var(--color-border-subtle)" }}>
+            <span className="text-[14px] font-semibold num text-text-primary group-hover:text-accent-lime transition-colors">
+              {amt.toLocaleString()} FAF
+            </span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round"
+              className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
+        ))}
+
+        {/* Custom amount with inline input */}
+        {!showInput ? (
+          <button onClick={() => setShowInput(true)}
+            className="quick-option group flex items-center w-full text-left
+              px-4 py-3 rounded-xl cursor-pointer transition-all"
+            style={{ background: "transparent", border: "1px solid var(--color-border-subtle)" }}>
+            <span className="text-[14px] text-text-secondary group-hover:text-text-primary transition-colors">
+              Other amount...
+            </span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl"
+            style={{ border: "1px solid rgba(200,245,71,0.2)", background: "rgba(200,245,71,0.04)" }}>
+            <input
+              type="number"
+              value={customAmount}
+              onChange={(e) => setCustomAmount(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitCustom()}
+              placeholder="Enter amount"
+              autoFocus
+              className="flex-1 bg-transparent text-[14px] num text-text-primary outline-none
+                placeholder:text-text-tertiary"
+              min="0"
+              step="any"
+            />
+            <span className="text-[12px] text-text-tertiary">FAF</span>
+            <button onClick={submitCustom}
+              disabled={!customAmount || parseFloat(customAmount) <= 0}
+              className="px-3 py-1.5 rounded-lg text-[12px] font-semibold cursor-pointer
+                disabled:opacity-25 disabled:cursor-default transition-all"
+              style={{ background: "var(--color-accent-lime)", color: "#070A0F" }}>
+              Go
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ============================================
 // FAF Staking Cards (Dashboard, Stake, Unstake, Claim, Requests, Tier)
 // ============================================
@@ -2351,43 +2425,9 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
     );
   }
 
-  // ── AMOUNT PICKER (Galileo-style) ──
+  // ── AMOUNT PICKER (Galileo-style with inline custom input) ──
   if (type === "faf_amount_picker") {
-    const question = String(data.question ?? "How much?");
-    const amounts = (data.amounts as number[]) ?? [100, 500, 1000];
-    const action = String(data.action ?? "stake");
-    const cmd = action === "unstake" ? "faf unstake" : "faf stake";
-
-    return (
-      <div style={{ animation: "slideUp 200ms ease-out" }}>
-        <div className="text-[15px] text-text-secondary mb-3">{question}</div>
-        <div className="flex flex-col gap-1.5">
-          {amounts.map((amt) => (
-            <button key={amt} onClick={() => onAction?.(`${cmd} ${amt}`)}
-              className="quick-option group flex items-center justify-between w-full text-left
-                px-4 py-3 rounded-xl cursor-pointer transition-all"
-              style={{ background: "transparent", border: "1px solid var(--color-border-subtle)" }}>
-              <span className="text-[14px] font-semibold num text-text-primary group-hover:text-accent-lime transition-colors">
-                {amt.toLocaleString()} FAF
-              </span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round"
-                className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </button>
-          ))}
-          <button onClick={() => onAction?.(`How much FAF should I ${action}?`)}
-            className="quick-option group flex items-center w-full text-left
-              px-4 py-3 rounded-xl cursor-pointer transition-all"
-            style={{ background: "transparent", border: "1px solid var(--color-border-subtle)" }}>
-            <span className="text-[14px] text-text-secondary group-hover:text-text-primary transition-colors">
-              Other amount...
-            </span>
-          </button>
-        </div>
-      </div>
-    );
+    return <FafAmountPicker data={data} onAction={onAction} />;
   }
 
   // ── OPTIONS (Galileo-style action picker) ──
