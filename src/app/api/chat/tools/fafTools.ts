@@ -12,7 +12,9 @@ import type { Wallet } from "@coral-xyz/anchor";
 import type { ToolResponse } from "./shared";
 import { runReadGuards, runTradeGuards, logToolCall, logToolResult } from "./shared";
 
-const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
+// FAF SDK needs mainnet RPC (beta endpoint doesn't support all Flash SDK methods)
+const RPC_URL = (process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com")
+  .replace("beta.helius-rpc.com", "mainnet.helius-rpc.com");
 
 function makeRequestId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
