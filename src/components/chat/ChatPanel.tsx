@@ -126,12 +126,17 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     setSelectedAC(-1);
   }, [input, isStreaming, isExecuting, sendMessage]);
 
-  // Clear optimistic state once real streaming starts or messages update
+  // Clear optimistic state once real streaming starts
   useEffect(() => {
-    if (isStreaming || messages.length > 0) {
-      setOptimisticPending(false);
-    }
-  }, [isStreaming, messages.length]);
+    if (isStreaming) setOptimisticPending(false);
+  }, [isStreaming]);
+
+  // Also clear after 5s timeout (safety net if streaming never starts)
+  useEffect(() => {
+    if (!optimisticPending) return;
+    const t = setTimeout(() => setOptimisticPending(false), 5000);
+    return () => clearTimeout(t);
+  }, [optimisticPending]);
 
   const handleChipClick = useCallback((action: SuggestedAction) => {
     handleSubmit(action.intent);
@@ -195,7 +200,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               const sameRole = prev?.role === message.role;
               const mt = idx === 0 ? "" : sameRole ? "mt-2" : "mt-6";
               return (
-                <div key={message.id} className={`msg-anim ${mt}`}>
+                <div key={message.id} className={`${message.role === "user" ? "msg-anim-instant" : "msg-anim"} ${mt}`}>
                   {message.role === "user" ? (
                     <UserMessage text={
                       message.parts?.filter((p): p is { type: "text"; text: string } => p.type === "text").map((p) => p.text).join(" ") ?? ""
