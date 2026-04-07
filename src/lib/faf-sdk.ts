@@ -136,14 +136,14 @@ export async function getFafStakeInfo(
   wallet: Wallet,
   userPubkey: PublicKey,
 ): Promise<FafStakeInfo | null> {
-  const client = getClient(connection, wallet);
-  const poolConfig = getPoolConfig();
-
+  let client;
   let account;
   try {
+    client = getClient(connection, wallet);
+    const poolConfig = getPoolConfig();
     account = await client.getTokenStakeAccount(poolConfig, userPubkey);
   } catch {
-    // RPC error or method not supported — treat as no stake account
+    // SDK init or RPC error — treat as no stake account
     return null;
   }
   if (!account) return null;
@@ -172,11 +172,10 @@ export async function getFafUnstakeRequests(
   wallet: Wallet,
   userPubkey: PublicKey,
 ): Promise<FafUnstakeRequest[]> {
-  const client = getClient(connection, wallet);
-  const poolConfig = getPoolConfig();
-
   let account;
   try {
+    const client = getClient(connection, wallet);
+    const poolConfig = getPoolConfig();
     account = await client.getTokenStakeAccount(poolConfig, userPubkey);
   } catch {
     return [];
