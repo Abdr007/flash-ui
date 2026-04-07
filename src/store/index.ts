@@ -904,68 +904,15 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         circuit_state: circuitState,
       });
 
-      const { buildPlaceTriggerOrder } = await import("@/lib/api");
-
-      const { result, latencyMs } = await withLatency(async () => {
-        // 1. Build open position
-        const openResult = await buildOpenPosition({
+      const { result, latencyMs } = await withLatency(() =>
+        buildOpenPosition({
           market: trade.market,
           side: trade.action,
           collateral,
           leverage,
           owner: wallet,
-        });
-
-        // 2. Build TP/SL trigger orders in parallel (if set)
-        if (openResult.transactionBase64 && (trade.take_profit_price || trade.stop_loss_price)) {
-          const posSize = collateral * leverage;
-          const entry = openResult.newEntryPrice || (trade.entry_price ?? 0);
-          const sizeAmount = entry > 0 ? String(Math.round((posSize / entry) * 10000) / 10000) : "0";
-
-          const triggerPromises: Promise<{ transactionBase64?: string; err: string | null }>[] = [];
-
-          if (trade.take_profit_price) {
-            triggerPromises.push(buildPlaceTriggerOrder({
-              owner: wallet,
-              marketSymbol: trade.market,
-              side: trade.action,
-              triggerPriceUi: String(trade.take_profit_price),
-              sizeUsdUi: String(posSize),
-              sizeAmountUi: sizeAmount,
-              isStopLoss: false,
-              collateralTokenSymbol: "USDC",
-            }));
-          }
-
-          if (trade.stop_loss_price) {
-            triggerPromises.push(buildPlaceTriggerOrder({
-              owner: wallet,
-              marketSymbol: trade.market,
-              side: trade.action,
-              triggerPriceUi: String(trade.stop_loss_price),
-              sizeUsdUi: String(posSize),
-              sizeAmountUi: sizeAmount,
-              isStopLoss: true,
-              collateralTokenSymbol: "USDC",
-            }));
-          }
-
-          const triggerResults = await Promise.allSettled(triggerPromises);
-
-          // Collect trigger tx base64s
-          const triggerTxs: string[] = [];
-          for (const r of triggerResults) {
-            if (r.status === "fulfilled" && r.value.transactionBase64 && !r.value.err) {
-              triggerTxs.push(r.value.transactionBase64);
-            }
-          }
-
-          // Attach trigger txs to result for the signing flow
-          (openResult as unknown as Record<string, unknown>)._triggerTxs = triggerTxs;
-        }
-
-        return openResult;
-      });
+        })
+      );
 
       // VERIFY: API didn't return a zero/invalid entry price
       if (
@@ -996,7 +943,7 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       }
 
       // Transaction built — move to SIGNING state.
-      const triggerTxs = ((result as unknown as Record<string, unknown>)._triggerTxs as string[] | undefined) ?? [];
+      // TP/SL trigger orders built AFTER position confirms (in useWalletSign)
       const signingTrade: TradeObject = {
         ...trade,
         status: "SIGNING",
@@ -1006,7 +953,6 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         leverage: apiLeverage,
         position_size: (collateral as number) * apiLeverage,
         unsigned_tx: result.transactionBase64,
-        trigger_txs: triggerTxs.length > 0 ? triggerTxs : undefined,
       };
       updateLastTradeCard(get, set, signingTrade);
       set({ activeTrade: signingTrade });
