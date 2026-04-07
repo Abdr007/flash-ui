@@ -38,6 +38,29 @@ interface ToolOutput {
 
 // ---- Main ----
 
+// ---- Tool Status Dot (Neur pattern) ----
+function ToolStatusDot({ state, status }: { state: string; status?: string }) {
+  if (state === "output-available" && status === "error")
+    return <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-accent-short)", boxShadow: "0 0 0 3px rgba(239,68,68,0.2)" }} />;
+  if (state === "output-available")
+    return <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-accent-long)", boxShadow: "0 0 0 3px rgba(16,185,129,0.2)" }} />;
+  return <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-accent-warn)", boxShadow: "0 0 0 3px rgba(245,158,11,0.2)", animation: "pulseDot 1s infinite" }} />;
+}
+
+const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  build_trade: "Trade Preview",
+  close_position_preview: "Close Preview",
+  get_positions: "Positions",
+  get_portfolio: "Portfolio",
+  get_price: "Price",
+  get_all_prices: "Markets",
+  get_market_info: "Market Info",
+  add_collateral: "Add Collateral",
+  remove_collateral: "Remove Collateral",
+  reverse_position_preview: "Reverse Position",
+  earn_deposit: "Earn Deposit",
+};
+
 const ToolResultCard = memo(function ToolResultCard({ part }: { part: ToolPart }) {
   const output = part.output;
 
@@ -46,20 +69,33 @@ const ToolResultCard = memo(function ToolResultCard({ part }: { part: ToolPart }
   if (!output) return <StreamingSteps toolName={part.toolName} step={2} input={part.input} />;
   if (output.status === "error" && !output.data) return <ToolError toolName={part.toolName} error={output.error} />;
 
+  // Tool status header (Neur pattern: dot + name + ID)
+  const displayName = TOOL_DISPLAY_NAMES[part.toolName] ?? part.toolName;
+  const statusHeader = (
+    <div className="flex items-center gap-2 mb-2">
+      <ToolStatusDot state={part.state} status={output.status} />
+      <span className="text-[12px] font-medium text-text-secondary truncate">{displayName}</span>
+      <span className="text-[10px] font-mono text-text-tertiary">{part.toolCallId.slice(0, 9)}</span>
+    </div>
+  );
+
+  let card: React.ReactNode;
   switch (part.toolName) {
-    case "build_trade": return <TradePreviewCard output={output} />;
-    case "close_position_preview": return <ClosePreviewCard output={output} />;
-    case "get_positions": return <PositionsCard output={output} />;
-    case "get_portfolio": return <PortfolioCard output={output} />;
+    case "build_trade": card = <TradePreviewCard output={output} />; break;
+    case "close_position_preview": card = <ClosePreviewCard output={output} />; break;
+    case "get_positions": card = <PositionsCard output={output} />; break;
+    case "get_portfolio": card = <PortfolioCard output={output} />; break;
     case "get_price":
-    case "get_all_prices": return <PriceCard toolName={part.toolName} output={output} />;
-    case "get_market_info": return <MarketInfoCard output={output} />;
+    case "get_all_prices": card = <PriceCard toolName={part.toolName} output={output} />; break;
+    case "get_market_info": card = <MarketInfoCard output={output} />; break;
     case "add_collateral":
-    case "remove_collateral": return <CollateralCard output={output} />;
-    case "reverse_position_preview": return <ReversePositionCard output={output} />;
-    case "earn_deposit": return <EarnDepositCard output={output} />;
-    default: return <GenericCard toolName={part.toolName} output={output} />;
+    case "remove_collateral": card = <CollateralCard output={output} />; break;
+    case "reverse_position_preview": card = <ReversePositionCard output={output} />; break;
+    case "earn_deposit": card = <EarnDepositCard output={output} />; break;
+    default: card = <GenericCard toolName={part.toolName} output={output} />; break;
   }
+
+  return <div>{statusHeader}{card}</div>;
 });
 
 export default ToolResultCard;

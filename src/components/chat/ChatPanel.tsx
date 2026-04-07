@@ -161,7 +161,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   return (
     <div className="flex flex-col h-full">
       {/* ---- Scrollable area ---- */}
-      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto scroll-smooth">
+      <div ref={scrollRef} onScroll={handleScroll} className="no-scrollbar flex-1 overflow-y-auto scroll-smooth">
         {!hasMessages ? (
           /* ---- Hero state: Portfolio + Suggestions (Galileo layout) ---- */
           <div className="flex flex-col items-center min-h-full dot-grid">
@@ -383,8 +383,7 @@ const AssistantMessage = memo(function AssistantMessage({ parts }: { parts: Reco
               const text = String(part.text ?? "");
               if (!text.trim()) return null;
               return (
-                <div key={i} className="max-w-[85%] rounded-2xl px-4 py-3 text-[14px] text-text-secondary leading-relaxed shadow-sm"
-                  style={{ background: "rgba(255,255,255,0.03)" }}>
+                <div key={i} className="text-[14px] text-text-secondary leading-relaxed">
                   {text}
                 </div>
               );
