@@ -41,8 +41,8 @@ interface FafCommand {
 }
 
 const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract?: (m: RegExpExecArray) => Record<string, unknown> }[] = [
-  // ── Hub ──
-  { pattern: /^faf$/i, action: "hub", toolName: "__hub__" },
+  // ── Bare "faf" → show dashboard directly (not a command menu) ──
+  { pattern: /^faf$/i, action: "dashboard", toolName: "faf_dashboard" },
 
   // ── Dashboard (many natural forms) ──
   { pattern: /^faf\s+(status|dashboard|info)$/i, action: "dashboard", toolName: "faf_dashboard" },

@@ -2469,6 +2469,7 @@ const FafCard = memo(function FafCard({ toolName, output }: { toolName: string; 
             <span className="text-[12px]" style={{ color: "var(--color-accent-lime)" }}>You're close to {String(nextTier.name)}!</span>
           </div>
         )}
+
       </div>
     );
   }
