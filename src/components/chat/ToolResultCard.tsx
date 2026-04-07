@@ -117,59 +117,41 @@ const TOOL_STEPS: Record<string, string[]> = {
 
 const StreamingSteps = memo(function StreamingSteps({ toolName, step, input }: { toolName: string; step: 1 | 2; input?: Record<string, unknown> }) {
   const steps = TOOL_STEPS[toolName] ?? ["Processing"];
-  const market = input?.market ? ` ${input.market}` : "";
+  const displayName = TOOL_DISPLAY_NAMES[toolName] ?? toolName;
 
-  // Build an intent summary from input params (shows what was understood)
-  const intentParts: string[] = [];
-  if (input) {
-    if (input.side) intentParts.push(String(input.side));
-    if (input.market) intentParts.push(String(input.market));
-    if (input.leverage) intentParts.push(`${input.leverage}x`);
-    if (input.collateral_usd) intentParts.push(`$${input.collateral_usd}`);
-    if (input.take_profit_price) intentParts.push(`TP $${input.take_profit_price}`);
-    if (input.stop_loss_price) intentParts.push(`SL $${input.stop_loss_price}`);
+  // Simple single-line loader for most tools
+  if (steps.length <= 2 && toolName !== "build_trade") {
+    return (
+      <div className="flex items-center gap-2 py-1 text-[12px] text-text-tertiary">
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-warn)", animation: "pulseDot 1s infinite" }} />
+        <span>{steps[0]}{input?.market ? ` ${input.market}` : ""}...</span>
+      </div>
+    );
   }
-  const intentSummary = intentParts.length > 0 ? intentParts.join(" · ") : "";
 
+  // Multi-step loader for trade building
   return (
-    <div className="w-full max-w-[420px] glass-card anticipate-in overflow-hidden">
-      {/* Intent detection banner */}
-      {intentSummary && step >= 2 && (
-        <div className="px-4 py-2 text-[11px] text-text-tertiary border-b border-border-subtle flex items-center gap-2">
-          <span style={{ color: "var(--color-accent-lime)" }}>✓</span>
-          <span>Detected: {intentSummary}</span>
-        </div>
-      )}
-      <div className="px-4 py-3 flex flex-col gap-2">
+    <div className="w-full max-w-[420px] glass-card overflow-hidden" style={{ animation: "fadeIn 150ms ease-out" }}>
+      <div className="px-3 py-2.5 flex flex-col gap-1.5">
         {steps.map((label, i) => {
           const isDone = i < step;
           const isCurrent = i === step - 1;
           return (
-            <div key={i} className="flex items-center gap-2.5 text-[13px]">
+            <div key={i} className="flex items-center gap-2 text-[12px]">
               {isDone ? (
-                <span className="text-accent-long w-4 text-center font-medium">✓</span>
+                <span className="text-accent-long w-3 text-center text-[10px]">✓</span>
               ) : isCurrent ? (
-                <span className="w-2 h-2 rounded-full bg-accent-blue ml-1" style={{ animation: "pulseDot 1s infinite" }} />
+                <span className="w-1.5 h-1.5 rounded-full ml-[3px]" style={{ background: "var(--color-accent-warn)", animation: "pulseDot 1s infinite" }} />
               ) : (
-                <span className="w-4 text-center text-text-tertiary">·</span>
+                <span className="w-3 text-center text-text-tertiary text-[10px]">·</span>
               )}
               <span className={isDone ? "text-text-secondary" : isCurrent ? "text-text-primary" : "text-text-tertiary"}>
-                {label}{i === 0 ? market : ""}
+                {label}{i === 0 && input?.market ? ` ${input.market}` : ""}
               </span>
             </div>
           );
         })}
       </div>
-      {toolName === "build_trade" && (
-        <div className="border-t border-border-subtle px-4 py-3">
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="skel h-5 w-24" />
-            <div className="skel h-5 w-28" />
-            <div className="skel h-5 w-20" />
-            <div className="skel h-5 w-16" />
-          </div>
-        </div>
-      )}
     </div>
   );
 });
