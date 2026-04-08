@@ -238,11 +238,12 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             </div>
           </button>
 
-          {/* Expanded asset list */}
+          {/* Expanded asset list — fixed height, internal scroll like Galileo */}
           <div style={{
-            maxHeight: assetsExpanded ? `${tokens.length * 76 + 8}px` : "0",
+            maxHeight: assetsExpanded ? "320px" : "0",
             opacity: assetsExpanded ? 1 : 0,
-            overflow: "hidden",
+            overflowY: assetsExpanded ? "auto" : "hidden",
+            overflowX: "hidden",
             transition: "max-height 350ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 250ms ease",
             background: "rgba(14, 19, 28, 0.6)",
             border: assetsExpanded ? "1px solid rgba(200, 245, 71, 0.08)" : "1px solid transparent",
