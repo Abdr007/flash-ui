@@ -307,6 +307,15 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
           </>} />
       </div>
 
+      {/* ── SMART CONTEXT CARDS (max 2, state-driven) ── */}
+      <ContextCards
+        onAction={onAction}
+        walletConnected={walletConnected}
+        totalUsd={totalWalletUsd}
+        pnl={totalPnl}
+        positions={positions}
+      />
+
       {/* ── TRENDING BAR (with token logos) ── */}
       <TrendingBar onAction={onAction} />
     </div>
@@ -371,22 +380,28 @@ function ChangeArrow({ positive }: { positive: boolean }) {
   );
 }
 
-// ── FAF Primary Action Button (visually dominant, center position) ──
+// ── FAF Primary Action Button (THE SYSTEM NODE — breathing, state-aware) ──
 function FafActionBtn({ onClick }: { onClick: () => void }) {
   return (
     <div className="flex flex-col items-center gap-2.5">
       <button onClick={onClick}
-        className="relative flex items-center justify-center cursor-pointer transition-all duration-200
-          hover:scale-105 active:scale-95"
+        className="relative flex items-center justify-center cursor-pointer
+          transition-transform duration-200 hover:scale-[1.04] active:scale-[0.94]"
         style={{
-          width: "64px",
-          height: "64px",
+          width: "68px",
+          height: "68px",
           borderRadius: "50%",
-          background: "linear-gradient(135deg, var(--color-accent-lime), rgba(200,245,71,0.7))",
-          boxShadow: "0 0 20px rgba(200,245,71,0.15), 0 4px 12px rgba(0,0,0,0.3)",
+          background: "linear-gradient(135deg, var(--color-accent-lime), rgba(200,245,71,0.75))",
+          boxShadow: "0 0 24px rgba(200,245,71,0.12), 0 0 48px rgba(200,245,71,0.05), 0 4px 12px rgba(0,0,0,0.3)",
         }}
       >
-        <span className="text-[18px] font-black tracking-tight" style={{ color: "#070A0F" }}>
+        {/* Breathing glow ring */}
+        <span className="absolute inset-[-6px] rounded-full pointer-events-none"
+          style={{
+            border: "1.5px solid rgba(200,245,71,0.12)",
+            animation: "fafBreathe 6s ease-in-out infinite",
+          }} />
+        <span className="text-[17px] font-black tracking-tight" style={{ color: "#070A0F" }}>
           FAF
         </span>
       </button>
@@ -410,6 +425,66 @@ function ActionBtn({ icon, label, onClick }: { icon: React.ReactNode; label: str
         </svg>
       </button>
       <span className="text-[12px] font-medium" style={{ color: "var(--color-text-tertiary)" }}>{label}</span>
+    </div>
+  );
+}
+
+// ── Smart Context Cards (max 2, state-driven nudges) ──
+function ContextCards({ onAction, walletConnected, totalUsd, pnl, positions }: {
+  onAction: (cmd: string) => void;
+  walletConnected: boolean;
+  totalUsd: number;
+  pnl: number;
+  positions: { market?: string; unrealized_pnl?: number }[];
+}) {
+  if (!walletConnected) return null;
+  const cards: { text: string; accent: string; action: string }[] = [];
+
+  // Check for positions with notable PnL
+  const hotPos = positions.find((p) => Math.abs(safe(p.unrealized_pnl)) > 5);
+  if (hotPos && safe(hotPos.unrealized_pnl) > 5) {
+    cards.push({
+      text: `${hotPos.market ?? "Position"} is up ${formatUsd(safe(hotPos.unrealized_pnl))}`,
+      accent: "var(--color-accent-long)",
+      action: "show my positions",
+    });
+  } else if (hotPos && safe(hotPos.unrealized_pnl) < -5) {
+    cards.push({
+      text: `${hotPos.market ?? "Position"} needs attention`,
+      accent: "var(--color-accent-short)",
+      action: "show my positions",
+    });
+  }
+
+  // No positions prompt
+  if (positions.length === 0 && totalUsd > 10) {
+    cards.push({
+      text: "Ready to trade — open your first position",
+      accent: "var(--color-accent-lime)",
+      action: "I want to trade",
+    });
+  }
+
+  if (cards.length === 0) return null;
+
+  return (
+    <div className="w-full flex flex-col gap-2 mb-6">
+      {cards.slice(0, 2).map((c, i) => (
+        <button key={i} onClick={() => onAction(c.action)}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer
+            transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+          style={{
+            background: "rgba(14, 19, 28, 0.5)",
+            border: "1px solid rgba(255,255,255,0.05)",
+            backdropFilter: "blur(12px)",
+          }}>
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c.accent, boxShadow: `0 0 6px ${c.accent}40` }} />
+          <span className="text-[13px] text-text-secondary">{c.text}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round" className="ml-auto shrink-0 opacity-50">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
+      ))}
     </div>
   );
 }
