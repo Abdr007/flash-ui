@@ -132,12 +132,6 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             : formatUsd(springBalance)}
         </div>
 
-        {/* Brand gradient accent */}
-        <div className="w-24 h-[1px] mb-5 rounded-full" style={{
-          background: "linear-gradient(90deg, transparent, #3AFFE1, #FFEB00, transparent)",
-          opacity: 0.35,
-        }} />
-
         {/* Status */}
         {walletConnected && !walletDataError ? (
           <div className="flex items-center gap-2.5 text-[14px]">
@@ -276,26 +270,24 @@ const ActionNode = memo(function ActionNode({ label, icon, onClick }: {
   );
 });
 
-// ═══ FAF NODE — Center dominant with brand identity ═══
+// ═══ FAF NODE — Same size as others, FT logo inside ═══
 const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-2.5 -mt-1">
+    <div className="flex flex-col items-center gap-2.5">
       <button onClick={onClick}
-        className="relative flex items-center justify-center cursor-pointer
-          transition-all duration-200 hover:scale-[1.05] active:scale-[0.92]"
+        className="flex items-center justify-center cursor-pointer
+          transition-all duration-200 hover:-translate-y-[2px] hover:border-white/[0.12]
+          active:scale-[0.92] active:translate-y-0"
         style={{
-          width: "62px", height: "62px", borderRadius: "50%",
-          background: "linear-gradient(145deg, #33C9A1, #13644E)",
-          border: "1px solid rgba(58,255,225,0.15)",
-          boxShadow: "0 0 24px rgba(58,255,225,0.08), 0 4px 16px rgba(0,0,0,0.3)",
+          width: "56px", height: "56px", borderRadius: "50%",
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          backdropFilter: "blur(12px)",
         }}>
-        {/* Breathing ring */}
-        <span className="absolute inset-[-5px] rounded-full pointer-events-none"
-          style={{ border: "1px solid rgba(58,255,225,0.08)", animation: "fafBreathe 7s ease-in-out infinite" }} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/ft-logo.svg" alt="FT" width={34} height={34} style={{ width: 34, height: 34 }} />
+        <img src="/ft-logo.svg" alt="FT" width={30} height={30} style={{ width: 30, height: 30 }} />
       </button>
-      <span className="text-[11px] font-bold" style={{ color: "#3AFFE1" }}>FAF</span>
+      <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>FAF</span>
     </div>
   );
 });

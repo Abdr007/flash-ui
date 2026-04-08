@@ -28,7 +28,7 @@ export default function MainLayout() {
       <div className="dot-grid-full" />
 
       {/* ---- Top Bar ---- */}
-      <header className="shrink-0 relative z-10" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+      <header className="shrink-0 relative z-10">
         <SectionBoundary fallback={<div className="h-12 bg-bg-root" />}>
           <SystemStatus />
         </SectionBoundary>
