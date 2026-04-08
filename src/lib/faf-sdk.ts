@@ -72,16 +72,13 @@ export interface FafInstructionResult {
 const DEFAULT_POOL = "Crypto.1"; // FAF staking uses Crypto.1 pool
 
 
-let _client: PerpetualsClient | null = null;
-let _lastWallet: string | null = null;
+// No module-level cache — in serverless, cached clients hold stale Connection objects.
+// PerpetualsClient init is fast (no RPC calls), so create fresh per request.
 
 function getClient(connection: Connection, wallet: Wallet): PerpetualsClient {
-  const walletKey = wallet.publicKey.toBase58();
-  if (_client && _lastWallet === walletKey) return _client;
-
   const pc = PoolConfig.fromIdsByName(DEFAULT_POOL, "mainnet-beta");
   const provider = new AnchorProvider(connection, wallet, { commitment: "confirmed" });
-  _client = new PerpetualsClient(
+  return new PerpetualsClient(
     provider,
     pc.programId,
     pc.perpComposibilityProgramId,
@@ -89,8 +86,6 @@ function getClient(connection: Connection, wallet: Wallet): PerpetualsClient {
     pc.rewardDistributionProgram.programId,
     { prioritizationFee: 50_000 },
   );
-  _lastWallet = walletKey;
-  return _client;
 }
 
 function getPoolConfig(): PoolConfig {

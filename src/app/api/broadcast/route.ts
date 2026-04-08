@@ -72,7 +72,7 @@ async function sendToEndpoint(
           {
             encoding: "base64",
             skipPreflight: true,
-            maxRetries: 0,
+            maxRetries: 3,
           },
         ],
       }),

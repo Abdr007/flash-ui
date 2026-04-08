@@ -25,7 +25,7 @@ import {
 import type { Wallet } from "@coral-xyz/anchor";
 
 const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
-const COMPUTE_UNITS = 100_000;
+const COMPUTE_UNITS = 220_000; // Match CLI base CU (flash-client.ts)
 const PRIORITY_FEE = 50_000; // microlamports
 
 // Dummy wallet for read-only operations (SDK requires Wallet but we only read)
@@ -112,6 +112,7 @@ export async function POST(req: NextRequest) {
     } = await import("@/lib/faf-sdk");
 
     let instructions;
+    let additionalSigners: import("@solana/web3.js").Signer[] = [];
 
     switch (action) {
       case "stake": {
@@ -120,6 +121,7 @@ export async function POST(req: NextRequest) {
         }
         const result = await buildStakeInstructions(connection, dummyWallet, userPubkey, amount);
         instructions = result.instructions;
+        additionalSigners = result.additionalSigners;
         break;
       }
 
@@ -129,18 +131,21 @@ export async function POST(req: NextRequest) {
         }
         const result = await buildUnstakeInstructions(connection, dummyWallet, userPubkey, amount);
         instructions = result.instructions;
+        additionalSigners = result.additionalSigners;
         break;
       }
 
       case "claim_rewards": {
         const result = await buildClaimRewardsInstructions(connection, dummyWallet, userPubkey);
         instructions = result.instructions;
+        additionalSigners = result.additionalSigners;
         break;
       }
 
       case "claim_revenue": {
         const result = await buildClaimRevenueInstructions(connection, dummyWallet, userPubkey);
         instructions = result.instructions;
+        additionalSigners = result.additionalSigners;
         break;
       }
 
@@ -150,6 +155,7 @@ export async function POST(req: NextRequest) {
         }
         const result = await buildCancelUnstakeInstructions(connection, dummyWallet, userPubkey, index);
         instructions = result.instructions;
+        additionalSigners = result.additionalSigners;
         break;
       }
 
@@ -173,6 +179,11 @@ export async function POST(req: NextRequest) {
     }).compileToV0Message();
 
     const transaction = new VersionedTransaction(messageV0);
+
+    // Sign with additionalSigners (ephemeral keypairs the SDK may require)
+    if (additionalSigners.length > 0) {
+      transaction.sign(additionalSigners);
+    }
 
     // Simulate
     const sim = await connection.simulateTransaction(transaction, { sigVerify: false });

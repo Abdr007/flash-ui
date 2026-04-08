@@ -2314,13 +2314,14 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
 
   const type = String(data.type ?? "");
   const walletAddress = useFlashStore((s) => s.walletAddress);
+  const { signTransaction, connected } = useWallet();
   const [status, setStatus] = useState<"idle" | "executing" | "signing" | "confirming" | "success" | "error">("idle");
   const [txSig, setTxSig] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const lockRef = useRef(false);
 
   async function executeFafAction(action: string, params: Record<string, unknown> = {}) {
-    if (lockRef.current || !walletAddress) return;
+    if (lockRef.current || !walletAddress || !connected || !signTransaction) return;
     lockRef.current = true;
     setStatus("executing");
     setError(null);
@@ -2337,9 +2338,7 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
       const { VersionedTransaction } = await import("@solana/web3.js");
       const txBytes = Uint8Array.from(atob(buildJson.transaction), (c) => c.charCodeAt(0));
       const tx = VersionedTransaction.deserialize(txBytes);
-      const wa = (window as unknown as { solana?: { signTransaction: (t: unknown) => Promise<unknown> } }).solana;
-      if (!wa?.signTransaction) throw new Error("Wallet not available");
-      const signed = await wa.signTransaction(tx) as { serialize: () => Uint8Array };
+      const signed = await signTransaction(tx);
 
       const signedBytes = signed.serialize();
       let signedB64 = "";
@@ -2356,21 +2355,27 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
       setTxSig(bJson.signature);
       setStatus("confirming");
 
-      // Poll for confirmation
+      // Poll for confirmation + rebroadcast every other cycle (matches CLI sendTx behavior)
       const { Connection } = await import("@solana/web3.js");
       const conn = new Connection("/api/rpc", "confirmed");
       let confirmed = false;
+      let pollCount = 0;
       const start = Date.now();
-      while (Date.now() - start < 30000) {
+      while (Date.now() - start < 45000) {
         try {
           const { value } = await conn.getSignatureStatuses([bJson.signature]);
           const s = value[0];
           if (s?.err) throw new Error("Transaction failed on-chain");
           if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") { confirmed = true; break; }
         } catch (e) { if (e instanceof Error && e.message.includes("failed on-chain")) throw e; }
+        // Rebroadcast every other poll cycle to improve landing rate
+        pollCount++;
+        if (pollCount % 2 === 0) {
+          fetch("/api/broadcast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transaction: signedB64 }) }).catch(() => {});
+        }
         await new Promise((r) => setTimeout(r, 2000));
       }
-      if (!confirmed) throw new Error("Transaction not confirmed in 30s. Check Solscan.");
+      if (!confirmed) throw new Error("Transaction not confirmed in 45s. Check Solscan.");
       setStatus("success");
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Failed";
