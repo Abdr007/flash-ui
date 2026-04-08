@@ -53,19 +53,7 @@ const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract
   { pattern: /^faf\s+(points?|voltage)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^how much (?:faf )?(?:do i have |have i )?stak/i, action: "dashboard", toolName: "faf_dashboard" },
 
-  // ── Stake (with amount — many natural forms) ──
-  { pattern: /^(?:faf\s+)?stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /^faf\s+stake\s+(\d+(?:\.\d+)?)/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /^stake\s+(\d+(?:\.\d+)?)\s+faf/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /(?:want|wanna|like)\s+to\s+stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /stake\s+(\d+(?:\.\d+)?)\s*(?:faf|tokens?)?/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-
-  // ── Stake (no amount → prompt) ──
-  { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "__prompt__" },
-  { pattern: /(?:want|wanna|like)\s+to\s+stake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i, action: "stake_prompt", toolName: "__prompt__" },
-  { pattern: /^stake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i, action: "stake_prompt", toolName: "__prompt__" },
-
-  // ── Unstake (with amount — many natural forms) ──
+  // ── Unstake (with amount) — MUST be before stake patterns (regex "stake" matches inside "unstake") ──
   { pattern: /^(?:faf\s+)?unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
   { pattern: /^unstake\s+(\d+(?:\.\d+)?)\s+faf/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
   { pattern: /(?:want|wanna|like)\s+to\s+unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
@@ -75,6 +63,18 @@ const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract
   { pattern: /^faf\s+unstake$/i, action: "unstake_prompt", toolName: "__prompt__" },
   { pattern: /(?:want|wanna|like)\s+to\s+unstake\s+(?:my\s+)?(?:faf|tokens?)?\s*$/i, action: "unstake_prompt", toolName: "__prompt__" },
   { pattern: /^unstake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i, action: "unstake_prompt", toolName: "__prompt__" },
+
+  // ── Stake (with amount — many natural forms) ──
+  { pattern: /^(?:faf\s+)?stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  { pattern: /^faf\s+stake\s+(\d+(?:\.\d+)?)/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  { pattern: /^stake\s+(\d+(?:\.\d+)?)\s+faf/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  { pattern: /(?:want|wanna|like)\s+to\s+(?!un)stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  { pattern: /(?<!un)stake\s+(\d+(?:\.\d+)?)\s*(?:faf|tokens?)?/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+
+  // ── Stake (no amount → prompt) ──
+  { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "__prompt__" },
+  { pattern: /(?:want|wanna|like)\s+to\s+(?!un)stake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i, action: "stake_prompt", toolName: "__prompt__" },
+  { pattern: /^stake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i, action: "stake_prompt", toolName: "__prompt__" },
 
   // ── Claim (many natural forms) ──
   { pattern: /^faf\s+claim(?:\s+(all|rewards?|revenue))?$/i, action: "claim", toolName: "faf_claim", extract: (m) => ({ claim_type: m[1]?.replace(/s$/, "") ?? "all" }) },
