@@ -226,7 +226,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               messages={messages}
               onRetry={() => lastUserMsg.current && handleSubmit(lastUserMsg.current)}
             />
-            )}
           </div>
         )}
       </div>
