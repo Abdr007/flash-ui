@@ -222,6 +222,99 @@ function matchConversationalIntent(input: string): (typeof CONVERSATIONAL_INTENT
   return null;
 }
 
+// ---- Direct Tool Matching (NO AI — deterministic regex → tool.execute()) ----
+
+interface DirectToolMatch {
+  toolName: string;
+  params: Record<string, unknown>;
+}
+
+const MARKET_ALIASES: Record<string, string> = {
+  sol: "SOL", solana: "SOL", btc: "BTC", bitcoin: "BTC", eth: "ETH", ethereum: "ETH",
+  sui: "SUI", jup: "JUP", jupiter: "JUP", bonk: "BONK", wif: "WIF", pepe: "PEPE",
+  doge: "DOGE", dogecoin: "DOGE", avax: "AVAX", ada: "ADA", xrp: "XRP", link: "LINK",
+  matic: "MATIC", arb: "ARB", op: "OP", apt: "APT", near: "NEAR", atom: "ATOM",
+  dot: "DOT", ltc: "LTC", bnb: "BNB", trump: "TRUMP", render: "RENDER", ray: "RAY",
+  ondo: "ONDO", hnt: "HNT", pyth: "PYTH", jto: "JTO", wen: "WEN", w: "W",
+  tnsr: "TNSR", kmno: "KMNO", fartcoin: "FARTCOIN", pengu: "PENGU", me: "ME",
+  s: "S", aave: "AAVE", ena: "ENA", tia: "TIA", sei: "SEI", orca: "ORCA",
+};
+
+function resolveMarket(input: string): string {
+  const lower = input.toLowerCase().trim();
+  return MARKET_ALIASES[lower] ?? input.toUpperCase();
+}
+
+function matchDirectTool(input: string): DirectToolMatch | null {
+  const t = input.toLowerCase().trim();
+
+  // ── Price queries ──
+  // "price of SOL", "SOL price", "what's SOL at", "how much is BTC", "price SOL", "btc?"
+  let m: RegExpExecArray | null;
+
+  m = /^(?:price\s+(?:of\s+)?|what(?:'s| is)\s+(?:the\s+)?(?:price\s+(?:of\s+)?)?|how\s+much\s+is\s+)(\w+)(?:\s+(?:price|at|worth|trading|cost))?[?\s]*$/i.exec(t);
+  if (m) return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
+
+  m = /^(\w+)\s+price[?\s]*$/i.exec(t);
+  if (m) return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
+
+  m = /^(\w{2,10})\?$/i.exec(t);
+  if (m && MARKET_ALIASES[m[1].toLowerCase()]) return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
+
+  // ── All prices / markets ──
+  if (/^(?:prices|all\s+prices|show\s+(?:all\s+)?prices|markets|all\s+markets|show\s+(?:all\s+)?markets)$/i.test(t)) {
+    return { toolName: "get_all_prices", params: {} };
+  }
+
+  // ── Positions ──
+  if (/^(?:(?:show\s+)?(?:my\s+)?positions?|(?:my\s+)?open\s+(?:trades?|positions?)|(?:show\s+)?(?:my\s+)?trades?)$/i.test(t)) {
+    return { toolName: "get_positions", params: {} };
+  }
+
+  // ── Portfolio ──
+  if (/^(?:portfolio|(?:show\s+)?(?:my\s+)?portfolio|(?:my\s+)?(?:wallet\s+)?balance[s]?|(?:show\s+)?(?:my\s+)?balance[s]?|(?:what(?:'s| is| are)\s+)?(?:my\s+)?(?:token\s+)?balance[s]?)$/i.test(t)) {
+    return { toolName: "get_portfolio", params: {} };
+  }
+
+  // ── Market info ──
+  m = /^(?:(?:market\s+)?info\s+(?:on\s+|for\s+)?|(?:show\s+)?(?:market\s+)?(?:info|details|stats)\s+(?:for\s+|on\s+)?)(\w+)$/i.exec(t);
+  if (m) return { toolName: "get_market_info", params: { market: resolveMarket(m[1]) } };
+
+  // ── Close position ──
+  m = /^(?:close|exit|flatten)\s+(?:my\s+)?(\w+)(?:\s+(?:position|trade|long|short))?$/i.exec(t);
+  if (m) return { toolName: "close_position_preview", params: { market: resolveMarket(m[1]) } };
+
+  // ── Transfer: "send 0.1 SOL to <address>" ──
+  m = /^(?:send|transfer)\s+(\d+(?:\.\d+)?)\s+(\w+)\s+to\s+([1-9A-HJ-NP-Za-km-z]{32,44})$/i.exec(t);
+  if (m) return { toolName: "transfer_preview", params: { token: m[2].toUpperCase(), amount: parseFloat(m[1]), recipient: m[3] } };
+
+  // ── Earn pools ──
+  if (/^(?:(?:what\s+)?(?:earn\s+)?pools?|(?:show\s+)?(?:available\s+)?pools?|(?:earn|yield)\s+(?:pools?|options?)|(?:what\s+(?:earn\s+)?pools?\s+(?:are\s+)?available))/i.test(t)) {
+    return { toolName: "earn_deposit", params: { action: "list" } };
+  }
+
+  // ── Earn deposit: "deposit 50 USDC into crypto pool" ──
+  m = /^deposit\s+(\d+(?:\.\d+)?)\s+(\w+)\s+(?:into?|to)\s+(\w+)\s*(?:pool)?$/i.exec(t);
+  if (m) return { toolName: "earn_deposit", params: { amount: parseFloat(m[1]), token: m[2].toUpperCase(), pool: m[3].toLowerCase() } };
+
+  // ── Show earn positions ──
+  if (/^(?:(?:show\s+)?(?:my\s+)?earn(?:ing)?\s+(?:positions?|deposits?)|(?:my\s+)?(?:earn|yield)\s+(?:positions?|deposits?))$/i.test(t)) {
+    return { toolName: "earn_deposit", params: { action: "positions" } };
+  }
+
+  // ── Transfer history ──
+  if (/^(?:(?:show\s+)?(?:my\s+)?transfer(?:s|\s+history)?|(?:my\s+)?(?:spending|transaction)\s*(?:history|patterns?)?)$/i.test(t)) {
+    return { toolName: "transfer_history", params: {} };
+  }
+
+  // ── Help ──
+  if (/^(?:help|what\s+can\s+you\s+do|commands?|what\s+(?:do|can)\s+(?:you|i)\s+(?:do|use))$/i.test(t)) {
+    return null; // Let AI handle help
+  }
+
+  return null;
+}
+
 function createFafTextResponse(text: string): Response {
   const id = `faf_text_${Date.now()}`;
   const stream = createUIMessageStream({
@@ -425,6 +518,27 @@ export async function POST(req: Request) {
         }
       } catch (err) {
         logError("fast_path", { wallet: walletAddress, error: err instanceof Error ? err.message : "unknown" });
+      }
+    }
+  }
+
+  // ---- DIRECT TOOL FAST PATH: common queries → call tool directly (NO AI) ----
+  {
+    const t = lastUserText.trim();
+    const directMatch = matchDirectTool(t);
+    if (directMatch) {
+      logInfo("fast_path", { wallet: walletAddress, data: { type: "direct_tool", tool: directMatch.toolName, input: t.slice(0, 60) } });
+      try {
+        const toolFn = tools[directMatch.toolName as keyof typeof tools];
+        if (toolFn && "execute" in toolFn) {
+          const execFn = (toolFn as unknown as { execute: (params: Record<string, unknown>) => Promise<unknown> }).execute;
+          const result = await execFn(directMatch.params) as Record<string, unknown>;
+          if (result) {
+            return createFafStreamResponse(directMatch.toolName, result);
+          }
+        }
+      } catch (err) {
+        logError("direct_tool", { wallet: walletAddress, error: err instanceof Error ? err.message : "unknown" });
       }
     }
   }
