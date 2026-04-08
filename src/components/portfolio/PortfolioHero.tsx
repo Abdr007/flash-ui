@@ -149,7 +149,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
       {/* ── TOTAL BALANCE ── */}
       <div className="text-[12px] font-semibold tracking-[0.25em] uppercase mb-4"
         style={{ color: "var(--color-text-tertiary)" }}>
-        Total Balance
+        TOTAL BALANCE
       </div>
 
       <div className="text-[64px] font-bold tracking-[-0.03em] leading-[1] num mb-3"
