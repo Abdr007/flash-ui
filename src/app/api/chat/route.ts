@@ -41,8 +41,8 @@ interface FafCommand {
 }
 
 const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract?: (m: RegExpExecArray) => Record<string, unknown> }[] = [
-  // ── Bare "faf" → show options (NOT dashboard) ──
-  { pattern: /^faf$/i, action: "options", toolName: "__options__" },
+  // ── Bare "faf" → go straight to dashboard (QuickReply handles action buttons) ──
+  { pattern: /^faf$/i, action: "dashboard", toolName: "faf_dashboard" },
 
   // ── Dashboard (many natural forms) ──
   { pattern: /^faf\s+(status|dashboard|info)$/i, action: "dashboard", toolName: "faf_dashboard" },

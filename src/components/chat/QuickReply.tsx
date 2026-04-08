@@ -47,17 +47,7 @@ const INTENT_OPTIONS: {
       { label: "My earn positions", intent: "show my earn positions" },
     ],
   },
-  {
-    patterns: [/^faf$/i],
-    title: "FAF Staking Hub",
-    options: [
-      { label: "Dashboard", intent: "faf status", description: "Staked FAF, rewards, tier progress" },
-      { label: "Stake FAF", intent: "faf stake", description: "Earn rewards + fee discounts" },
-      { label: "Claim Rewards", intent: "faf claim", description: "FAF rewards + USDC revenue" },
-      { label: "VIP Tiers", intent: "faf tiers", description: "See all tiers and benefits" },
-      { label: "Unstake Requests", intent: "faf requests", description: "Pending unlocks + progress" },
-    ],
-  },
+  // "faf" → dashboard card handles action buttons directly (no duplicate QuickReply)
   {
     patterns: [/^I want to transfer tokens$/i],
     title: "What would you like to transfer?",
