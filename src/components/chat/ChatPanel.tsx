@@ -131,7 +131,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const [promptIdx, setPromptIdx] = useState(0);
   useEffect(() => {
     if (hasMessages) return;
-    const iv = setInterval(() => setPromptIdx((i) => (i + 1) % PROMPTS.length), 3000);
+    const iv = setInterval(() => setPromptIdx((i) => (i + 1) % PROMPTS.length), 5000);
     return () => clearInterval(iv);
   }, [hasMessages, PROMPTS.length]);
 

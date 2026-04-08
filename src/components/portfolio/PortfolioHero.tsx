@@ -100,7 +100,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   for (const pos of positions) totalPnl += safe(pos.unrealized_pnl);
   // Total balance includes wallet tokens + unrealized PnL from open positions (like Galileo)
   const totalWithPnl = totalWalletUsd + totalPnl;
-  const springBalance = useNumberSpring(totalWithPnl, { stiffness: 120, damping: 22 });
+  const springBalance = useNumberSpring(totalWithPnl, { stiffness: 60, damping: 28 });
   const springPnl = useNumberSpring(totalPnl, { stiffness: 160, damping: 20 });
   const toggleAssets = useCallback(() => setAssetsExpanded((v) => !v), []);
 
@@ -287,25 +287,11 @@ const ActionNode = memo(function ActionNode({ label, icon, onClick }: {
   );
 });
 
-// ═══ FAF NODE — Same size as others, FT logo inside ═══
+// ═══ FAF NODE — Same style as others, star icon ═══
 const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-2.5">
-      <button onClick={onClick}
-        className="flex items-center justify-center cursor-pointer
-          transition-all duration-200 hover:-translate-y-[2px] hover:border-white/[0.12]
-          active:scale-[0.92] active:translate-y-0"
-        style={{
-          width: "56px", height: "56px", borderRadius: "50%",
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          backdropFilter: "blur(12px)",
-        }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/ft-logo.svg" alt="FT" width={30} height={30} style={{ width: 30, height: 30 }} />
-      </button>
-      <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>FAF</span>
-    </div>
+    <ActionNode label="FAF" onClick={onClick}
+      icon={<><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></>} />
   );
 });
 
@@ -370,7 +356,7 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
         Trending
       </span>
       {trending.map((t, i) => (
-        <button key={t.symbol} onClick={() => onAction(`price of ${t.symbol}`)}
+        <button key={t.symbol} onClick={() => onAction(t.symbol === "FAF" ? "faf" : `price of ${t.symbol}`)}
           className="flex items-center gap-1.5 cursor-pointer transition-opacity duration-150 hover:opacity-70"
           style={{ marginLeft: i > 0 ? "12px" : "0", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none", paddingLeft: i > 0 ? "12px" : "0" }}>
           <TokenIcon token={t} size={16} />
