@@ -189,13 +189,22 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
         </div>
       )}
 
-      {/* ── ASSET PILL (Galileo-style glass) ── */}
+      {/* ── ASSET PILL (Galileo-style premium glass) ── */}
       {walletConnected && tokens.length > 0 && (
         <div className="w-full mb-10">
           <button onClick={toggleAssets}
-            className="w-full glass-card flex items-center justify-between px-5 py-4
-              cursor-pointer transition-all duration-200 hover:border-border-focus"
-            style={{ borderRadius: "20px" }}>
+            className="w-full flex items-center justify-between px-5 py-4 cursor-pointer
+              transition-all duration-300 active:scale-[0.99]"
+            style={{
+              borderRadius: assetsExpanded ? "20px 20px 0 0" : "20px",
+              background: "rgba(14, 19, 28, 0.6)",
+              border: `1px solid ${assetsExpanded ? "rgba(200, 245, 71, 0.08)" : "rgba(255,255,255,0.06)"}`,
+              borderBottom: assetsExpanded ? "1px solid rgba(255,255,255,0.04)" : undefined,
+              backdropFilter: "blur(16px)",
+              boxShadow: assetsExpanded
+                ? "0 0 30px rgba(200, 245, 71, 0.03), 0 4px 20px rgba(0,0,0,0.3)"
+                : "0 2px 12px rgba(0,0,0,0.2)",
+            }}>
             {/* Stacked token logos */}
             <div className="flex items-center">
               {tokens.slice(0, 4).map((t, i) => (
@@ -203,8 +212,9 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
                   style={{
                     marginLeft: i > 0 ? "-10px" : "0",
                     zIndex: 5 - i,
-                    border: "3px solid var(--color-bg-card-solid)",
+                    border: "2.5px solid var(--color-bg-card-solid)",
                     borderRadius: "50%",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
                   }}
                 />
               ))}
@@ -212,45 +222,64 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
                 {tokens.length} asset{tokens.length !== 1 ? "s" : ""}
               </span>
             </div>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-              stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round"
+            <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300"
               style={{
-                transform: assetsExpanded ? "rotate(180deg)" : "rotate(0)",
-                transition: "transform 250ms cubic-bezier(0.2, 0, 0, 1)",
+                background: assetsExpanded ? "rgba(200, 245, 71, 0.08)" : "rgba(255,255,255,0.04)",
               }}>
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke={assetsExpanded ? "var(--color-accent-lime)" : "var(--color-text-tertiary)"}
+                strokeWidth="2.5" strokeLinecap="round"
+                style={{
+                  transform: assetsExpanded ? "rotate(180deg)" : "rotate(0)",
+                  transition: "transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), stroke 200ms",
+                }}>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
           </button>
 
           {/* Expanded asset list */}
-          {assetsExpanded && (
-            <div className="mt-2 glass-card overflow-hidden"
-              style={{ borderRadius: "20px", animation: "slideDown 200ms cubic-bezier(0.2, 0, 0, 1)" }}>
-              {tokens.map((t, i) => (
-                <div key={t.symbol}
-                  className="flex items-center justify-between px-5 py-4 transition-colors hover:bg-white/[0.02]"
-                  style={{ borderBottom: i < tokens.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-                  <div className="flex items-center gap-4">
-                    <TokenIcon token={t} size={44} />
-                    <div>
-                      <div className="text-[16px] font-semibold text-text-primary leading-tight">{t.name}</div>
-                      <div className="text-[13px] num mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
-                        {formatTokenAmount(t.amount)} {t.symbol}
-                      </div>
+          <div style={{
+            maxHeight: assetsExpanded ? `${tokens.length * 76 + 8}px` : "0",
+            opacity: assetsExpanded ? 1 : 0,
+            overflow: "hidden",
+            transition: "max-height 350ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 250ms ease",
+            background: "rgba(14, 19, 28, 0.6)",
+            border: assetsExpanded ? "1px solid rgba(200, 245, 71, 0.08)" : "1px solid transparent",
+            borderTop: "none",
+            borderRadius: "0 0 20px 20px",
+            backdropFilter: "blur(16px)",
+            boxShadow: assetsExpanded ? "0 8px 32px rgba(0,0,0,0.3), 0 0 30px rgba(200, 245, 71, 0.02)" : "none",
+          }}>
+            {tokens.map((t, i) => (
+              <div key={t.symbol}
+                className="flex items-center justify-between px-5 py-4 transition-all duration-200 hover:bg-white/[0.03]"
+                style={{
+                  borderBottom: i < tokens.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                  transform: assetsExpanded ? "translateY(0)" : "translateY(-8px)",
+                  opacity: assetsExpanded ? 1 : 0,
+                  transition: `transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 30}ms, opacity 200ms ease ${i * 30}ms`,
+                }}>
+                <div className="flex items-center gap-4">
+                  <TokenIcon token={t} size={44} />
+                  <div>
+                    <div className="text-[16px] font-semibold text-text-primary leading-tight">{t.name}</div>
+                    <div className="text-[13px] num mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                      {formatTokenAmount(t.amount)} {t.symbol}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[16px] num font-semibold text-text-primary">{formatUsd(t.usd)}</div>
-                    {t.pricePerToken > 0 && (
-                      <div className="text-[12px] num mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
-                        {formatCompactPrice(t.pricePerToken)}
-                      </div>
-                    )}
-                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="text-right">
+                  <div className="text-[16px] num font-semibold text-text-primary">{formatUsd(t.usd)}</div>
+                  {t.pricePerToken > 0 && (
+                    <div className="text-[12px] num mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                      {formatCompactPrice(t.pricePerToken)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
