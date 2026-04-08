@@ -109,15 +109,16 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
           if (t.usdValue < 0.01) continue;
           const sym = t.symbol?.toUpperCase?.() ?? t.symbol;
           const m = TOKEN_META[sym] ?? TOKEN_META[t.symbol];
-          const dasLogo = t.logoUri ?? "";
+          const dasLogo = t.logoUri || "";
+          const primaryLogo = m?.logo || dasLogo;
           toks.push({
             symbol: sym,
             name: m?.name ?? sym,
             amount: t.amount,
             usd: t.usdValue,
             pricePerToken: t.pricePerToken ?? 0,
-            logo: m?.logo ?? dasLogo,
-            logoFallback: m?.logo ? dasLogo : "", // If CoinGecko primary, DAS is fallback
+            logo: primaryLogo,
+            logoFallback: primaryLogo !== dasLogo ? dasLogo : "",
             color: m?.color ?? "#3E5068",
           });
         }
