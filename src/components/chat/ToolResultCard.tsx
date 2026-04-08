@@ -118,9 +118,7 @@ const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: 
     default: card = <GenericCard toolName={part.toolName} output={output} />; break;
   }
 
-  // Hide status header for option/picker cards (clean Galileo-style)
-  if (part.toolName === "action_options" || part.toolName === "transfer_picker") return <div>{card}</div>;
-  return <div>{statusHeader}{card}</div>;
+  return <div>{card}</div>;
 });
 
 export default ToolResultCard;
