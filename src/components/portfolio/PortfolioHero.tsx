@@ -1,10 +1,11 @@
 "use client";
 
 // ============================================
-// Flash AI — Premium Home (Shock the team)
+// Flash Trade — Premium Home Screen
 // ============================================
-// Animated gradient ring around balance, glassmorphism depth,
-// colored glow on action cards, premium typography, micro-interactions
+// Brand colors: #3AFFE1 (teal) · #FFEB00 (yellow) · #2CE800 (green)
+// FT lightning mark as background watermark
+// Premium glassmorphism + brand gradient accents
 
 import { memo, useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useFlashStore } from "@/store";
@@ -102,34 +103,41 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   const springPnl = useNumberSpring(totalPnl, { stiffness: 160, damping: 20 });
   const toggleAssets = useCallback(() => setAssetsExpanded((v) => !v), []);
 
-  const pnlColor = totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)";
-
   return (
-    <div className="flex flex-col items-center w-full max-w-[540px] mx-auto pt-12 pb-4 px-5 relative">
+    <div className="flex flex-col items-center w-full max-w-[540px] mx-auto pt-10 pb-4 px-5 relative">
 
-      {/* ═══ ANIMATED GRADIENT ORB behind balance ═══ */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] pointer-events-none" style={{ opacity: 0.6 }}>
+      {/* ═══ FT LOGO WATERMARK — large, centered, ultra subtle ═══ */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none select-none"
+        style={{ width: "320px", height: "320px", opacity: 0.025 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/ft-mark.svg" alt="" width={320} height={320}
+          style={{ width: "100%", height: "100%", filter: "brightness(3)" }} />
+      </div>
+
+      {/* ═══ BRAND GRADIENT ORBS — teal + yellow + green (from brand kit) ═══ */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[450px] pointer-events-none" style={{ opacity: 0.5 }}>
         <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 50% 40% at 50% 30%, rgba(200,245,71,0.04) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse 45% 35% at 50% 20%, rgba(58,255,225,0.05) 0%, transparent 70%)",
+          animation: "orbFloat 10s ease-in-out infinite",
         }} />
         <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 35% 30% at 45% 25%, rgba(59,130,246,0.03) 0%, transparent 60%)",
-          animation: "orbFloat 8s ease-in-out infinite",
+          background: "radial-gradient(ellipse 35% 30% at 40% 30%, rgba(255,235,0,0.03) 0%, transparent 60%)",
+          animation: "orbFloat 10s ease-in-out infinite 3.3s",
         }} />
         <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 30% 25% at 55% 35%, rgba(139,92,246,0.025) 0%, transparent 60%)",
-          animation: "orbFloat 8s ease-in-out infinite 4s",
+          background: "radial-gradient(ellipse 30% 25% at 60% 25%, rgba(44,232,0,0.03) 0%, transparent 60%)",
+          animation: "orbFloat 10s ease-in-out infinite 6.6s",
         }} />
       </div>
 
-      {/* ═══ BALANCE HERO with gradient underline ═══ */}
-      <div className="relative z-10 flex flex-col items-center mb-8">
+      {/* ═══ BALANCE HERO ═══ */}
+      <div className="relative z-10 flex flex-col items-center mb-7">
         <div className="text-[10px] font-bold tracking-[0.35em] uppercase mb-4"
-          style={{ color: "rgba(200,245,71,0.5)" }}>
+          style={{ color: "rgba(58,255,225,0.45)" }}>
           TOTAL BALANCE
         </div>
 
-        <div className="text-[54px] font-bold tracking-[-0.03em] leading-[1] num mb-3 relative"
+        <div className="text-[56px] font-bold tracking-[-0.03em] leading-[1] num mb-3"
           style={{ color: walletConnected && !walletDataError ? "#fff" : "var(--color-text-tertiary)" }}>
           {!walletConnected ? "$0.00"
             : walletDataLoading && totalWalletUsd === 0 ? "···"
@@ -137,9 +145,10 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             : formatUsd(springBalance)}
         </div>
 
-        {/* Gradient line under balance */}
-        <div className="w-32 h-[1px] mb-4" style={{
-          background: "linear-gradient(90deg, transparent, rgba(200,245,71,0.3), rgba(59,130,246,0.2), transparent)",
+        {/* Brand gradient line */}
+        <div className="w-36 h-[1.5px] mb-4 rounded-full" style={{
+          background: "linear-gradient(90deg, transparent, #3AFFE1, #FFEB00, #2CE800, transparent)",
+          opacity: 0.5,
         }} />
 
         {/* PnL / Status */}
@@ -147,8 +156,11 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
           <div className="flex items-center gap-2 text-[13px]">
             {positions.length > 0 ? (
               <>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: pnlColor, boxShadow: `0 0 6px ${pnlColor}` }} />
-                <span className="num font-semibold" style={{ color: pnlColor }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{
+                  background: totalPnl >= 0 ? "#2CE800" : "var(--color-accent-short)",
+                  boxShadow: totalPnl >= 0 ? "0 0 8px rgba(44,232,0,0.5)" : "0 0 8px rgba(255,77,77,0.5)",
+                }} />
+                <span className="num font-semibold" style={{ color: totalPnl >= 0 ? "#2CE800" : "var(--color-accent-short)" }}>
                   {totalPnl >= 0 ? "+" : ""}{formatPnl(springPnl)}
                 </span>
                 <span style={{ color: "var(--color-text-tertiary)" }}>
@@ -158,9 +170,8 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             ) : change24h !== null && change24h !== 0 ? (
               <>
                 <span className="w-1.5 h-1.5 rounded-full" style={{
-                  background: change24h >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }} />
-                <span className="num font-semibold" style={{
-                  color: change24h >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+                  background: change24h >= 0 ? "#2CE800" : "var(--color-accent-short)" }} />
+                <span className="num font-semibold" style={{ color: change24h >= 0 ? "#2CE800" : "var(--color-accent-short)" }}>
                   {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}%
                 </span>
                 <span style={{ color: "var(--color-text-tertiary)" }}>this session</span>
@@ -178,7 +189,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
 
       {/* ═══ ASSET STRIP ═══ */}
       {walletConnected && tokens.length > 0 && (
-        <div className="w-full mb-6 relative z-10">
+        <div className="w-full mb-7 relative z-10">
           <button onClick={toggleAssets}
             className="w-full flex items-center justify-between px-4 py-3 cursor-pointer
               transition-all duration-200 active:scale-[0.997]"
@@ -239,85 +250,88 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
         </div>
       )}
 
-      {/* ═══ ACTION GRID — Premium glass cards with colored glow ═══ */}
+      {/* ═══ ACTION ROW — Brand-colored glow cards ═══ */}
       <div className="w-full grid grid-cols-5 gap-2.5 mb-5 relative z-10">
-        <GlowCard label="Trade" accent="#3B82F6" onClick={() => onAction("I want to trade")}
+        <BrandCard label="Trade" accent="#3AFFE1" onClick={() => onAction("I want to trade")}
           icon={<><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></>} />
-        <GlowCard label="Earn" accent="#10B981" onClick={() => onAction("I want to earn yield")}
+        <BrandCard label="Earn" accent="#2CE800" onClick={() => onAction("I want to earn yield")}
           icon={<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />} />
-        <FafGlowCard onClick={() => onAction("faf")} />
-        <GlowCard label="Send" accent="#A855F7" onClick={() => onAction("I want to transfer tokens")}
+        <FafBrandCard onClick={() => onAction("faf")} />
+        <BrandCard label="Send" accent="#FFEB00" onClick={() => onAction("I want to transfer tokens")}
           icon={<path d="M5 12h14M12 5l7 7-7 7" />} />
-        <GlowCard label="Portfolio" accent="#F59E0B" onClick={() => onAction("show my portfolio")}
+        <BrandCard label="Portfolio" accent="#3AFFE1" onClick={() => onAction("show my portfolio")}
           icon={<><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>} />
       </div>
 
-      {/* ═══ CONTEXTUAL NUDGE ═══ */}
+      {/* Context nudge */}
       <ContextNudge onAction={onAction} walletConnected={walletConnected} totalUsd={totalWalletUsd} positions={positions} />
     </div>
   );
 }
 
-// ═══ GLOW CARD — Glass card with colored top-edge glow ═══
-const GlowCard = memo(function GlowCard({ label, accent, icon, onClick }: {
+// ═══ BRAND CARD — Glass card with brand-colored top glow ═══
+const BrandCard = memo(function BrandCard({ label, accent, icon, onClick }: {
   label: string; accent: string; icon: React.ReactNode; onClick: () => void;
 }) {
   return (
     <button onClick={onClick}
       className="group relative flex flex-col items-center gap-2.5 py-4 rounded-2xl cursor-pointer
-        transition-all duration-200 hover:-translate-y-[2px] active:scale-[0.93] active:translate-y-0"
+        transition-all duration-200 hover:-translate-y-[2px] active:scale-[0.92] active:translate-y-0"
       style={{
-        background: "rgba(255,255,255,0.025)",
+        background: "rgba(255,255,255,0.02)",
         border: "1px solid rgba(255,255,255,0.04)",
         backdropFilter: "blur(12px)",
         overflow: "hidden",
       }}>
-      {/* Top edge glow line */}
-      <div className="absolute top-0 left-3 right-3 h-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+      {/* Top glow line — brand colored */}
+      <div className="absolute top-0 left-2 right-2 h-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
         style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }} />
-      {/* Hover glow */}
+      {/* Hover radial glow */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-        style={{ background: `radial-gradient(circle at 50% 0%, ${accent}08 0%, transparent 70%)` }} />
+        style={{ background: `radial-gradient(circle at 50% -20%, ${accent}0A 0%, transparent 70%)` }} />
       <div className="w-10 h-10 rounded-xl flex items-center justify-center relative z-10"
-        style={{ background: `${accent}10`, border: `1px solid ${accent}15` }}>
+        style={{ background: `${accent}0D`, border: `1px solid ${accent}15` }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
           stroke={accent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
       </div>
-      <span className="text-[11px] font-medium relative z-10 transition-colors duration-200 group-hover:text-text-primary"
+      <span className="text-[11px] font-medium relative z-10 group-hover:text-text-primary transition-colors"
         style={{ color: "var(--color-text-tertiary)" }}>{label}</span>
     </button>
   );
 });
 
-// ═══ FAF GLOW CARD — Center dominant, always glowing ═══
-const FafGlowCard = memo(function FafGlowCard({ onClick }: { onClick: () => void }) {
+// ═══ FAF BRAND CARD — Center, dominant, brand gradient ═══
+const FafBrandCard = memo(function FafBrandCard({ onClick }: { onClick: () => void }) {
   return (
     <button onClick={onClick}
       className="group relative flex flex-col items-center gap-2.5 py-4 rounded-2xl cursor-pointer
-        transition-all duration-200 hover:-translate-y-[2px] active:scale-[0.93] active:translate-y-0"
+        transition-all duration-200 hover:-translate-y-[2px] active:scale-[0.92] active:translate-y-0"
       style={{
-        background: "rgba(200,245,71,0.04)",
-        border: "1px solid rgba(200,245,71,0.1)",
+        background: "rgba(58,255,225,0.03)",
+        border: "1px solid rgba(58,255,225,0.08)",
         backdropFilter: "blur(12px)",
         overflow: "hidden",
       }}>
-      {/* Permanent top glow */}
-      <div className="absolute top-0 left-2 right-2 h-[1px]"
-        style={{ background: "linear-gradient(90deg, transparent, rgba(200,245,71,0.5), transparent)" }} />
+      {/* Permanent top glow — brand gradient */}
+      <div className="absolute top-0 left-1 right-1 h-[1.5px]"
+        style={{ background: "linear-gradient(90deg, transparent, #3AFFE1, #FFEB00, transparent)", opacity: 0.6 }} />
       {/* Ambient glow */}
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: "radial-gradient(circle at 50% 0%, rgba(200,245,71,0.06) 0%, transparent 70%)" }} />
-      {/* Breathing pulse */}
+        style={{ background: "radial-gradient(circle at 50% -10%, rgba(58,255,225,0.06) 0%, transparent 70%)" }} />
+      {/* Breathing */}
       <div className="absolute inset-0 pointer-events-none rounded-2xl"
-        style={{ boxShadow: "0 0 20px rgba(200,245,71,0.04)", animation: "fafBreathe 6s ease-in-out infinite" }} />
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center relative z-10"
+        style={{ animation: "fafBreathe 6s ease-in-out infinite" }} />
+      {/* FT Logo icon */}
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center relative z-10 overflow-hidden"
         style={{
-          background: "linear-gradient(135deg, #C8F547, #9FC83A)",
-          boxShadow: "0 0 16px rgba(200,245,71,0.2), 0 2px 8px rgba(0,0,0,0.3)",
+          background: "linear-gradient(135deg, #33C9A1, #13644E)",
+          boxShadow: "0 0 16px rgba(58,255,225,0.15), 0 2px 8px rgba(0,0,0,0.3)",
+          border: "1px solid rgba(58,255,225,0.2)",
         }}>
-        <span className="text-[14px] font-black" style={{ color: "#070A0F" }}>F</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/ft-logo.svg" alt="FT" width={28} height={28} style={{ width: 28, height: 28 }} />
       </div>
-      <span className="text-[11px] font-bold relative z-10" style={{ color: "var(--color-accent-lime)" }}>FAF</span>
+      <span className="text-[11px] font-bold relative z-10" style={{ color: "#3AFFE1" }}>FAF</span>
     </button>
   );
 });
@@ -331,19 +345,19 @@ const ContextNudge = memo(function ContextNudge({ onAction, walletConnected, tot
     if (!walletConnected) return null;
     const hot = positions.find((p) => Math.abs(safe(p.unrealized_pnl)) > 5);
     if (hot && safe(hot.unrealized_pnl) > 5)
-      return { text: `${hot.market} +${formatUsd(safe(hot.unrealized_pnl))}`, action: "show my positions", dot: "var(--color-accent-long)" };
+      return { text: `${hot.market} +${formatUsd(safe(hot.unrealized_pnl))}`, action: "show my positions", dot: "#2CE800" };
     if (hot && safe(hot.unrealized_pnl) < -5)
-      return { text: `${hot.market} needs attention`, action: "show my positions", dot: "var(--color-accent-short)" };
+      return { text: `${hot.market} needs attention`, action: "show my positions", dot: "#FF4D4D" };
     if (positions.length === 0 && totalUsd > 10)
-      return { text: "Try: long SOL 5x $25", action: "long SOL 5x $25", dot: "var(--color-accent-lime)" };
+      return { text: "Try: long SOL 5x $25", action: "long SOL 5x $25", dot: "#3AFFE1" };
     return null;
   }, [walletConnected, totalUsd, positions]);
   if (!nudge) return null;
   return (
     <button onClick={() => onAction(nudge.action)}
       className="flex items-center gap-2 px-4 py-2 rounded-full cursor-pointer
-        transition-all duration-150 hover:bg-white/[0.03] active:scale-[0.97]">
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: nudge.dot, boxShadow: `0 0 8px ${nudge.dot}50`, animation: "pulseDot 2s infinite" }} />
+        transition-all duration-150 hover:bg-white/[0.03] active:scale-[0.97] relative z-10">
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: nudge.dot, boxShadow: `0 0 8px ${nudge.dot}60`, animation: "pulseDot 2s infinite" }} />
       <span className="text-[12px] text-text-tertiary">{nudge.text}</span>
     </button>
   );
