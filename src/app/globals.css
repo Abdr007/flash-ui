@@ -59,13 +59,13 @@ html, body {
   -webkit-mask-image: radial-gradient(ellipse 90% 85% at 50% 45%, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
 }
 
-/* Subtle ambient glow behind balance */
+/* Subtle ambient glow behind balance — creates depth */
 .hero-glow {
   position: absolute;
-  width: 400px;
-  height: 400px;
+  width: 500px;
+  height: 500px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(200, 245, 71, 0.03) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(200, 245, 71, 0.02) 0%, rgba(200, 245, 71, 0.005) 40%, transparent 70%);
   pointer-events: none;
   top: 50%;
   left: 50%;
