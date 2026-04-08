@@ -158,41 +158,12 @@ function createFafStreamResponse(toolName: string, result: Record<string, unknow
 // ---- Conversational Intent Fast-Path (no AI needed) ----
 // Returns text prompts for button-triggered intents when AI is unavailable
 
+// Button-triggered intents return a minimal response — QuickReply renders the Galileo-style buttons
 const CONVERSATIONAL_INTENTS: { pattern: RegExp; response: string }[] = [
-  {
-    pattern: /^I want to trade$/i,
-    response:
-      "**What do you want to trade?**\n\n" +
-      "`long SOL 5x $25` — Long SOL, 5x leverage, $25 collateral\n" +
-      "`short BTC 3x $50` — Short BTC, 3x leverage\n" +
-      "`long ETH 5x $25` — Long ETH\n\n" +
-      "Format: `long/short MARKET LEVx $AMOUNT`",
-  },
-  {
-    pattern: /^I want to earn yield$/i,
-    response:
-      "**Earn Yield**\n\n" +
-      "`deposit 50 USDC into crypto pool` — Crypto pool\n" +
-      "`deposit 100 USDC into defi pool` — DeFi pool\n\n" +
-      "Pools: crypto, defi, gold, meme, wif, fart, ore",
-  },
-  {
-    pattern: /^I want to transfer tokens$/i,
-    response:
-      "**Transfer Tokens**\n\n" +
-      "Tell me the token, amount, and recipient.\n\n" +
-      "Example: `send 2 SOL to <wallet_address>`\n\n" +
-      "I'll guide you step by step.",
-  },
-  {
-    pattern: /^show my portfolio$/i,
-    response:
-      "**Portfolio**\n\n" +
-      "`positions` — Open trading positions\n" +
-      "`portfolio` — Full portfolio overview\n" +
-      "`prices` — All market prices\n" +
-      "`faf status` — FAF staking dashboard",
-  },
+  { pattern: /^I want to trade$/i, response: "Pick a trade to get started." },
+  { pattern: /^I want to earn yield$/i, response: "Choose a pool to start earning." },
+  { pattern: /^I want to transfer tokens$/i, response: "What would you like to send?" },
+  { pattern: /^show my portfolio$/i, response: "Here's your portfolio overview." },
 ];
 
 function matchConversationalIntent(input: string): string | null {
