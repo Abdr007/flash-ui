@@ -158,18 +158,70 @@ function createFafStreamResponse(toolName: string, result: Record<string, unknow
 // ---- Conversational Intent Fast-Path (no AI needed) ----
 // Returns text prompts for button-triggered intents when AI is unavailable
 
-// Button-triggered intents return a minimal response — QuickReply renders the Galileo-style buttons
-const CONVERSATIONAL_INTENTS: { pattern: RegExp; response: string }[] = [
-  { pattern: /^I want to trade$/i, response: "Pick a trade to get started." },
-  { pattern: /^I want to earn yield$/i, response: "Choose a pool to start earning." },
-  { pattern: /^I want to transfer tokens$/i, response: "What would you like to send?" },
-  { pattern: /^show my portfolio$/i, response: "Here's your portfolio overview." },
+// Button-triggered intents return Galileo-style option cards (rendered by OptionsCard)
+const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<string, unknown> }[] = [
+  {
+    pattern: /^I want to trade$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "What would you like to trade?",
+      options: [
+        { label: "Long SOL", intent: "long SOL 5x $25", description: "5x leverage, $25 collateral" },
+        { label: "Short SOL", intent: "short SOL 3x $25", description: "3x leverage, $25 collateral" },
+        { label: "Long BTC", intent: "long BTC 5x $50", description: "5x leverage, $50 collateral" },
+        { label: "Long ETH", intent: "long ETH 5x $25", description: "5x leverage, $25 collateral" },
+        { label: "All markets", intent: "show all prices", description: "View prices + open interest" },
+      ],
+    },
+  },
+  {
+    pattern: /^I want to earn yield$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "Choose a pool to start earning",
+      options: [
+        { label: "See available pools", intent: "what earn pools are available and their APY?", description: "View pool APYs" },
+        { label: "Deposit to Crypto pool", intent: "deposit 50 USDC into crypto pool", description: "Crypto.1 pool" },
+        { label: "Deposit to DeFi pool", intent: "deposit 50 USDC into defi pool", description: "Governance pool" },
+        { label: "My earn positions", intent: "show my earn positions", description: "Current deposits" },
+      ],
+    },
+  },
+  {
+    pattern: /^I want to transfer tokens$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "What would you like to send?",
+      options: [
+        { label: "Send SOL", intent: "I want to send SOL to another wallet", description: "Transfer SOL" },
+        { label: "Send USDC", intent: "I want to send USDC to another wallet", description: "Transfer USDC" },
+        { label: "Send other token", intent: "I want to send a token to another wallet", description: "Any SPL token" },
+      ],
+    },
+  },
+  {
+    pattern: /^show my portfolio$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "Portfolio",
+      options: [
+        { label: "My positions", intent: "show my positions", description: "Open trades" },
+        { label: "Wallet balances", intent: "what are my token balances?", description: "All tokens" },
+        { label: "Portfolio risk", intent: "analyze my portfolio risk and exposure", description: "Risk analysis" },
+        { label: "FAF staking", intent: "faf", description: "Staking dashboard" },
+      ],
+    },
+  },
 ];
 
-function matchConversationalIntent(input: string): string | null {
+function matchConversationalIntent(input: string): (typeof CONVERSATIONAL_INTENTS)[number] | null {
   const trimmed = input.trim();
   for (const intent of CONVERSATIONAL_INTENTS) {
-    if (intent.pattern.test(trimmed)) return intent.response;
+    if (intent.pattern.test(trimmed)) return intent;
   }
   return null;
 }
@@ -313,12 +365,17 @@ export async function POST(req: Request) {
     }
   }
 
-  // ---- CONVERSATIONAL FAST PATH: button intents → text prompts (NO AI needed) ----
+  // ---- CONVERSATIONAL FAST PATH: button intents → Galileo-style option cards ----
   {
-    const convResponse = matchConversationalIntent(lastUserText);
-    if (convResponse) {
+    const convMatch = matchConversationalIntent(lastUserText);
+    if (convMatch) {
       logInfo("fast_path", { wallet: walletAddress, data: { type: "conversational", input: lastUserText.slice(0, 40) } });
-      return createFafTextResponse(convResponse);
+      return createFafStreamResponse(convMatch.toolName, {
+        status: "success",
+        data: convMatch.data,
+        request_id: `opt_${Date.now()}`,
+        latency_ms: 0,
+      });
     }
   }
 
