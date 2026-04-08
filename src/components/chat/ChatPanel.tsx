@@ -69,7 +69,9 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
 
   const { messages, sendMessage, status } = useChat({ transport: transportRef.current });
   const isStreaming = status === "streaming";
+  const isError = status === "error";
   const hasMessages = messages.length > 0;
+  const lastUserMsg = useRef<string>("");
 
   useEffect(() => { setStreaming(isStreaming); }, [isStreaming, setStreaming]);
 
@@ -126,6 +128,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     // Haptic feedback on mobile (noop on desktop/iOS)
     try { navigator?.vibrate?.(10); } catch {}
 
+    lastUserMsg.current = msg;
     sendMessage({ text: msg });
     setInput("");
     setAutocomplete([]);
@@ -137,10 +140,10 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     if (isStreaming) setOptimisticPending(false);
   }, [isStreaming]);
 
-  // Also clear after 5s timeout (safety net if streaming never starts)
+  // Safety net: clear optimistic state if streaming never starts (3s max)
   useEffect(() => {
     if (!optimisticPending) return;
-    const t = setTimeout(() => setOptimisticPending(false), 5000);
+    const t = setTimeout(() => setOptimisticPending(false), 3000);
     return () => clearTimeout(t);
   }, [optimisticPending]);
 
@@ -218,6 +221,20 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               );
             })}
             {(isStreaming || optimisticPending) && <StreamingDot />}
+            {isError && !isStreaming && (
+              <div className="flex items-center gap-3 py-2 mt-4 msg-anim">
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px]"
+                  style={{ background: "rgba(255,77,77,0.06)", border: "1px solid rgba(255,77,77,0.12)" }}>
+                  <span className="text-text-secondary">Something went wrong.</span>
+                  <button
+                    onClick={() => lastUserMsg.current && handleSubmit(lastUserMsg.current)}
+                    className="font-semibold cursor-pointer hover:underline"
+                    style={{ color: "var(--color-accent-lime)" }}>
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -271,7 +288,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               value={input}
               onChange={handleTextareaInput}
               onKeyDown={handleKeyDown}
-              placeholder={isExecuting ? "Executing trade..." : isStreaming ? "Thinking..." : "What's the price of...?"}
+              placeholder={isExecuting ? "Executing trade..." : isStreaming ? "Thinking..." : "Ask anything..."}
               disabled={isExecuting}
               rows={1}
               className="w-full bg-transparent text-[15px] text-text-primary px-5 pt-4 pb-14
@@ -284,7 +301,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                 {isStreaming && <StreamingDot inline />}
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-[13px] font-medium" style={{ color: "var(--color-text-tertiary)" }}>Feedback</span>
                 <button
                   onClick={() => {
                     handleSubmit();
