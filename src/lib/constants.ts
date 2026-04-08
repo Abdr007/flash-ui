@@ -35,7 +35,7 @@ export const TOKEN_META: Record<string, { name: string; logo: string; color: str
   VSOL:     { name: "Validator SOL",     logo: "https://assets.coingecko.com/coins/images/32440/standard/vsol.png",            color: "#5B21B6" },
   INF:      { name: "Infinity SOL",      logo: "https://assets.coingecko.com/coins/images/35288/standard/inf.png",             color: "#22D3EE" },
   // FAF
-  FAF:      { name: "Flash Trade",       logo: "",                                                                             color: "#C8F547" },
+  FAF:      { name: "Flash Trade",       logo: "/ft-logo.svg",                                                                 color: "#33C9A1" },
   // DeFi & memes
   HYPE:     { name: "Hyperliquid",       logo: "",                                                                            color: "#00E5A0" },
   TRUMP:    { name: "TRUMP",             logo: "https://assets.coingecko.com/coins/images/44261/standard/trump.jpg",           color: "#D4AF37" },
