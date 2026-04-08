@@ -88,8 +88,9 @@ export function createFafDashboardTool(wallet: string) {
 export function createFafStakeTool(wallet: string) {
   return tool({
     description:
-      "Preview staking FAF tokens. Shows amount, estimated tier change, and fee discount. " +
-      "User must confirm before execution. Call when user says 'faf stake <amount>'.",
+      "Preview STAKING (depositing) FAF tokens. Shows amount, estimated tier change, and fee discount. " +
+      "User must confirm before execution. Call ONLY when user wants to STAKE/DEPOSIT — NOT for unstake/withdraw. " +
+      "Trigger: 'faf stake <amount>', 'stake 10 faf', 'i want to stake'.",
     inputSchema: z.object({
       amount: z.number().positive().describe("Amount of FAF to stake"),
     }),
@@ -171,8 +172,9 @@ export function createFafStakeTool(wallet: string) {
 export function createFafUnstakeTool(wallet: string) {
   return tool({
     description:
-      "Preview unstaking FAF tokens. Warns about 90-day lock period. " +
-      "Call when user says 'faf unstake <amount>'.",
+      "Preview UNSTAKING (withdrawing) FAF tokens. Warns about 90-day lock period. " +
+      "Call when user wants to UNSTAKE/WITHDRAW/REMOVE staked FAF — NOT for staking/depositing. " +
+      "Trigger: 'faf unstake <amount>', 'unstake 10 faf', 'i want to unstake', 'withdraw faf'.",
     inputSchema: z.object({
       amount: z.number().positive().describe("Amount of FAF to unstake"),
     }),

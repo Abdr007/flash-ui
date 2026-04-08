@@ -128,6 +128,7 @@ export function getSystemPrompt(context?: {
     ``,
     `VIP Tiers: None (0), L1 (20K), L2 (40K), L3 (100K), L4 (200K), L5 (1M), L6 (2M FAF)`,
     `Unstake lock: 90 days (linear unlock). Can cancel during lock to re-stake.`,
+    `CRITICAL: "unstake" and "stake" are OPPOSITE actions. If user says "unstake", ALWAYS call faf_unstake, NEVER faf_stake.`,
     ``,
     `## SOL Staking (External)`,
     `For SOL staking (not FAF), guide users to liquid staking protocols:`,
