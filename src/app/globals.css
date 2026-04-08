@@ -413,10 +413,16 @@ html, body {
   0%, 60%, 100% { transform: translate3d(0, 0, 0); }
   30% { transform: translate3d(0, -4px, 0); }
 }
-/* FAF breathing glow ring — slow, alive, premium */
+/* FAF breathing glow — slow, alive, premium */
 @keyframes fafBreathe {
   0%, 100% { opacity: 0.3; transform: scale(1); }
   50% { opacity: 0.7; transform: scale(1.08); }
+}
+/* Floating orb behind balance — ambient depth */
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(15px, -8px) scale(1.05); }
+  66% { transform: translate(-10px, 5px) scale(0.97); }
 }
 .typing-dot {
   width: 6px; height: 6px;
