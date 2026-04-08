@@ -191,15 +191,11 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
   },
   {
     pattern: /^I want to transfer tokens$/i,
-    toolName: "action_options",
+    toolName: "transfer_picker",
     data: {
-      type: "action_options",
-      title: "What would you like to send?",
-      options: [
-        { label: "Send SOL", intent: "I want to send SOL to another wallet", description: "Transfer SOL" },
-        { label: "Send USDC", intent: "I want to send USDC to another wallet", description: "Transfer USDC" },
-        { label: "Send other token", intent: "I want to send a token to another wallet", description: "Any SPL token" },
-      ],
+      type: "transfer_picker",
+      title: "Transfer Tokens",
+      tokens: ["SOL", "USDC"],
     },
   },
   {

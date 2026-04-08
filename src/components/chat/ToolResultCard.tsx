@@ -69,6 +69,7 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   reverse_position_preview: "Reverse Position",
   earn_deposit: "Earn Deposit",
   action_options: "",
+  transfer_picker: "",
 };
 
 const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: ToolPart; onAction?: (cmd: string) => void }) {
@@ -112,11 +113,13 @@ const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: 
     case "faf_cancel_unstake":
     case "faf_tier": card = <FafCard toolName={part.toolName} output={output} onAction={onAction} />; break;
     case "action_options": card = <ActionOptionsCard output={output} onAction={onAction} />; break;
+    case "transfer_picker": // fall through — rendered by ActionOptionsCard with special type
+      card = <TransferPickerCard output={output} onAction={onAction} />; break;
     default: card = <GenericCard toolName={part.toolName} output={output} />; break;
   }
 
-  // Hide status header for action_options (clean Galileo-style)
-  if (part.toolName === "action_options") return <div>{card}</div>;
+  // Hide status header for option/picker cards (clean Galileo-style)
+  if (part.toolName === "action_options" || part.toolName === "transfer_picker") return <div>{card}</div>;
   return <div>{statusHeader}{card}</div>;
 });
 
@@ -2307,6 +2310,99 @@ function FafAmountPicker({ data, onAction }: { data: Record<string, unknown>; on
     </div>
   );
 }
+
+// ============================================
+// Transfer Picker Card (inline token + amount + address)
+// ============================================
+
+const TransferPickerCard = memo(function TransferPickerCard({ output, onAction }: { output: ToolOutput; onAction?: (cmd: string) => void }) {
+  const data = output.data as Record<string, unknown> | null;
+  if (!data) return null;
+
+  const tokens = (data.tokens ?? ["SOL", "USDC"]) as string[];
+  const [token, setToken] = useState(tokens[0] ?? "SOL");
+  const [amount, setAmount] = useState("");
+  const [address, setAddress] = useState("");
+
+  const canSend = amount && Number(amount) > 0 && address.length >= 32;
+
+  function handleSend() {
+    if (!canSend || !onAction) return;
+    onAction(`send ${amount} ${token} to ${address}`);
+  }
+
+  return (
+    <div className="glass-card-solid overflow-hidden" style={{ animation: "slideUp 200ms ease-out" }}>
+      <div className="px-5 py-4">
+        <div className="text-[15px] font-semibold text-text-primary mb-4">Transfer Tokens</div>
+
+        {/* Token selector */}
+        <div className="flex gap-2 mb-3">
+          {tokens.map((t) => (
+            <button key={t} onClick={() => setToken(t)}
+              className="px-4 py-2 rounded-lg text-[13px] font-medium cursor-pointer transition-all"
+              style={{
+                background: token === t ? "rgba(200,245,71,0.12)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${token === t ? "rgba(200,245,71,0.3)" : "rgba(255,255,255,0.08)"}`,
+                color: token === t ? "var(--color-accent-lime)" : "var(--color-text-secondary)",
+              }}>
+              {t}
+            </button>
+          ))}
+          <button onClick={() => {
+            const custom = prompt("Enter token symbol or mint address:");
+            if (custom?.trim()) setToken(custom.trim());
+          }}
+            className="px-4 py-2 rounded-lg text-[13px] font-medium cursor-pointer transition-all"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-tertiary)" }}>
+            Other
+          </button>
+        </div>
+
+        {/* Amount input */}
+        <div className="mb-3">
+          <label className="text-[11px] uppercase tracking-wider text-text-tertiary mb-1.5 block">Amount</label>
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={`0.00 ${token}`}
+            className="w-full px-3 py-2.5 rounded-lg text-[14px] font-mono text-text-primary placeholder:text-text-tertiary outline-none"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            onKeyDown={(e) => e.key === "Enter" && document.getElementById("transfer-address")?.focus()}
+          />
+        </div>
+
+        {/* Address input */}
+        <div className="mb-4">
+          <label className="text-[11px] uppercase tracking-wider text-text-tertiary mb-1.5 block">Recipient wallet</label>
+          <input
+            id="transfer-address"
+            type="text"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Solana wallet address"
+            className="w-full px-3 py-2.5 rounded-lg text-[14px] font-mono text-text-primary placeholder:text-text-tertiary outline-none"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            onKeyDown={(e) => e.key === "Enter" && canSend && handleSend()}
+          />
+        </div>
+      </div>
+
+      {/* Send button */}
+      <button
+        onClick={handleSend}
+        disabled={!canSend}
+        className="w-full py-3.5 text-[14px] font-bold cursor-pointer transition-all disabled:opacity-30 disabled:cursor-default"
+        style={{
+          background: canSend ? "var(--color-accent-lime)" : "rgba(200,245,71,0.1)",
+          color: canSend ? "#0a0a0a" : "var(--color-text-tertiary)",
+        }}>
+        Send {amount || "0"} {token}
+      </button>
+    </div>
+  );
+});
 
 // ============================================
 // Action Options Card (Galileo-style option picker)
