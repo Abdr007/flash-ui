@@ -2321,14 +2321,17 @@ const TransferPickerCard = memo(function TransferPickerCard({ output, onAction }
 
   const tokens = (data.tokens ?? ["SOL", "USDC"]) as string[];
   const [token, setToken] = useState(tokens[0] ?? "SOL");
+  const [customToken, setCustomToken] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
 
-  const canSend = amount && Number(amount) > 0 && address.length >= 32;
+  const activeToken = showCustom ? customToken : token;
+  const canSend = amount && Number(amount) > 0 && address.length >= 32 && activeToken.length > 0;
 
   function handleSend() {
     if (!canSend || !onAction) return;
-    onAction(`send ${amount} ${token} to ${address}`);
+    onAction(`send ${amount} ${activeToken} to ${address}`);
   }
 
   return (
@@ -2339,25 +2342,42 @@ const TransferPickerCard = memo(function TransferPickerCard({ output, onAction }
         {/* Token selector */}
         <div className="flex gap-2 mb-3">
           {tokens.map((t) => (
-            <button key={t} onClick={() => setToken(t)}
+            <button key={t} onClick={() => { setToken(t); setShowCustom(false); }}
               className="px-4 py-2 rounded-lg text-[13px] font-medium cursor-pointer transition-all"
               style={{
-                background: token === t ? "rgba(200,245,71,0.12)" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${token === t ? "rgba(200,245,71,0.3)" : "rgba(255,255,255,0.08)"}`,
-                color: token === t ? "var(--color-accent-lime)" : "var(--color-text-secondary)",
+                background: !showCustom && token === t ? "rgba(200,245,71,0.12)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${!showCustom && token === t ? "rgba(200,245,71,0.3)" : "rgba(255,255,255,0.08)"}`,
+                color: !showCustom && token === t ? "var(--color-accent-lime)" : "var(--color-text-secondary)",
               }}>
               {t}
             </button>
           ))}
-          <button onClick={() => {
-            const custom = prompt("Enter token symbol or mint address:");
-            if (custom?.trim()) setToken(custom.trim());
-          }}
+          <button onClick={() => setShowCustom(true)}
             className="px-4 py-2 rounded-lg text-[13px] font-medium cursor-pointer transition-all"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-tertiary)" }}>
+            style={{
+              background: showCustom ? "rgba(200,245,71,0.12)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${showCustom ? "rgba(200,245,71,0.3)" : "rgba(255,255,255,0.08)"}`,
+              color: showCustom ? "var(--color-accent-lime)" : "var(--color-text-tertiary)",
+            }}>
             Other
           </button>
         </div>
+
+        {/* Custom token input */}
+        {showCustom && (
+          <div className="mb-3">
+            <label className="text-[11px] uppercase tracking-wider text-text-tertiary mb-1.5 block">Token symbol or mint</label>
+            <input
+              type="text"
+              value={customToken}
+              onChange={(e) => setCustomToken(e.target.value)}
+              placeholder="e.g. BONK or mint address"
+              autoFocus
+              className="w-full px-3 py-2.5 rounded-lg text-[14px] font-mono text-text-primary placeholder:text-text-tertiary outline-none"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            />
+          </div>
+        )}
 
         {/* Amount input */}
         <div className="mb-3">
@@ -2398,7 +2418,7 @@ const TransferPickerCard = memo(function TransferPickerCard({ output, onAction }
           background: canSend ? "var(--color-accent-lime)" : "rgba(200,245,71,0.1)",
           color: canSend ? "#0a0a0a" : "var(--color-text-tertiary)",
         }}>
-        Send {amount || "0"} {token}
+        Send {amount || "0"} {activeToken}
       </button>
     </div>
   );
