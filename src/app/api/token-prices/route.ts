@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     const solLamports = Number(native.lamports ?? 0);
     const solPrice = Number(native.price_per_sol ?? 0);
     const solBalance = solLamports / 1e9;
-    const solUsd = solBalance * solPrice;
+    let solUsd = solBalance * solPrice;
 
     // SPL tokens
     const tokens: TokenBalance[] = [];
