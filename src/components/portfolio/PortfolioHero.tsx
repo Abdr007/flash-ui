@@ -11,7 +11,6 @@
 // - Ambient glow + dot grid background
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import Image from "next/image";
 import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS, TOKEN_META } from "@/lib/constants";
 import { formatUsd, formatPnl, safe } from "@/lib/format";
@@ -311,19 +310,19 @@ function TokenIcon({ token, size = 32, style }: {
   }
 
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       key={activeSrc}
       src={activeSrc!}
       alt={token.symbol}
       width={size}
       height={size}
       className="token-logo"
-      style={{ width: size, height: size, flexShrink: 0, borderRadius: "50%", ...style }}
+      style={{ width: size, height: size, flexShrink: 0, borderRadius: "50%", objectFit: "cover", ...style }}
       onError={() => {
         if (!primaryFailed) setPrimaryFailed(true);
         else setFallbackFailed(true);
       }}
-      unoptimized
     />
   );
 }

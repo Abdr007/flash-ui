@@ -28,16 +28,16 @@ export const TOKEN_META: Record<string, { name: string; logo: string; color: str
   NVDA:     { name: "Nvidia",            logo: "https://assets.coingecko.com/coins/images/33033/standard/nvidia.png",         color: "#76B900" },
   TSLA:     { name: "Tesla",             logo: "https://assets.coingecko.com/coins/images/33031/standard/tesla.png",          color: "#CC0000" },
   // Liquid staking tokens
-  JITOSOL:  { name: "Jito Staked SOL",   logo: "https://assets.coingecko.com/coins/images/33228/standard/jto.png",            color: "#4E7CFF" },
+  JITOSOL:  { name: "Jito Staked SOL",   logo: "",                                                                             color: "#45AA5B" },
   MSOL:     { name: "Marinade SOL",      logo: "https://assets.coingecko.com/coins/images/17752/standard/mSOL.png",           color: "#308D8A" },
   BSOL:     { name: "BlazeStake SOL",    logo: "https://assets.coingecko.com/coins/images/26636/standard/blazeStake.png",     color: "#E87E34" },
   HSOL:     { name: "Helius Staked SOL", logo: "https://assets.coingecko.com/coins/images/34511/standard/hsol.png",            color: "#FF6B35" },
   VSOL:     { name: "Validator SOL",     logo: "https://assets.coingecko.com/coins/images/32440/standard/vsol.png",            color: "#5B21B6" },
   INF:      { name: "Infinity SOL",      logo: "https://assets.coingecko.com/coins/images/35288/standard/inf.png",             color: "#22D3EE" },
   // FAF
-  FAF:      { name: "Flash Trade",       logo: "https://assets.coingecko.com/coins/images/39064/standard/faf.jpg",             color: "#C8F547" },
+  FAF:      { name: "Flash Trade",       logo: "",                                                                             color: "#C8F547" },
   // DeFi & memes
-  HYPE:     { name: "Hyperliquid",       logo: "https://assets.coingecko.com/coins/images/40845/standard/hype.png",            color: "#00E5A0" },
+  HYPE:     { name: "Hyperliquid",       logo: "",                                                                            color: "#00E5A0" },
   TRUMP:    { name: "TRUMP",             logo: "https://assets.coingecko.com/coins/images/44261/standard/trump.jpg",           color: "#D4AF37" },
   RENDER:   { name: "Render",            logo: "https://assets.coingecko.com/coins/images/11636/standard/rndr.png",            color: "#1F1F3D" },
   HNT:      { name: "Helium",            logo: "https://assets.coingecko.com/coins/images/4284/standard/Helium_HNT.png",      color: "#474DFF" },
@@ -70,7 +70,8 @@ export const TOKEN_META: Record<string, { name: string; logo: string; color: str
   SUI:      { name: "Sui",               logo: "https://assets.coingecko.com/coins/images/26375/standard/sui.png",             color: "#6FBCF0" },
   ZEC:      { name: "Zcash",             logo: "https://assets.coingecko.com/coins/images/486/standard/circle-zcash-color.png", color: "#ECB244" },
   SPY:      { name: "S&P 500",           logo: "https://assets.coingecko.com/coins/images/34654/standard/spy.png",             color: "#3B82F6" },
-  SPYX:     { name: "SPX6900",           logo: "https://assets.coingecko.com/coins/images/31401/standard/spx.jpg",             color: "#1E40AF" },
+  SPYX:     { name: "SPX6900",           logo: "",                                                                             color: "#1E40AF" },
+  SPX:      { name: "SPX6900",           logo: "",                                                                             color: "#1E40AF" },
 };
 
 // Supported markets (from flash-x pool resolver)
