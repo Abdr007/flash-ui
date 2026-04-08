@@ -126,7 +126,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
           TOTAL BALANCE
         </div>
 
-        <div className="text-[62px] font-bold tracking-[-0.03em] leading-[1] num mb-4"
+        <div className="text-[68px] font-bold tracking-[-0.03em] leading-[1] num mb-4"
           style={{ color: walletConnected && !walletDataError ? "#FFFFFF" : "rgba(255,255,255,0.2)" }}>
           {!walletConnected ? "$0.00"
             : walletDataLoading && totalWalletUsd === 0 ? "···"
@@ -176,7 +176,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
 
       {/* ═══ UNIFIED ASSET CARD ═══ */}
       {walletConnected && tokens.length > 0 && (
-        <div className="w-full mb-10 relative z-10 rounded-[20px] overflow-hidden"
+        <div className="w-full mb-10 relative z-10 rounded-[22px] overflow-hidden"
           style={{
             background: "rgba(255,255,255,0.025)",
             border: "1px solid rgba(255,255,255,0.05)",
@@ -184,17 +184,17 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
           }}>
           {/* Header */}
           <button onClick={toggleAssets}
-            className="w-full flex items-center justify-between px-5 py-4 cursor-pointer
+            className="w-full flex items-center justify-between px-6 py-5 cursor-pointer
               transition-colors duration-150 hover:bg-white/[0.015]"
             style={{ borderBottom: assetsExpanded ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
             <div className="flex items-center">
               {tokens.slice(0, 4).map((t, i) => (
-                <TokenIcon key={t.symbol} token={t} size={32} style={{
-                  marginLeft: i > 0 ? "-8px" : "0", zIndex: 10 - i,
-                  border: "2.5px solid #0C1018", borderRadius: "50%",
+                <TokenIcon key={t.symbol} token={t} size={38} style={{
+                  marginLeft: i > 0 ? "-10px" : "0", zIndex: 10 - i,
+                  border: "3px solid #0C1018", borderRadius: "50%",
                 }} />
               ))}
-              <span className="text-[14px] ml-3 font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+              <span className="text-[15px] ml-3.5 font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
                 {tokens.length} assets
               </span>
             </div>
@@ -215,10 +215,10 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
           }}>
             {tokens.map((t, i) => (
               <div key={t.symbol}
-                className="flex items-center justify-between px-5 py-3.5 transition-colors duration-100 hover:bg-white/[0.02]"
+                className="flex items-center justify-between px-6 py-4 transition-colors duration-100 hover:bg-white/[0.02]"
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                 <div className="flex items-center gap-4">
-                  <TokenIcon token={t} size={40} />
+                  <TokenIcon token={t} size={44} />
                   <div>
                     <div className="text-[15px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>{t.name}</div>
                     <div className="text-[12px] num mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
@@ -243,7 +243,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
       )}
 
       {/* ═══ ACTION ROW ═══ */}
-      <div className="flex items-end justify-center gap-5 mb-8 relative z-10">
+      <div className="flex items-end justify-center gap-6 mb-10 relative z-10">
         <ActionNode label="Trade" onClick={() => onAction("I want to trade")}
           icon={<><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></>} />
         <ActionNode label="Earn" onClick={() => onAction("I want to earn yield")}
@@ -261,28 +261,31 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   );
 }
 
-// ═══ ACTION NODE — Clean circle, white icon, premium glass ═══
+// ═══ ACTION NODE — Premium circle, bold icon ═══
 const ActionNode = memo(function ActionNode({ label, icon, onClick }: {
   label: string; icon: React.ReactNode; onClick: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-2.5">
+    <div className="flex flex-col items-center gap-3">
       <button onClick={onClick}
         className="flex items-center justify-center cursor-pointer
-          transition-all duration-200 hover:-translate-y-[2px] hover:border-white/[0.12]
+          transition-all duration-200 hover:-translate-y-[2px]
           active:scale-[0.92] active:translate-y-0"
         style={{
-          width: "56px", height: "56px", borderRadius: "50%",
+          width: "66px", height: "66px", borderRadius: "50%",
           background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          backdropFilter: "blur(12px)",
-        }}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-          stroke="rgba(255,255,255,0.6)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          border: "1.5px solid rgba(255,255,255,0.07)",
+          backdropFilter: "blur(16px)",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(255,255,255,0.55)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           {icon}
         </svg>
       </button>
-      <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>{label}</span>
+      <span className="text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</span>
     </div>
   );
 });
@@ -341,7 +344,7 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
   if (trending.length === 0) return null;
 
   return (
-    <div className="flex items-center justify-center relative z-10 px-5 py-2.5 rounded-full"
+    <div className="flex items-center justify-center relative z-10 px-6 py-3 rounded-full"
       style={{
         background: "rgba(255,255,255,0.02)",
         border: "1px solid rgba(255,255,255,0.04)",
@@ -359,9 +362,9 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
         <button key={t.symbol} onClick={() => onAction(t.symbol === "FAF" ? "faf" : `price of ${t.symbol}`)}
           className="flex items-center gap-1.5 cursor-pointer transition-opacity duration-150 hover:opacity-70"
           style={{ marginLeft: i > 0 ? "12px" : "0", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none", paddingLeft: i > 0 ? "12px" : "0" }}>
-          <TokenIcon token={t} size={16} />
-          <span className="text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.5)" }}>{t.symbol}</span>
-          <span className="text-[12px] num font-bold" style={{ color: t.change >= 0 ? "#2CE800" : "#FF4D4D" }}>
+          <TokenIcon token={t} size={18} />
+          <span className="text-[13px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>{t.symbol}</span>
+          <span className="text-[13px] num font-bold" style={{ color: t.change >= 0 ? "#2CE800" : "#FF4D4D" }}>
             {t.change >= 0 ? "+" : ""}{t.change.toFixed(2)}%
           </span>
         </button>
