@@ -77,11 +77,7 @@ export async function POST(req: NextRequest) {
       const pricePerToken = Number(info.price_info?.price_per_token ?? 0);
       const amount = decimals > 0 ? balance / Math.pow(10, decimals) : balance;
       const usdValue = amount * pricePerToken;
-      // Debug: log what Helius returns for token logo fields
-      if (symbol !== "???" && usdValue > 1) {
-        console.log(`[token-logo] ${symbol} mint=${mint.slice(0,8)}... content.links.image=${item.content?.links?.image ?? "NONE"} files[0]=${JSON.stringify(item.content?.files?.[0] ?? "NONE")} image_uri=${info.image_uri ?? "NONE"}`);
-      }
-      // Token logo: try all known Helius DAS paths
+      // Token logo: Helius DAS provides logos for all SPL tokens
       const logoUri = String(
         item.content?.links?.image
         || item.content?.files?.[0]?.cdn_uri
