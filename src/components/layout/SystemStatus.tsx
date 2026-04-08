@@ -16,7 +16,12 @@ export default function SystemStatus() {
   };
 
   return (
-    <div className="flex items-center justify-end px-5 h-14 shrink-0">
+    <div className="flex flex-col">
+      {/* Early version banner */}
+      <div className="text-center py-2 text-[13px]" style={{ color: "rgba(255,255,255,0.45)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        You are using an <span className="font-semibold" style={{ color: "#3AFFE1" }}>early</span> version of Flash Terminal. Always verify details before signing.
+      </div>
+      <div className="flex items-center justify-end px-5 h-12 shrink-0">
 
 
       {/* Wallet */}
@@ -50,6 +55,7 @@ export default function SystemStatus() {
           <span className="font-semibold">Connect Wallet</span>
         )}
       </button>
+    </div>
     </div>
   );
 }

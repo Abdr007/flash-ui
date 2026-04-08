@@ -118,6 +118,23 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   // Optimistic: show instant placeholder the moment user sends
   const [optimisticPending, setOptimisticPending] = useState(false);
 
+  // Rotating placeholder prompts
+  const PROMPTS = useMemo(() => [
+    "Long SOL 5x $100...",
+    "What's the price of ETH?",
+    "Show my positions...",
+    "Stake 500 FAF...",
+    "Send 2 SOL to...",
+    "Close my BTC position...",
+    "Show all market prices...",
+  ], []);
+  const [promptIdx, setPromptIdx] = useState(0);
+  useEffect(() => {
+    if (hasMessages) return;
+    const iv = setInterval(() => setPromptIdx((i) => (i + 1) % PROMPTS.length), 3000);
+    return () => clearInterval(iv);
+  }, [hasMessages, PROMPTS.length]);
+
   const handleSubmit = useCallback((text?: string) => {
     const msg = (text ?? input).trim();
     if (!msg || isStreaming || isExecuting) return;
@@ -279,7 +296,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               value={input}
               onChange={handleTextareaInput}
               onKeyDown={handleKeyDown}
-              placeholder={isExecuting ? "Executing trade..." : isStreaming ? "Thinking..." : "Ask anything..."}
+              placeholder={isExecuting ? "Executing trade..." : isStreaming ? "Thinking..." : hasMessages ? "Ask anything..." : PROMPTS[promptIdx]}
               disabled={isExecuting}
               rows={1}
               className="w-full bg-transparent text-[15px] text-text-primary px-5 pt-4 pb-14

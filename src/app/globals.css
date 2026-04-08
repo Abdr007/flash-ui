@@ -2,8 +2,8 @@
 
 @theme inline {
   /* Premium dark palette — deeper, richer contrast */
-  --color-bg-root: #070A0F;
-  --color-bg-surface: #0B0F16;
+  --color-bg-root: #080C12;
+  --color-bg-surface: #0C1018;
   --color-bg-card: rgba(14, 19, 28, 0.75);
   --color-bg-card-solid: #0E131C;
   --color-bg-card-hover: #141B28;

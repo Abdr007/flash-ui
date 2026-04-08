@@ -98,7 +98,9 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
 
   let totalPnl = 0;
   for (const pos of positions) totalPnl += safe(pos.unrealized_pnl);
-  const springBalance = useNumberSpring(totalWalletUsd, { stiffness: 120, damping: 22 });
+  // Total balance includes wallet tokens + unrealized PnL from open positions (like Galileo)
+  const totalWithPnl = totalWalletUsd + totalPnl;
+  const springBalance = useNumberSpring(totalWithPnl, { stiffness: 120, damping: 22 });
   const springPnl = useNumberSpring(totalPnl, { stiffness: 160, damping: 20 });
   const toggleAssets = useCallback(() => setAssetsExpanded((v) => !v), []);
 
@@ -320,7 +322,7 @@ function TrendArrow({ positive }: { positive: boolean }) {
 }
 
 // ═══ TRENDING STRIP — real 24h % changes from CoinGecko (like Galileo) ═══
-const CG_IDS: Record<string, string> = { SOL: "solana", BTC: "bitcoin", ETH: "ethereum", JUP: "jupiter-exchange-solana" };
+const CG_IDS: Record<string, string> = { SOL: "solana", BTC: "bitcoin", ETH: "ethereum", FAF: "flash-trade" };
 
 const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd: string) => void }) {
   const [trending, setTrending] = useState<{ symbol: string; change: number; logo: string; color: string }[]>([]);
