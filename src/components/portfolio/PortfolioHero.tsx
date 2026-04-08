@@ -132,26 +132,34 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             : formatUsd(springBalance)}
         </div>
 
-        {/* Status */}
+        {/* Change indicators — like Galileo's 24h/7d but with PnL */}
         {walletConnected && !walletDataError ? (
-          <div className="flex items-center gap-2.5 text-[14px]">
+          <div className="flex items-center gap-1.5 text-[14px]">
             {positions.length > 0 ? (
               <>
-                <span className="num font-semibold" style={{
-                  color: totalPnl >= 0 ? "#2CE800" : "var(--color-accent-short)" }}>
+                <TrendArrow positive={totalPnl >= 0} />
+                <span className="num font-semibold" style={{ color: totalPnl >= 0 ? "#2CE800" : "#FF4D4D" }}>
                   {totalPnl >= 0 ? "+" : ""}{formatPnl(springPnl)}
                 </span>
-                <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.3)" }}>
-                  {positions.length} position{positions.length > 1 ? "s" : ""}
-                </span>
+                <span style={{ color: "rgba(255,255,255,0.25)" }}>PnL</span>
+                {change24h !== null && change24h !== 0 && (
+                  <>
+                    <span style={{ color: "rgba(255,255,255,0.15)", margin: "0 4px" }}>·</span>
+                    <TrendArrow positive={change24h >= 0} />
+                    <span className="num font-semibold" style={{ color: change24h >= 0 ? "#2CE800" : "#FF4D4D" }}>
+                      {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}%
+                    </span>
+                    <span style={{ color: "rgba(255,255,255,0.25)" }}>24h</span>
+                  </>
+                )}
               </>
             ) : change24h !== null && change24h !== 0 ? (
               <>
-                <span className="num font-semibold" style={{
-                  color: change24h >= 0 ? "#2CE800" : "var(--color-accent-short)" }}>
+                <TrendArrow positive={change24h >= 0} />
+                <span className="num font-semibold" style={{ color: change24h >= 0 ? "#2CE800" : "#FF4D4D" }}>
                   {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}%
                 </span>
-                <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.3)" }}>this session</span>
+                <span style={{ color: "rgba(255,255,255,0.25)" }}>24h</span>
               </>
             ) : (
               <span style={{ color: "rgba(255,255,255,0.25)" }}>Ready to trade</span>
@@ -205,8 +213,8 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
           }}>
             {tokens.map((t, i) => (
               <div key={t.symbol}
-                className="flex items-center justify-between px-5 py-3.5 transition-colors duration-100 hover:bg-white/[0.015]"
-                style={{ borderBottom: i < tokens.length - 1 ? "1px solid rgba(255,255,255,0.03)" : "none" }}>
+                className="flex items-center justify-between px-5 py-3.5 transition-colors duration-100 hover:bg-white/[0.02]"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                 <div className="flex items-center gap-4">
                   <TokenIcon token={t} size={40} />
                   <div>
@@ -224,12 +232,16 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
                 </div>
               </div>
             ))}
+            {/* Verified footer */}
+            <div className="text-center py-3" style={{ color: "rgba(255,255,255,0.2)", fontSize: "11px" }}>
+              Showing Verified Tokens {`>`}$0.01
+            </div>
           </div>
         </div>
       )}
 
       {/* ═══ ACTION ROW ═══ */}
-      <div className="flex items-end justify-center gap-4 mb-8 relative z-10">
+      <div className="flex items-end justify-center gap-5 mb-8 relative z-10">
         <ActionNode label="Trade" onClick={() => onAction("I want to trade")}
           icon={<><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></>} />
         <ActionNode label="Earn" onClick={() => onAction("I want to earn yield")}
@@ -240,6 +252,9 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
         <ActionNode label="Portfolio" onClick={() => onAction("show my portfolio")}
           icon={<><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>} />
       </div>
+
+      {/* ═══ LIVE MARKET STRIP — real prices from store ═══ */}
+      <TrendingStrip onAction={onAction} />
     </div>
   );
 }
@@ -288,6 +303,49 @@ const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
         <img src="/ft-logo.svg" alt="FT" width={30} height={30} style={{ width: 30, height: 30 }} />
       </button>
       <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>FAF</span>
+    </div>
+  );
+});
+
+// ═══ TREND ARROW — Galileo-style ═══
+function TrendArrow({ positive }: { positive: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke={positive ? "#2CE800" : "#FF4D4D"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      {positive
+        ? <><polyline points="7 13 12 8 17 13" /><line x1="12" y1="8" x2="12" y2="16" /></>
+        : <><polyline points="7 11 12 16 17 11" /><line x1="12" y1="16" x2="12" y2="8" /></>}
+    </svg>
+  );
+}
+
+// ═══ TRENDING STRIP — live market prices (real data from store) ═══
+const TRENDING = ["SOL", "BTC", "ETH", "JUP"];
+
+const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd: string) => void }) {
+  const prices = useFlashStore((s) => s.prices);
+  const items = TRENDING.map((sym) => {
+    const p = prices[sym];
+    if (!p?.price) return null;
+    const meta = TOKEN_META[sym];
+    return { symbol: sym, price: p.price, logo: meta?.logo ?? "", color: meta?.color ?? "#555" };
+  }).filter(Boolean) as { symbol: string; price: number; logo: string; color: string }[];
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-5 relative z-10"
+      style={{ animation: "fadeIn 500ms ease 200ms both" }}>
+      {items.map((t) => (
+        <button key={t.symbol} onClick={() => onAction(`price of ${t.symbol}`)}
+          className="flex items-center gap-2 cursor-pointer transition-opacity duration-150 hover:opacity-70 active:scale-[0.97]">
+          <TokenIcon token={t} size={18} />
+          <span className="text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.5)" }}>{t.symbol}</span>
+          <span className="text-[12px] num font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+            ${t.price >= 1 ? t.price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : t.price.toFixed(4)}
+          </span>
+        </button>
+      ))}
     </div>
   );
 });
