@@ -382,10 +382,48 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
         </div>
       )}
 
+      {/* Existing position — show combined values after averaging */}
+      {(() => {
+        const existing = positions.find((p) => p.market === t.market && p.side === t.side);
+        if (!existing) return null;
+        const existingSize = safe(existing.size_usd);
+        const existingCollateral = safe(existing.collateral_usd);
+        const existingEntry = safe(existing.entry_price);
+        const newSize = existingSize + t.position_size;
+        const newCollateral = existingCollateral + t.collateral_usd;
+        const newAvgEntry = existingSize > 0 && t.position_size > 0
+          ? (existingEntry * existingSize + t.entry_price * t.position_size) / newSize
+          : t.entry_price;
+        const newLeverage = newCollateral > 0 ? newSize / newCollateral : t.leverage;
+        return (
+          <div className="px-5 py-3 border-t border-border-subtle" style={{ background: "rgba(245,166,35,0.04)" }}>
+            <div className="text-[11px] font-semibold text-accent-warn mb-2.5">After averaging into existing position:</div>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[12px]">
+              <div className="flex justify-between">
+                <span className="text-text-tertiary">Avg Entry</span>
+                <span className="num font-medium text-text-primary">{formatPrice(newAvgEntry)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-tertiary">Total Size</span>
+                <span className="num font-medium text-text-primary">{formatUsd(newSize)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-tertiary">Total Collateral</span>
+                <span className="num font-medium text-text-primary">{formatUsd(newCollateral)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-tertiary">Eff. Leverage</span>
+                <span className="num font-medium text-text-primary">{newLeverage.toFixed(1)}x</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Warnings */}
       {output.warnings && output.warnings.length > 0 && (
         <div className="px-5 py-2.5 text-[12px] text-accent-warn border-t border-border-subtle">
-          {output.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
+          {output.warnings.filter((w) => !w.includes("average into")).map((w, i) => <div key={i}>⚠ {w}</div>)}
         </div>
       )}
 
