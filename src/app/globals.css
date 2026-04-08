@@ -52,11 +52,11 @@ html, body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 26px 26px;
-  /* Galileo-style: dots visible everywhere, gentle fade at edges only */
-  mask-image: radial-gradient(ellipse 90% 85% at 50% 45%, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 90% 85% at 50% 45%, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+  background-image: url('/ft-pattern.svg');
+  background-size: 60px 60px;
+  background-repeat: repeat;
+  mask-image: radial-gradient(ellipse 90% 85% at 50% 45%, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 85% at 50% 45%, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);
 }
 
 /* Subtle ambient glow behind balance — creates depth */
@@ -164,8 +164,9 @@ html, body {
    ============================================ */
 
 .dot-grid {
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 26px 26px;
+  background-image: url('/ft-pattern.svg');
+  background-size: 60px 60px;
+  background-repeat: repeat;
 }
 
 /* ============================================

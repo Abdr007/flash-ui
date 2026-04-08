@@ -106,14 +106,6 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   return (
     <div className="flex flex-col items-center w-full max-w-[540px] mx-auto pt-10 pb-4 px-5 relative">
 
-      {/* ═══ FT LOGO WATERMARK — large, centered, ultra subtle ═══ */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none select-none"
-        style={{ width: "320px", height: "320px", opacity: 0.025 }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/ft-mark.svg" alt="" width={320} height={320}
-          style={{ width: "100%", height: "100%", filter: "brightness(3)" }} />
-      </div>
-
       {/* ═══ BRAND GRADIENT ORBS — teal + yellow + green (from brand kit) ═══ */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[450px] pointer-events-none" style={{ opacity: 0.5 }}>
         <div className="absolute inset-0" style={{
