@@ -77,8 +77,8 @@ export async function POST(req: NextRequest) {
       const pricePerToken = Number(info.price_info?.price_per_token ?? 0);
       const amount = decimals > 0 ? balance / Math.pow(10, decimals) : balance;
       const usdValue = amount * pricePerToken;
-      // Extract logo from Helius DAS content (works for all SPL tokens)
-      const logoUri = String(item.content?.links?.image ?? item.content?.files?.[0]?.uri ?? "");
+      // Token logo: Jupiter CDN works for ALL Solana tokens by mint address (same source as Galileo)
+      const logoUri = mint ? `https://img.jup.ag/tokens/${mint}` : "";
 
       if (amount > 0) {
         tokens.push({ symbol, mint, amount, pricePerToken, usdValue, logoUri: logoUri || undefined });
