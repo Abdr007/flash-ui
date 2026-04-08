@@ -114,7 +114,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             amount: t.amount,
             usd: t.usdValue,
             pricePerToken: t.pricePerToken ?? 0,
-            logo: m?.logo ?? "",
+            logo: m?.logo ?? t.logoUri ?? "",
             color: m?.color ?? "#3E5068",
           });
         }
