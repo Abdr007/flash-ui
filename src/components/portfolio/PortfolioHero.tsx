@@ -319,30 +319,62 @@ function TrendArrow({ positive }: { positive: boolean }) {
   );
 }
 
-// ═══ TRENDING STRIP — live market prices (real data from store) ═══
-const TRENDING = ["SOL", "BTC", "ETH", "JUP"];
+// ═══ TRENDING STRIP — real 24h % changes from CoinGecko (like Galileo) ═══
+const CG_IDS: Record<string, string> = { SOL: "solana", BTC: "bitcoin", ETH: "ethereum", JUP: "jupiter-exchange-solana" };
 
 const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd: string) => void }) {
-  const prices = useFlashStore((s) => s.prices);
-  const items = TRENDING.map((sym) => {
-    const p = prices[sym];
-    if (!p?.price) return null;
-    const meta = TOKEN_META[sym];
-    return { symbol: sym, price: p.price, logo: meta?.logo ?? "", color: meta?.color ?? "#555" };
-  }).filter(Boolean) as { symbol: string; price: number; logo: string; color: string }[];
+  const [trending, setTrending] = useState<{ symbol: string; change: number; logo: string; color: string }[]>([]);
 
-  if (items.length === 0) return null;
+  useEffect(() => {
+    async function load() {
+      try {
+        const ids = Object.values(CG_IDS).join(",");
+        const resp = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const items: { symbol: string; change: number; logo: string; color: string }[] = [];
+        for (const [sym, cgId] of Object.entries(CG_IDS)) {
+          const d = data[cgId];
+          if (!d) continue;
+          const meta = TOKEN_META[sym];
+          items.push({ symbol: sym, change: d.usd_24h_change ?? 0, logo: meta?.logo ?? "", color: meta?.color ?? "#555" });
+        }
+        setTrending(items);
+      } catch {}
+    }
+    load();
+    const iv = setInterval(load, 60_000);
+    return () => clearInterval(iv);
+  }, []);
+
+  if (trending.length === 0) return null;
 
   return (
-    <div className="flex items-center justify-center gap-5 relative z-10"
-      style={{ animation: "fadeIn 500ms ease 200ms both" }}>
-      {items.map((t) => (
+    <div className="flex items-center justify-center relative z-10 px-5 py-2.5 rounded-full"
+      style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(255,255,255,0.04)",
+        animation: "fadeIn 500ms ease 200ms both",
+      }}>
+      <span className="text-[10px] font-bold tracking-[0.15em] uppercase flex items-center gap-1.5 mr-4"
+        style={{ color: "rgba(255,255,255,0.25)" }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+          <polyline points="16 7 22 7 22 13" />
+        </svg>
+        Trending
+      </span>
+      {trending.map((t, i) => (
         <button key={t.symbol} onClick={() => onAction(`price of ${t.symbol}`)}
-          className="flex items-center gap-2 cursor-pointer transition-opacity duration-150 hover:opacity-70 active:scale-[0.97]">
-          <TokenIcon token={t} size={18} />
+          className="flex items-center gap-1.5 cursor-pointer transition-opacity duration-150 hover:opacity-70"
+          style={{ marginLeft: i > 0 ? "12px" : "0", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none", paddingLeft: i > 0 ? "12px" : "0" }}>
+          <TokenIcon token={t} size={16} />
           <span className="text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.5)" }}>{t.symbol}</span>
-          <span className="text-[12px] num font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
-            ${t.price >= 1 ? t.price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : t.price.toFixed(4)}
+          <span className="text-[12px] num font-bold" style={{ color: t.change >= 0 ? "#2CE800" : "#FF4D4D" }}>
+            {t.change >= 0 ? "+" : ""}{t.change.toFixed(2)}%
           </span>
         </button>
       ))}

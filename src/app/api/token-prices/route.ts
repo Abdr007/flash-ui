@@ -96,26 +96,40 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch missing prices from Jupiter (same source as Galileo)
-    if (unpricedMints.length > 0) {
+    // Re-price ALL tokens via Jupiter (same price source as Galileo) for exact balance match
+    {
+      const allMints = tokens.map((t) => t.mint).filter(Boolean);
+      // Also include SOL mint for accurate SOL pricing
+      const solMint = "So11111111111111111111111111111111111111112";
+      const mintIds = [solMint, ...allMints].join(",");
       try {
         const jupResp = await fetch(
-          `https://api.jup.ag/price/v2?ids=${unpricedMints.join(",")}`,
+          `https://api.jup.ag/price/v2?ids=${mintIds}`,
           { signal: AbortSignal.timeout(5000) }
         );
         if (jupResp.ok) {
           const jupData = await jupResp.json();
           const jupPrices = jupData?.data ?? {};
+          // Re-price SOL
+          if (jupPrices[solMint]?.price) {
+            const jupSolPrice = Number(jupPrices[solMint].price);
+            const diff = (solBalance * jupSolPrice) - solUsd;
+            solUsd = solBalance * jupSolPrice;
+            totalUsd += diff;
+          }
+          // Re-price all tokens with Jupiter prices
           for (const t of tokens) {
-            if (t.pricePerToken === 0 && t.mint && jupPrices[t.mint]?.price) {
-              t.pricePerToken = Number(jupPrices[t.mint].price);
-              t.usdValue = t.amount * t.pricePerToken;
-              totalUsd += t.usdValue;
+            if (t.mint && jupPrices[t.mint]?.price) {
+              const jupPrice = Number(jupPrices[t.mint].price);
+              const oldUsd = t.usdValue;
+              t.pricePerToken = jupPrice;
+              t.usdValue = t.amount * jupPrice;
+              totalUsd += (t.usdValue - oldUsd);
             }
           }
         }
       } catch {
-        // Jupiter price lookup failed — continue with Helius prices only
+        // Jupiter unavailable — continue with Helius prices
       }
     }
 
