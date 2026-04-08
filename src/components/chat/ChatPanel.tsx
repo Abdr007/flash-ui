@@ -221,19 +221,26 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               );
             })}
             {(isStreaming || optimisticPending) && <StreamingDot />}
-            {isError && !isStreaming && (
-              <div className="flex items-center gap-3 py-2 mt-4 msg-anim">
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px]"
-                  style={{ background: "rgba(255,77,77,0.06)", border: "1px solid rgba(255,77,77,0.12)" }}>
-                  <span className="text-text-secondary">Something went wrong.</span>
-                  <button
-                    onClick={() => lastUserMsg.current && handleSubmit(lastUserMsg.current)}
-                    className="font-semibold cursor-pointer hover:underline"
-                    style={{ color: "var(--color-accent-lime)" }}>
-                    Retry
-                  </button>
+            {isError && !isStreaming && (() => {
+              // Only show error if the last assistant message has no content (truly failed)
+              const lastMsg = messages[messages.length - 1];
+              const hasContent = lastMsg?.role === "assistant" && lastMsg.parts && lastMsg.parts.length > 0;
+              if (hasContent) return null;
+              return (
+                <div className="flex items-center gap-3 py-2 mt-4 msg-anim">
+                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px]"
+                    style={{ background: "rgba(255,77,77,0.06)", border: "1px solid rgba(255,77,77,0.12)" }}>
+                    <span className="text-text-secondary">Something went wrong.</span>
+                    <button
+                      onClick={() => lastUserMsg.current && handleSubmit(lastUserMsg.current)}
+                      className="font-semibold cursor-pointer hover:underline"
+                      style={{ color: "var(--color-accent-lime)" }}>
+                      Retry
+                    </button>
+                  </div>
                 </div>
-              </div>
+              );
+            })()
             )}
           </div>
         )}
