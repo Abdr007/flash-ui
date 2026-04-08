@@ -1858,7 +1858,7 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
       setStatus("confirming");
 
       const { Connection } = await import("@solana/web3.js");
-      const conn = new Connection("/api/rpc", "confirmed");
+      const conn = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
 
       let confirmed = false;
       const confirmStart = Date.now();
@@ -2357,7 +2357,7 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
 
       // Poll for confirmation + rebroadcast every other cycle (matches CLI sendTx behavior)
       const { Connection } = await import("@solana/web3.js");
-      const conn = new Connection("/api/rpc", "confirmed");
+      const conn = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
       let confirmed = false;
       let pollCount = 0;
       const start = Date.now();
