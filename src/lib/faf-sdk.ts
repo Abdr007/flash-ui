@@ -178,31 +178,33 @@ export async function getFafUnstakeRequests(
   }
   if (!account || !account.withdrawRequest) return [];
 
-  return account.withdrawRequest.map((req, index) => {
-    const locked = bnToUi(req.lockedAmount);
-    const withdrawable = bnToUi(req.withdrawableAmount);
-    const timeRemaining = safe(typeof req.timeRemaining?.toNumber === "function"
-      ? req.timeRemaining.toNumber()
-      : Number(String(req.timeRemaining ?? 0)));
+  return account.withdrawRequest
+    .map((req, index) => {
+      const locked = bnToUi(req.lockedAmount);
+      const withdrawable = bnToUi(req.withdrawableAmount);
+      const timeRemaining = safe(typeof req.timeRemaining?.toNumber === "function"
+        ? req.timeRemaining.toNumber()
+        : Number(String(req.timeRemaining ?? 0)));
 
-    const elapsed = UNSTAKE_UNLOCK_SECONDS - timeRemaining;
-    const progress = UNSTAKE_UNLOCK_SECONDS > 0
-      ? Math.min(100, Math.max(0, (elapsed / UNSTAKE_UNLOCK_SECONDS) * 100))
-      : 100;
+      const elapsed = UNSTAKE_UNLOCK_SECONDS - timeRemaining;
+      const progress = UNSTAKE_UNLOCK_SECONDS > 0
+        ? Math.min(100, Math.max(0, (elapsed / UNSTAKE_UNLOCK_SECONDS) * 100))
+        : 100;
 
-    const unlockDate = new Date(Date.now() + timeRemaining * 1000);
+      const unlockDate = new Date(Date.now() + timeRemaining * 1000);
 
-    return {
-      index,
-      lockedAmount: locked,
-      withdrawableAmount: withdrawable,
-      timeRemainingSeconds: timeRemaining,
-      progressPercent: Math.round(progress),
-      estimatedUnlockDate: unlockDate.toLocaleDateString("en-US", {
-        month: "short", day: "numeric", year: "numeric",
-      }),
-    };
-  });
+      return {
+        index,
+        lockedAmount: locked,
+        withdrawableAmount: withdrawable,
+        timeRemainingSeconds: timeRemaining,
+        progressPercent: Math.round(progress),
+        estimatedUnlockDate: unlockDate.toLocaleDateString("en-US", {
+          month: "short", day: "numeric", year: "numeric",
+        }),
+      };
+    })
+    .filter((r) => r.lockedAmount > 0 || r.timeRemainingSeconds > 0);
 }
 
 // ---- Write Operations (return instructions only) ----
