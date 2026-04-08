@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
     const tokens: TokenBalance[] = [];
     let totalUsd = solUsd;
 
+    // Collect all mints first for Jupiter price lookup
+    const unpricedMints: string[] = [];
+
     for (const item of result.items ?? []) {
       const info = item.token_info ?? {};
       const symbol = String(info.symbol ?? "???");
@@ -77,7 +80,6 @@ export async function POST(req: NextRequest) {
       const pricePerToken = Number(info.price_info?.price_per_token ?? 0);
       const amount = decimals > 0 ? balance / Math.pow(10, decimals) : balance;
       const usdValue = amount * pricePerToken;
-      // Token logo: Helius DAS provides logos for all SPL tokens
       const logoUri = String(
         item.content?.links?.image
         || item.content?.files?.[0]?.cdn_uri
@@ -89,6 +91,31 @@ export async function POST(req: NextRequest) {
       if (amount > 0) {
         tokens.push({ symbol, mint, amount, pricePerToken, usdValue, logoUri: logoUri || undefined });
         totalUsd += usdValue;
+        // Track tokens without prices for Jupiter fallback
+        if (pricePerToken === 0 && mint) unpricedMints.push(mint);
+      }
+    }
+
+    // Fetch missing prices from Jupiter (same source as Galileo)
+    if (unpricedMints.length > 0) {
+      try {
+        const jupResp = await fetch(
+          `https://api.jup.ag/price/v2?ids=${unpricedMints.join(",")}`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (jupResp.ok) {
+          const jupData = await jupResp.json();
+          const jupPrices = jupData?.data ?? {};
+          for (const t of tokens) {
+            if (t.pricePerToken === 0 && t.mint && jupPrices[t.mint]?.price) {
+              t.pricePerToken = Number(jupPrices[t.mint].price);
+              t.usdValue = t.amount * t.pricePerToken;
+              totalUsd += t.usdValue;
+            }
+          }
+        }
+      } catch {
+        // Jupiter price lookup failed — continue with Helius prices only
       }
     }
 
