@@ -16,24 +16,8 @@ export default function SystemStatus() {
   };
 
   return (
-    <div className="flex items-center gap-3 px-5 h-14 shrink-0">
-      {/* Logo */}
-      <div className="flex items-center gap-2.5">
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center"
-          style={{ background: "var(--color-accent-lime)" }}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M3 12L8 3L13 12H3Z" fill="#070A0F" fillOpacity="0.9" />
-          </svg>
-        </div>
-        <span className="text-[16px] font-bold text-text-primary tracking-tight">
-          Flash
-        </span>
-        <span className="text-[9px] text-text-tertiary ml-1">v2</span>
-      </div>
+    <div className="flex items-center justify-end px-5 h-14 shrink-0">
 
-      <div className="flex-1" />
 
       {/* Wallet */}
       <button
