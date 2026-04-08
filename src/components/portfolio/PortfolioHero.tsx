@@ -29,6 +29,7 @@ interface WalletToken {
   usd: number;
   pricePerToken: number;
   logo: string;
+  logoFallback: string; // Helius DAS on-chain logo (fallback if CoinGecko fails)
   color: string;
 }
 
@@ -101,6 +102,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             usd: data.solUsd ?? 0,
             pricePerToken: (data.solUsd ?? 0) / data.solBalance,
             logo: m?.logo ?? "",
+            logoFallback: "",
             color: m?.color ?? "#9945FF",
           });
         }
@@ -108,13 +110,15 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
           if (t.usdValue < 0.01) continue;
           const sym = t.symbol?.toUpperCase?.() ?? t.symbol;
           const m = TOKEN_META[sym] ?? TOKEN_META[t.symbol];
+          const dasLogo = t.logoUri ?? "";
           toks.push({
             symbol: sym,
             name: m?.name ?? sym,
             amount: t.amount,
             usd: t.usdValue,
             pricePerToken: t.pricePerToken ?? 0,
-            logo: m?.logo ?? t.logoUri ?? "",
+            logo: m?.logo ?? dasLogo,
+            logoFallback: m?.logo ? dasLogo : "", // If CoinGecko primary, DAS is fallback
             color: m?.color ?? "#3E5068",
           });
         }
@@ -281,13 +285,19 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
 
 // ── Token Icon (next/image with fallback) ──
 function TokenIcon({ token, size = 32, style }: {
-  token: { symbol: string; logo: string; color: string };
+  token: { symbol: string; logo: string; logoFallback?: string; color: string };
   size?: number;
   style?: React.CSSProperties;
 }) {
-  const [err, setErr] = useState(false);
+  const [primaryFailed, setPrimaryFailed] = useState(false);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
 
-  if (!token.logo || err) {
+  const activeSrc = !primaryFailed ? token.logo : token.logoFallback;
+  const showInitials = (!token.logo && !token.logoFallback)
+    || (primaryFailed && !token.logoFallback)
+    || (primaryFailed && fallbackFailed);
+
+  if (showInitials) {
     return (
       <span style={{
         width: size, height: size, borderRadius: "50%",
@@ -302,13 +312,17 @@ function TokenIcon({ token, size = 32, style }: {
 
   return (
     <Image
-      src={token.logo}
+      key={activeSrc}
+      src={activeSrc!}
       alt={token.symbol}
       width={size}
       height={size}
       className="token-logo"
-      style={{ width: size, height: size, flexShrink: 0, ...style }}
-      onError={() => setErr(true)}
+      style={{ width: size, height: size, flexShrink: 0, borderRadius: "50%", ...style }}
+      onError={() => {
+        if (!primaryFailed) setPrimaryFailed(true);
+        else setFallbackFailed(true);
+      }}
       unoptimized
     />
   );
