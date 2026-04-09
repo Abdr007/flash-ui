@@ -103,13 +103,22 @@ export function createEarnPositionsTool(wallet: string) {
 
       try {
         // Fetch pool data for FLP prices
-        const [poolRes, balRes] = await Promise.all([
-          fetch("https://api.prod.flash.trade/earn-page/data", { signal: AbortSignal.timeout(8000) }),
-          fetch(`https://api.prod.flash.trade/flp-balances/${wallet}`, { signal: AbortSignal.timeout(8000) }),
-        ]);
-
+        const poolRes = await fetch("https://api.prod.flash.trade/earn-page/data", { signal: AbortSignal.timeout(8000) });
         const poolData = poolRes.ok ? await poolRes.json() : { pools: [] };
-        const balData = balRes.ok ? await balRes.json() : {};
+
+        // Try to fetch user's compounding positions from Flash API
+        let balData: Record<string, unknown> = {};
+        try {
+          const balRes = await fetch(`https://api.prod.flash.trade/compounding-positions/${wallet}`, { signal: AbortSignal.timeout(5000) });
+          if (balRes.ok) balData = await balRes.json();
+        } catch {}
+        // Fallback: try token balances endpoint
+        if (Object.keys(balData).length === 0) {
+          try {
+            const balRes2 = await fetch(`https://api.prod.flash.trade/user-flp-balances/${wallet}`, { signal: AbortSignal.timeout(5000) });
+            if (balRes2.ok) balData = await balRes2.json();
+          } catch {}
+        }
 
         const poolMap: Record<string, { name: string; flpPrice: number; apy: number }> = {};
         for (const p of poolData.pools ?? []) {
@@ -202,25 +211,13 @@ export function createEarnWithdrawTool(wallet: string) {
       }
 
       try {
-        const [poolRes, balRes] = await Promise.all([
-          fetch("https://api.prod.flash.trade/earn-page/data", { signal: AbortSignal.timeout(8000) }),
-          fetch(`https://api.prod.flash.trade/flp-balances/${wallet}`, { signal: AbortSignal.timeout(8000) }),
-        ]);
-
+        // Fetch pool data only — FLP balance is checked client-side via on-chain read
+        const poolRes = await fetch("https://api.prod.flash.trade/earn-page/data", { signal: AbortSignal.timeout(8000) });
         const poolData = poolRes.ok ? await poolRes.json() : { pools: [] };
-        const balData = balRes.ok ? await balRes.json() : {};
 
         const poolInfo = (poolData.pools ?? []).find((p: Record<string, unknown>) => p.flpTokenSymbol === flpSymbol);
         const flpPrice = Number(poolInfo?.flpPrice) || 0;
         const apy = Number(poolInfo?.flpWeeklyApy) || 0;
-        const userShares = Number(balData[flpSymbol]) || 0;
-
-        if (userShares <= 0) {
-          return { status: "error", data: null, error: `You have no deposits in ${POOL_NAMES_W[poolLower] ?? pool}.`, request_id: requestId, latency_ms: Date.now() - start };
-        }
-
-        const withdrawShares = userShares * (percent / 100);
-        const withdrawUsd = withdrawShares * flpPrice;
 
         logToolResult("earn_withdraw", requestId, wallet, Date.now() - start, "success");
         return {
@@ -231,10 +228,6 @@ export function createEarnWithdrawTool(wallet: string) {
             pool: poolLower,
             pool_name: POOL_NAMES_W[poolLower] ?? pool,
             percent,
-            total_shares: Math.round(userShares * 10000) / 10000,
-            withdraw_shares: Math.round(withdrawShares * 10000) / 10000,
-            withdraw_usd: Math.round(withdrawUsd * 100) / 100,
-            remaining_shares: Math.round((userShares - withdrawShares) * 10000) / 10000,
             flp_price: Math.round(flpPrice * 10000) / 10000,
             apy: Math.round(apy * 10) / 10,
           },

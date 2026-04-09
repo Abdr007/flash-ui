@@ -1604,7 +1604,44 @@ const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: To
         <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">Remaining</div><div className="text-[16px] num font-semibold text-text-primary">{remainingShares.toFixed(4)}</div></div>
       </div>
       <button
-        onClick={() => setError("Withdraw execution coming soon — use flash.trade for now")}
+        onClick={async () => {
+          if (!walletAddress || !connected || !signTransaction) return;
+          setStatus("executing");
+          try {
+            const { buildEarnWithdraw } = await import("@/lib/earn-sdk");
+            const { Connection, Keypair } = await import("@solana/web3.js");
+            const conn = new Connection(process.env.NEXT_PUBLIC_RPC_URL || "/api/rpc", "confirmed");
+            const kp = Keypair.generate();
+            const walletObj = { publicKey: new (await import("@solana/web3.js")).PublicKey(walletAddress), signTransaction: async (tx: unknown) => tx, signAllTransactions: async (txs: unknown[]) => txs, payer: kp } as never;
+            const result = await buildEarnWithdraw(conn, walletObj, percent, String(data.pool), flpPrice, 0.75);
+            const { TransactionMessage, VersionedTransaction, ComputeBudgetProgram } = await import("@solana/web3.js");
+            const allIx = [ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000 }), ...result.instructions];
+            const { blockhash } = await conn.getLatestBlockhash("confirmed");
+            const msg = new TransactionMessage({ payerKey: new (await import("@solana/web3.js")).PublicKey(walletAddress), recentBlockhash: blockhash, instructions: allIx }).compileToV0Message();
+            const tx = new VersionedTransaction(msg);
+            if (result.additionalSigners.length > 0) tx.sign(result.additionalSigners);
+            setStatus("signing");
+            const signed = await signTransaction(tx);
+            const signedB64 = Buffer.from(signed.serialize()).toString("base64");
+            const bResp = await fetch("/api/broadcast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transaction: signedB64 }) });
+            const bJson = await bResp.json().catch(() => null);
+            if (!bResp.ok || !bJson?.signature) throw new Error("Broadcast failed");
+            setTxSig(bJson.signature);
+            setStatus("confirming");
+            const connConfirm = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
+            let confirmed = false;
+            const start = Date.now();
+            while (Date.now() - start < 45000) {
+              try { const { value } = await connConfirm.getSignatureStatuses([bJson.signature]); const s = value[0]; if (s?.err) throw new Error("Failed on-chain"); if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") { confirmed = true; break; } } catch (e) { if (e instanceof Error && e.message.includes("on-chain")) throw e; }
+              await new Promise((r) => setTimeout(r, 2000));
+            }
+            if (!confirmed) throw new Error("Not confirmed in 45s");
+            setStatus("success");
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Withdraw failed");
+            setStatus("error");
+          }
+        }}
         disabled={!walletAddress || !connected}
         className="w-full py-3.5 text-[14px] font-bold cursor-pointer transition-all disabled:opacity-30"
         style={{ background: "var(--color-accent-warn)", color: "#0a0a0a" }}>
