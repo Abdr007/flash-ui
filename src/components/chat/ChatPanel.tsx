@@ -259,8 +259,8 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-40"
         style={{ background: "linear-gradient(to top, var(--color-bg-root), var(--color-bg-root) 20%, transparent)" }} />
 
-      {/* ---- Input (sticky bottom, Neur layout) ---- */}
-      <div className="sticky bottom-0 z-10 safe-bottom">
+      {/* ---- Input (fixed at bottom of flex container) ---- */}
+      <div className="shrink-0 z-10 safe-bottom relative">
         <div className="relative mx-auto w-full max-w-3xl px-4 py-4">
           {/* Autocomplete */}
           {autocomplete.length > 0 && (
