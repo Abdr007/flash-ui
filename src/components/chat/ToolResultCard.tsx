@@ -1537,9 +1537,6 @@ const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: To
 
   const poolName = String(data.pool_name ?? "");
   const percent = Number(data.percent ?? 100);
-  const withdrawShares = Number(data.withdraw_shares ?? 0);
-  const withdrawUsd = Number(data.withdraw_usd ?? 0);
-  const remainingShares = Number(data.remaining_shares ?? 0);
   const flpPrice = Number(data.flp_price ?? 0);
   const apy = Number(data.apy ?? 0);
 
@@ -1599,9 +1596,9 @@ const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: To
       </div>
       <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
         <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">Withdraw</div><div className="text-[16px] num font-semibold text-text-primary">{percent}%</div></div>
-        <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">Value</div><div className="text-[16px] num font-semibold text-text-primary">${withdrawUsd.toFixed(2)}</div></div>
-        <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">FLP Shares</div><div className="text-[16px] num font-semibold text-text-primary">{withdrawShares.toFixed(4)}</div></div>
-        <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">Remaining</div><div className="text-[16px] num font-semibold text-text-primary">{remainingShares.toFixed(4)}</div></div>
+        <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">FLP Price</div><div className="text-[16px] num font-semibold text-text-primary">${flpPrice.toFixed(4)}</div></div>
+        <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">Slippage</div><div className="text-[16px] num font-semibold text-text-primary">0.75%</div></div>
+        <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">Receive</div><div className="text-[16px] num font-semibold text-text-primary">USDC</div></div>
       </div>
       <button
         onClick={async () => {
