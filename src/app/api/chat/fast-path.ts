@@ -197,13 +197,16 @@ function validate(
     if (trade.side === "SHORT" && trade.sl <= entryPrice) return { valid: false };
   }
 
-  // Build trade preview (same math as AI tool)
+  // Build trade preview (Flash Trade on-chain formula)
   const positionSize = trade.collateral * trade.leverage;
-  const feeRate = 0.0008;
+  const feeRate = 0.0008; // 8 bps — Flash Trade base fee
   const fees = positionSize * feeRate;
+  const MAINTENANCE_MARGIN_RATE = 0.005; // 0.5%
+  const collateralAfterFees = trade.collateral - fees;
+  const marginRatio = collateralAfterFees / positionSize;
   const liquidationPrice = trade.side === "LONG"
-    ? entryPrice - entryPrice / trade.leverage
-    : entryPrice + entryPrice / trade.leverage;
+    ? entryPrice * (1 - marginRatio + MAINTENANCE_MARGIN_RATE)
+    : entryPrice * (1 + marginRatio - MAINTENANCE_MARGIN_RATE);
 
   if (!Number.isFinite(liquidationPrice) || liquidationPrice <= 0) return { valid: false };
 

@@ -19,7 +19,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { fetchPrice, fetchPositions } from "../flash-api";
+import { fetchPrice, fetchPositions, fetchTradePreview } from "../flash-api";
 import { makeRequestId } from "@/lib/tool-dedup";
 import { withLatency, logError } from "@/lib/logger";
 import { enforceFirewall } from "@/lib/trade-firewall";
@@ -152,17 +152,18 @@ export function createBuildTradeTool(wallet: string) {
           };
         }
 
-        // ---- STEP 6: Build trade preview ----
-        const entry_price = priceData.price;
-        const position_size = collateral_usd * leverage;
-        const fee_rate = 0.0008;
-        const fees = position_size * fee_rate;
+        // ---- STEP 6: Build trade preview via Flash API ----
+        const preview = await fetchTradePreview(resolved, side, collateral_usd, leverage);
+        const entry_price = preview?.entry_price ?? priceData.price;
+        const position_size = preview?.position_size ?? collateral_usd * leverage;
+        const fee_rate = preview?.fee_rate ?? 0.0008;
+        const fees = preview?.fees ?? position_size * fee_rate;
         const slippage_bps = DEFAULT_SLIPPAGE_BPS;
-
-        const liquidation_price =
+        const liquidation_price = preview?.liquidation_price ?? (
           side === "LONG"
-            ? entry_price - entry_price / leverage
-            : entry_price + entry_price / leverage;
+            ? entry_price * (1 - 1 / leverage + 0.005)
+            : entry_price * (1 + 1 / leverage - 0.005)
+        );
 
         // ---- STEP 6b: Validate TP/SL — dynamic range + direction ----
         if (take_profit_price != null) {

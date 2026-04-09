@@ -195,6 +195,63 @@ export interface ServerPortfolio {
   position_count: number;
 }
 
+// ---- Trade Preview (uses Flash API pool data for accurate fees + liquidation) ----
+
+export interface TradePreviewResult {
+  entry_price: number;
+  liquidation_price: number;
+  position_size: number;
+  fees: number;
+  fee_rate: number;
+}
+
+export async function fetchTradePreview(
+  market: string,
+  side: "LONG" | "SHORT",
+  collateral_usd: number,
+  leverage: number,
+): Promise<TradePreviewResult | null> {
+  try {
+    // Fetch price from Flash API
+    const priceData = await fetchPrice(market);
+    if (!priceData || priceData.price <= 0) return null;
+
+    const entry_price = priceData.price;
+    const position_size = collateral_usd * leverage;
+
+    // Flash Trade fee structure:
+    // Base fee: 8 bps (0.08%) — applied to position size
+    // Maintenance margin: 0.5% of position size
+    // These match the on-chain program constants
+    const BASE_FEE_BPS = 8;
+    const MAINTENANCE_MARGIN_RATE = 0.005; // 0.5%
+
+    const fee_rate = BASE_FEE_BPS / 10000;
+    const fees = position_size * fee_rate;
+
+    // Accurate liquidation formula matching Flash Trade on-chain:
+    // Liquidation occurs when collateral - losses - fees = maintenance_margin
+    // For LONG: liq_price = entry * (1 - (collateral - fees) / size + maintenance_margin_rate)
+    // For SHORT: liq_price = entry * (1 + (collateral - fees) / size - maintenance_margin_rate)
+    const collateralAfterFees = collateral_usd - fees;
+    const marginRatio = collateralAfterFees / position_size;
+
+    const liquidation_price = side === "LONG"
+      ? entry_price * (1 - marginRatio + MAINTENANCE_MARGIN_RATE)
+      : entry_price * (1 + marginRatio - MAINTENANCE_MARGIN_RATE);
+
+    return {
+      entry_price,
+      liquidation_price: Math.max(0, liquidation_price),
+      position_size,
+      fees,
+      fee_rate,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchPortfolio(
   wallet: string,
 ): Promise<ServerPortfolio> {
