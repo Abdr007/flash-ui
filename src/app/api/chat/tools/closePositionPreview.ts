@@ -36,7 +36,7 @@ export function createClosePositionPreviewTool(wallet: string) {
       "Does NOT execute — returns preview only.",
     inputSchema: z.object({
       market: z.string().describe("Market symbol"),
-      side: z.enum(["LONG", "SHORT"]).describe("Position side to close"),
+      side: z.enum(["LONG", "SHORT"]).optional().describe("Position side to close — auto-detected if omitted"),
       close_percent: z
         .number()
         .min(1)
@@ -93,15 +93,16 @@ export function createClosePositionPreviewTool(wallet: string) {
           return { positions, priceData };
         });
 
-        const position = result.positions.find(
-          (p) => p.market === resolved && p.side === side,
-        );
+        // Auto-detect side if not specified — find any position on this market
+        const position = side
+          ? result.positions.find((p) => p.market === resolved && p.side === side)
+          : result.positions.find((p) => p.market === resolved);
 
         if (!position) {
           return {
             status: "error",
             data: null,
-            error: `No ${side} ${resolved} position found`,
+            error: `No ${side ?? ""} ${resolved} position found`.replace("  ", " ").trim(),
             request_id: requestId,
             latency_ms,
           };
