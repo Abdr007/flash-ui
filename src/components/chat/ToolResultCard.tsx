@@ -1610,7 +1610,7 @@ const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: To
           try {
             const { buildEarnWithdraw } = await import("@/lib/earn-sdk");
             const { Connection, Keypair } = await import("@solana/web3.js");
-            const conn = new Connection(process.env.NEXT_PUBLIC_RPC_URL || "/api/rpc", "confirmed");
+            const conn = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
             const kp = Keypair.generate();
             const walletObj = { publicKey: new (await import("@solana/web3.js")).PublicKey(walletAddress), signTransaction: async (tx: unknown) => tx, signAllTransactions: async (txs: unknown[]) => txs, payer: kp } as never;
             const result = await buildEarnWithdraw(conn, walletObj, percent, String(data.pool), flpPrice, 0.75);
