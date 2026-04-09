@@ -202,8 +202,8 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
       {/* ---- Scrollable area ---- */}
       <div ref={scrollRef} onScroll={handleScroll} className="no-scrollbar flex-1 overflow-y-auto scroll-smooth">
         {!hasMessages ? (
-          /* ---- Hero state: compact, pushes input close ---- */
-          <div className="flex flex-col items-center dot-grid">
+          /* ---- Hero state: fills screen, input stays at bottom ---- */
+          <div className="flex flex-col items-center justify-center min-h-full dot-grid">
             <PortfolioHero onAction={handleSubmit} />
           </div>
         ) : (
