@@ -68,6 +68,8 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   remove_collateral: "Remove Collateral",
   reverse_position_preview: "Reverse Position",
   earn_deposit: "Earn Deposit",
+  earn_pools: "Earn Pools",
+  earn_positions: "Earn Positions",
   action_options: "",
   transfer_picker: "",
 };
@@ -103,6 +105,8 @@ const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: 
     case "remove_collateral": card = <CollateralCard output={output} />; break;
     case "reverse_position_preview": card = <ReversePositionCard output={output} />; break;
     case "earn_deposit": card = <EarnDepositCard output={output} />; break;
+    case "earn_pools": card = <EarnPoolsCard output={output} onAction={onAction} />; break;
+    case "earn_positions": card = <EarnPositionsCard output={output} />; break;
     case "transfer_preview": card = <TransferPreviewCard output={output} />; break;
     case "transfer_history": card = <TransferHistoryCard output={output} />; break;
     case "faf_dashboard":
@@ -1440,6 +1444,87 @@ const ToolError = memo(function ToolError({ toolName, error }: { toolName: strin
 });
 
 // ---- Earn Deposit Card ----
+
+// ═══ EARN POOLS CARD — live pool data ═══
+const EarnPoolsCard = memo(function EarnPoolsCard({ output, onAction }: { output: ToolOutput; onAction?: (cmd: string) => void }) {
+  const data = output.data as Record<string, unknown> | null;
+  if (!data) return <ToolError toolName="earn_pools" error={output.error} />;
+  const pools = (data.pools ?? []) as { name: string; symbol: string; apy: number; tvl: number; flpPrice: number; markets: string }[];
+
+  if (pools.length === 0) return <div className="text-[13px] text-text-tertiary py-2">No pool data available.</div>;
+
+  const fmtTvl = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n}`;
+
+  return (
+    <div className="glass-card-solid overflow-hidden w-full max-w-[500px]">
+      <div className="px-5 py-3.5 text-[14px] font-semibold text-text-primary" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        Earn Pools — Live Data
+      </div>
+      {pools.map((p, i) => (
+        <button key={p.symbol} onClick={() => onAction?.(`deposit to ${p.name.split(" ")[0].toLowerCase()} pool`)}
+          className="w-full flex items-center justify-between px-5 py-3.5 transition-colors hover:bg-white/[0.02] cursor-pointer text-left"
+          style={{ borderBottom: i < pools.length - 1 ? "1px solid rgba(255,255,255,0.03)" : "none" }}>
+          <div>
+            <div className="text-[14px] font-semibold text-text-primary">{p.name}</div>
+            <div className="text-[11px] mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>{p.markets}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[14px] num font-bold" style={{ color: p.apy > 0 ? "#2CE800" : "var(--color-text-secondary)" }}>
+              {p.apy > 0 ? `${p.apy}%` : "—"} <span className="text-[10px] font-normal text-text-tertiary">APY</span>
+            </div>
+            <div className="text-[11px] num mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+              TVL {fmtTvl(p.tvl)}
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+});
+
+// ═══ EARN POSITIONS CARD — user's deposits ═══
+const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { output: ToolOutput }) {
+  const data = output.data as Record<string, unknown> | null;
+  if (!data) return <ToolError toolName="earn_positions" error={output.error} />;
+  const positions = (data.positions ?? []) as { pool: string; shares: number; valueUsd: number; apy: number }[];
+  const totalValue = Number(data.totalValueUsd ?? 0);
+
+  if (positions.length === 0) {
+    return (
+      <div className="glass-card-solid overflow-hidden px-5 py-4 max-w-[500px]">
+        <div className="text-[14px] font-semibold text-text-primary mb-1">No Earn Positions</div>
+        <div className="text-[12px] text-text-tertiary">Deposit USDC into a pool to start earning yield.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass-card-solid overflow-hidden w-full max-w-[500px]">
+      <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <span className="text-[14px] font-semibold text-text-primary">My Earn Positions</span>
+        <span className="text-[14px] num font-bold" style={{ color: "#2CE800" }}>${totalValue.toFixed(2)}</span>
+      </div>
+      {positions.map((p, i) => (
+        <div key={p.pool}
+          className="flex items-center justify-between px-5 py-3.5"
+          style={{ borderBottom: i < positions.length - 1 ? "1px solid rgba(255,255,255,0.03)" : "none" }}>
+          <div>
+            <div className="text-[14px] font-semibold text-text-primary">{p.pool} Pool</div>
+            <div className="text-[11px] num mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+              {p.shares} FLP shares
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-[14px] num font-semibold text-text-primary">${p.valueUsd.toFixed(2)}</div>
+            <div className="text-[11px] num mt-0.5" style={{ color: p.apy > 0 ? "#2CE800" : "var(--color-text-tertiary)" }}>
+              {p.apy}% APY
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+});
 
 const EarnDepositCard = memo(function EarnDepositCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;

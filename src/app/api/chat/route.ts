@@ -218,17 +218,73 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       ],
     },
   },
+  // ═══ EARN WIZARD ═══
   {
     pattern: /^I want to earn yield$/i,
     toolName: "action_options",
     data: {
       type: "action_options",
-      title: "Choose a pool to start earning",
+      title: "Earn Yield",
       options: [
-        { label: "See available pools", intent: "what earn pools are available and their APY?", description: "View pool APYs" },
-        { label: "Deposit to Crypto pool", intent: "deposit 50 USDC into crypto pool", description: "Crypto.1 pool" },
-        { label: "Deposit to DeFi pool", intent: "deposit 50 USDC into defi pool", description: "Governance pool" },
-        { label: "My earn positions", intent: "show my earn positions", description: "Current deposits" },
+        { label: "View all pools", intent: "show earn pools", description: "Live APY + pool stats" },
+        { label: "Deposit to pool", intent: "deposit to earn pool", description: "Add USDC liquidity" },
+        { label: "Withdraw from pool", intent: "withdraw from earn pool", description: "Remove liquidity" },
+        { label: "My earn positions", intent: "show my earn positions", description: "Current deposits + earnings" },
+      ],
+    },
+  },
+  {
+    pattern: /^deposit to earn pool$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "Choose a pool to deposit",
+      options: [
+        { label: "Crypto Pool", intent: "deposit to crypto pool", description: "SOL, BTC, ETH perps" },
+        { label: "DeFi Pool", intent: "deposit to defi pool", description: "JUP, PYTH, JTO perps" },
+        { label: "Community Pool", intent: "deposit to meme pool", description: "BONK, PENGU, WIF perps" },
+        { label: "Gold Pool", intent: "deposit to gold pool", description: "XAU perps" },
+      ],
+    },
+  },
+  {
+    pattern: /^withdraw from earn pool$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "Choose a pool to withdraw from",
+      options: [
+        { label: "Crypto Pool", intent: "withdraw from crypto pool", description: "SOL, BTC, ETH" },
+        { label: "DeFi Pool", intent: "withdraw from defi pool", description: "JUP, PYTH, JTO" },
+        { label: "Community Pool", intent: "withdraw from meme pool", description: "BONK, PENGU, WIF" },
+        { label: "Gold Pool", intent: "withdraw from gold pool", description: "XAU" },
+      ],
+    },
+  },
+  {
+    pattern: /^deposit to (\w+) pool$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "Choose deposit amount",
+      options: [
+        { label: "$10", intent: "deposit 10 USDC into __POOL__ pool", description: "" },
+        { label: "$25", intent: "deposit 25 USDC into __POOL__ pool", description: "" },
+        { label: "$50", intent: "deposit 50 USDC into __POOL__ pool", description: "" },
+        { label: "$100", intent: "deposit 100 USDC into __POOL__ pool", description: "" },
+      ],
+    },
+  },
+  {
+    pattern: /^withdraw from (\w+) pool$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "Choose withdrawal amount",
+      options: [
+        { label: "25%", intent: "withdraw 25% from __POOL__ pool", description: "" },
+        { label: "50%", intent: "withdraw 50% from __POOL__ pool", description: "" },
+        { label: "100%", intent: "withdraw 100% from __POOL__ pool", description: "Full withdrawal" },
       ],
     },
   },
@@ -270,6 +326,7 @@ function matchConversationalIntent(input: string): { toolName: string; data: Rec
     const side = (match[1] ?? "").toUpperCase();
     const market = (match[2] ?? "").toUpperCase();
     const lev = match[3] ?? "";
+    const pool = (match[1] ?? "").toLowerCase(); // for earn wizard deposit/withdraw pool steps
 
     // For Step 2 (market selection): inject side
     // For Step 3 (leverage): inject side + market
@@ -280,7 +337,8 @@ function matchConversationalIntent(input: string): { toolName: string; data: Rec
         opt.intent = opt.intent
           .replace("__SIDE__", side.toLowerCase())
           .replace("__MARKET__", market)
-          .replace("__LEV__", lev);
+          .replace("__LEV__", lev)
+          .replace("__POOL__", pool);
         opt.description = opt.description
           .replace("__SIZE10__", lev ? String(10 * Number(lev)) : "")
           .replace("__SIZE25__", lev ? String(25 * Number(lev)) : "")
@@ -365,18 +423,18 @@ function matchDirectTool(input: string): DirectToolMatch | null {
   m = /^(?:send|transfer)\s+(\d+(?:\.\d+)?)\s+(\w+)\s+to\s+([1-9A-HJ-NP-Za-km-z]{32,44})$/i.exec(t);
   if (m) return { toolName: "transfer_preview", params: { token: m[2].toUpperCase(), amount: parseFloat(m[1]), recipient: m[3] } };
 
-  // ── Earn pools ──
-  if (/^(?:(?:what\s+)?(?:earn\s+)?pools?|(?:show\s+)?(?:available\s+)?pools?|(?:earn|yield)\s+(?:pools?|options?)|(?:what\s+(?:earn\s+)?pools?\s+(?:are\s+)?available))/i.test(t)) {
-    return { toolName: "earn_deposit", params: { action: "list" } };
+  // ── Earn pools — fetch live data from Flash API ──
+  if (/^(?:(?:what\s+)?(?:earn\s+)?pools?|(?:show\s+)?(?:available\s+)?(?:earn\s+)?pools?|(?:earn|yield)\s+(?:pools?|options?)|show\s+earn\s+pools)/i.test(t)) {
+    return { toolName: "earn_pools", params: {} };
   }
 
   // ── Earn deposit: "deposit 50 USDC into crypto pool" ──
-  m = /^deposit\s+(\d+(?:\.\d+)?)\s+(\w+)\s+(?:into?|to)\s+(\w+)\s*(?:pool)?$/i.exec(t);
-  if (m) return { toolName: "earn_deposit", params: { amount: parseFloat(m[1]), token: m[2].toUpperCase(), pool: m[3].toLowerCase() } };
+  m = /^deposit\s+(\d+(?:\.\d+)?)\s+(?:USDC\s+)?(?:into?|to)\s+(\w+)\s*(?:pool)?$/i.exec(t);
+  if (m) return { toolName: "earn_deposit", params: { pool: m[2].toLowerCase(), amount_usdc: parseFloat(m[1]) } };
 
   // ── Show earn positions ──
   if (/^(?:(?:show\s+)?(?:my\s+)?earn(?:ing)?\s+(?:positions?|deposits?)|(?:my\s+)?(?:earn|yield)\s+(?:positions?|deposits?))$/i.test(t)) {
-    return { toolName: "earn_deposit", params: { action: "positions" } };
+    return { toolName: "earn_positions", params: {} };
   }
 
   // ── Transfer history ──
