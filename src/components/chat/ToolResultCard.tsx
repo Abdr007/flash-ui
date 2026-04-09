@@ -209,8 +209,6 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
   const cancelTrade = useFlashStore((s) => s.cancelTrade);
   const isExecuting = useFlashStore((s) => s.isExecuting);
   const activeTrade = useFlashStore((s) => s.activeTrade);
-  const { signTransaction, connected: walletConnected } = useWallet();
-
   // Reset submitting when trade completes or is cancelled
   const tradeStatus = activeTrade?.status;
   const tradeCompleted = submitting && !isExecuting && tradeStatus !== "CONFIRMING" && tradeStatus !== "EXECUTING" && tradeStatus !== "SIGNING";
@@ -294,84 +292,12 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
     fees: t.fees, entry_price: t.entry_price, liquidation_price: t.liquidation_price, side: t.side,
   }), [t.leverage, t.collateral_usd, t.position_size, t.fees, t.entry_price, t.liquidation_price, t.side]);
 
-  async function handleConfirm() {
-    if (submitting || isExecuting || !walletAddress || !walletConnected || !signTransaction) return;
+  function handleConfirm() {
+    if (submitting || isExecuting) return;
     setSubmitting(true);
-
-    try {
-      // Step 1: Build TX via store (same as before)
-      const ok = setTradeFromAI(output.data, walletAddress, positions);
-      if (!ok) { setSubmitting(false); return; }
-      confirmTrade();
-
-      // Step 2: Wait for unsigned TX to be ready (store builds it asynchronously)
-      let attempts = 0;
-      let unsignedTx: string | undefined;
-      while (attempts < 30) {
-        await new Promise((r) => setTimeout(r, 500));
-        const state = useFlashStore.getState();
-        const trade = state.activeTrade;
-        if (trade?.status === "SIGNING" && trade.unsigned_tx) {
-          unsignedTx = trade.unsigned_tx;
-          break;
-        }
-        if (trade?.status === "ERROR") throw new Error(trade.error ?? "Trade build failed");
-        if (!trade) throw new Error("Trade cancelled");
-        attempts++;
-      }
-      if (!unsignedTx) throw new Error("Timeout waiting for transaction");
-
-      // Mark that card is handling signing (prevents useWalletSign hook from double-signing)
-      const currentTrade = useFlashStore.getState().activeTrade;
-      if (currentTrade) useFlashStore.setState({ activeTrade: { ...currentTrade, _cardSigning: true } as typeof currentTrade });
-
-      // Step 3: Clean + sign + broadcast (directly in card, like earn/FAF)
-      const cleanResp = await fetch("/api/clean-tx", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ txBase64: unsignedTx, payerKey: walletAddress }),
-      });
-      const cleanData = await cleanResp.json().catch(() => null);
-      if (!cleanResp.ok || !cleanData?.txBase64) throw new Error("Failed to prepare transaction");
-
-      const { VersionedTransaction } = await import("@solana/web3.js");
-      const txBytes = Uint8Array.from(atob(cleanData.txBase64), (c) => c.charCodeAt(0));
-      const tx = VersionedTransaction.deserialize(txBytes);
-      const signed = await signTransaction(tx);
-      const signedB64 = Buffer.from(signed.serialize()).toString("base64");
-
-      const bResp = await fetch("/api/broadcast", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transaction: signedB64 }),
-      });
-      const bJson = await bResp.json().catch(() => null);
-      if (!bResp.ok || !bJson?.signature) throw new Error("Broadcast failed");
-
-      // Step 4: Confirm
-      const { Connection } = await import("@solana/web3.js");
-      const conn = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
-      let confirmed = false;
-      const start = Date.now();
-      while (Date.now() - start < 45000) {
-        try {
-          const { value } = await conn.getSignatureStatuses([bJson.signature]);
-          const s = value[0];
-          if (s?.err) throw new Error("Transaction failed on-chain");
-          if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") { confirmed = true; break; }
-        } catch (e) { if (e instanceof Error && e.message.includes("on-chain")) throw e; }
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-      if (!confirmed) throw new Error("Not confirmed in 45s");
-
-      // Step 5: Complete — update store safely
-      setTimeout(() => {
-        try { useFlashStore.getState().completeExecution(bJson.signature); } catch {}
-      }, 500);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Trade failed";
-      const isRejection = msg.includes("User rejected") || msg.includes("rejected");
-      try { useFlashStore.getState().failExecution(isRejection ? "Transaction rejected by wallet." : msg); } catch {}
-      setSubmitting(false);
-    }
+    const ok = setTradeFromAI(output.data, walletAddress ?? "", positions);
+    if (!ok) { setSubmitting(false); return; }
+    confirmTrade();
   }
 
   return (
