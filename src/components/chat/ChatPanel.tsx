@@ -279,8 +279,8 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
             </div>
           )}
 
-          {/* Suggestion chips (above input when chat active) */}
-          {hasMessages && actionGroups.length > 0 && !isStreaming && !isExecuting && (
+          {/* Suggestion chips (above input when chat active, hidden during wizard flows) */}
+          {hasMessages && actionGroups.length > 0 && !isStreaming && !isExecuting && !optimisticPending && messages.length > 2 && (
             <div className="flex flex-wrap gap-2 mb-3">
               {actionGroups.flatMap((g) => g.actions).slice(0, 4).map((action, i) => (
                 <button

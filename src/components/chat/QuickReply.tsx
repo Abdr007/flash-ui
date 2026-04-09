@@ -21,52 +21,13 @@ interface QuickReplyProps {
   disabled?: boolean;
 }
 
+// All button intents are now handled by route.ts CONVERSATIONAL_INTENTS
+// QuickReply is no longer needed — action_options cards handle everything
 const INTENT_OPTIONS: {
   patterns: RegExp[];
   title: string;
   options: QuickOption[];
-}[] = [
-  {
-    patterns: [/^I want to trade$/i, /^i want to trade$/i],
-    title: "What would you like to trade?",
-    options: [
-      { label: "Long SOL", intent: "long SOL 5x $25", description: "5x leverage" },
-      { label: "Short SOL", intent: "short SOL 3x $25", description: "3x leverage" },
-      { label: "Long BTC", intent: "long BTC 5x $50", description: "5x leverage" },
-      { label: "Long ETH", intent: "long ETH 5x $25", description: "5x leverage" },
-      { label: "Show all markets", intent: "show all prices" },
-    ],
-  },
-  {
-    patterns: [/^I want to earn yield$/i],
-    title: "What would you like to do with earning?",
-    options: [
-      { label: "See available pools", intent: "what earn pools are available and their APY?", description: "View pool APYs" },
-      { label: "Deposit USDC to Crypto pool", intent: "deposit 50 USDC into crypto pool", description: "Crypto.1 pool" },
-      { label: "Deposit USDC to DeFi pool", intent: "deposit 50 USDC into defi pool", description: "Governance pool" },
-      { label: "My earn positions", intent: "show my earn positions" },
-    ],
-  },
-  // "faf" → dashboard card handles action buttons directly (no duplicate QuickReply)
-  {
-    patterns: [/^I want to transfer tokens$/i],
-    title: "What would you like to transfer?",
-    options: [
-      { label: "Send SOL", intent: "I want to send SOL to another wallet", description: "Transfer SOL" },
-      { label: "Send USDC", intent: "I want to send USDC to another wallet", description: "Transfer USDC" },
-      { label: "Send other token", intent: "I want to send a token to another wallet", description: "Any SPL token" },
-    ],
-  },
-  {
-    patterns: [/^show my portfolio$/i],
-    title: "Portfolio overview",
-    options: [
-      { label: "My positions", intent: "show my positions", description: "Open trades" },
-      { label: "Wallet balances", intent: "what are my token balances?" },
-      { label: "Portfolio risk", intent: "analyze my portfolio risk and exposure" },
-    ],
-  },
-];
+}[] = [];
 
 function detectIntent(message: string): (typeof INTENT_OPTIONS)[number] | null {
   const trimmed = message.trim();
