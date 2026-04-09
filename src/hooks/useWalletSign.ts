@@ -88,12 +88,24 @@ export function useWalletSign() {
           }
         }
 
-        // Use setTimeout to decouple from React render cycle — prevents crash on tab refocus
-        setTimeout(() => {
+        // Wait for tab to fully regain focus before updating state — prevents crash
+        const complete = () => {
           try { completeExecution(signature); } catch (e) {
             console.error("[useWalletSign] completeExecution error:", e);
           }
-        }, 100);
+        };
+        // If tab is hidden (wallet popup still active), wait for visibility change
+        if (document.hidden) {
+          const onVisible = () => {
+            document.removeEventListener("visibilitychange", onVisible);
+            setTimeout(complete, 500);
+          };
+          document.addEventListener("visibilitychange", onVisible);
+          // Safety: complete after 5s even if visibility event never fires
+          setTimeout(() => { document.removeEventListener("visibilitychange", onVisible); complete(); }, 5000);
+        } else {
+          setTimeout(complete, 300);
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Transaction failed";
         const isRejection = msg.includes("User rejected") || msg.includes("rejected");
