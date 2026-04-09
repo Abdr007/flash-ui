@@ -194,8 +194,8 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
       {/* ---- Scrollable area ---- */}
       <div ref={scrollRef} onScroll={handleScroll} className="no-scrollbar flex-1 overflow-y-auto scroll-smooth">
         {!hasMessages ? (
-          /* ---- Hero state: content centered, input right below ---- */
-          <div className="flex flex-col items-center dot-grid">
+          /* ---- Hero: centers vertically in available space ---- */
+          <div className="flex flex-col items-center justify-end dot-grid pb-8" style={{ minHeight: "100%" }}>
             <PortfolioHero onAction={handleSubmit} />
           </div>
         ) : (
@@ -246,13 +246,15 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
           </div>
         )}
 
-        {/* ---- Gradient fade above input ---- */}
-        <div className="sticky bottom-[120px] z-[5] h-20 pointer-events-none -mb-20"
-          style={{ background: "linear-gradient(to top, var(--color-bg-root), transparent)" }} />
+      </div>
 
-        {/* ---- Input (sticky inside scroll) ---- */}
-        <div className="sticky bottom-0 z-10 safe-bottom" style={{ background: "var(--color-bg-root)" }}>
-        <div className="relative mx-auto w-full max-w-3xl px-4 py-4">
+      {/* ---- Gradient fade ---- */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-32"
+        style={{ background: "linear-gradient(to top, var(--color-bg-root), var(--color-bg-root) 30%, transparent)" }} />
+
+      {/* ---- Input (outside scroll, always at bottom) ---- */}
+      <div className="shrink-0 relative z-10 safe-bottom">
+        <div className="relative mx-auto w-full max-w-3xl px-4 py-3">
           {/* Autocomplete */}
           {autocomplete.length > 0 && (
             <div className="absolute bottom-full left-4 right-4 mb-2 overflow-hidden rounded-xl"
@@ -335,7 +337,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
             </div>
           </div>
         </div>
-      </div>
       </div>
     </div>
   );
