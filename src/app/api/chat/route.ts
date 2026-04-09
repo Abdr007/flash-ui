@@ -185,22 +185,37 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       title: "Earn Yield",
       options: [
         { label: "View all pools", intent: "show earn pools", description: "Live APY + pool stats" },
-        { label: "Deposit to pool", intent: "deposit to earn pool wizard", description: "Add USDC liquidity" },
+        { label: "Deposit to pool", intent: "earn deposit wizard", description: "Add USDC liquidity" },
+        { label: "Withdraw from pool", intent: "earn withdraw wizard", description: "Remove liquidity" },
         { label: "My earn positions", intent: "show my earn positions", description: "Current deposits + earnings" },
       ],
     },
   },
-  // ═══ EARN DEPOSIT WIZARD — Single card ═══
+  // ═══ EARN DEPOSIT WIZARD ═══
   {
-    pattern: /^deposit to earn pool wizard$/i,
+    pattern: /^earn deposit wizard$/i,
     toolName: "wizard",
     data: {
       type: "wizard",
       intro: "Let's deposit into an earn pool. I'll guide you through it.",
       commandTemplate: "deposit {1} USDC into {0} pool",
       steps: [
-        { question: "Which pool?", options: ["Crypto", "DeFi", "Meme", "Gold"], allowCustom: false },
+        { question: "Which pool would you like to deposit into?", options: ["Crypto", "DeFi", "Meme", "Gold"], allowCustom: false },
         { question: "How much USDC to deposit?", options: ["$10", "$25", "$50", "$100"], allowCustom: true, customPlaceholder: "e.g. 200" },
+      ],
+    },
+  },
+  // ═══ EARN WITHDRAW WIZARD ═══
+  {
+    pattern: /^earn withdraw wizard$/i,
+    toolName: "wizard",
+    data: {
+      type: "wizard",
+      intro: "Let's withdraw from an earn pool. I'll guide you through it.",
+      commandTemplate: "withdraw {1} from {0} pool",
+      steps: [
+        { question: "Which pool would you like to withdraw from?", options: ["Crypto", "DeFi", "Meme", "Gold"], allowCustom: false },
+        { question: "How much to withdraw?", options: ["25%", "50%", "100%"], allowCustom: true, customPlaceholder: "e.g. 75%" },
       ],
     },
   },
