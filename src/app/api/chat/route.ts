@@ -185,15 +185,15 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       title: "Earn Yield",
       options: [
         { label: "View all pools", intent: "show earn pools", description: "Live APY + pool stats" },
-        { label: "Deposit to pool", intent: "earn deposit wizard", description: "Add USDC liquidity" },
-        { label: "Withdraw from pool", intent: "earn withdraw wizard", description: "Remove liquidity" },
+        { label: "Deposit to pool", intent: "I want to deposit into a pool", description: "Add USDC liquidity" },
+        { label: "Withdraw from pool", intent: "I want to withdraw from a pool", description: "Remove liquidity" },
         { label: "My earn positions", intent: "show my earn positions", description: "Current deposits + earnings" },
       ],
     },
   },
   // ═══ EARN DEPOSIT WIZARD ═══
   {
-    pattern: /^earn deposit wizard$/i,
+    pattern: /^I want to deposit into a pool$/i,
     toolName: "wizard",
     data: {
       type: "wizard",
@@ -207,7 +207,7 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
   },
   // ═══ EARN WITHDRAW WIZARD ═══
   {
-    pattern: /^earn withdraw wizard$/i,
+    pattern: /^I want to withdraw from a pool$/i,
     toolName: "wizard",
     data: {
       type: "wizard",

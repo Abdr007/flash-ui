@@ -1545,6 +1545,9 @@ const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: To
   const [status, setStatus] = useState<"idle" | "executing" | "signing" | "confirming" | "success" | "error">("idle");
   const [txSig, setTxSig] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cancelled, setCancelled] = useState(false);
+
+  if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Withdrawal cancelled.</div>;
 
   if (status === "success" && txSig) {
     return (
@@ -1665,6 +1668,8 @@ const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: To
         style={{ background: "var(--color-accent-warn)", color: "#0a0a0a" }}>
         Withdraw {percent}%
       </button>
+      <button onClick={() => setCancelled(true)} className="w-full py-2.5 text-[12px] font-semibold text-text-tertiary cursor-pointer hover:text-text-secondary transition-colors"
+        style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>Cancel</button>
     </div>
   );
 });
