@@ -209,6 +209,7 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
   const cancelTrade = useFlashStore((s) => s.cancelTrade);
   const isExecuting = useFlashStore((s) => s.isExecuting);
   const activeTrade = useFlashStore((s) => s.activeTrade);
+  const { signTransaction, connected: walletConnected } = useWallet();
 
   // Reset submitting when trade completes or is cancelled
   const tradeStatus = activeTrade?.status;
@@ -293,10 +294,8 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
     fees: t.fees, entry_price: t.entry_price, liquidation_price: t.liquidation_price, side: t.side,
   }), [t.leverage, t.collateral_usd, t.position_size, t.fees, t.entry_price, t.liquidation_price, t.side]);
 
-  const { signTransaction, connected } = useWallet();
-
   async function handleConfirm() {
-    if (submitting || isExecuting || !walletAddress || !connected || !signTransaction) return;
+    if (submitting || isExecuting || !walletAddress || !walletConnected || !signTransaction) return;
     setSubmitting(true);
 
     try {
