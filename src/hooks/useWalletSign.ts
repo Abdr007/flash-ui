@@ -88,11 +88,16 @@ export function useWalletSign() {
           }
         }
 
-        completeExecution(signature);
+        // Use setTimeout to decouple from React render cycle — prevents crash on tab refocus
+        setTimeout(() => {
+          try { completeExecution(signature); } catch (e) {
+            console.error("[useWalletSign] completeExecution error:", e);
+          }
+        }, 100);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Transaction failed";
         const isRejection = msg.includes("User rejected") || msg.includes("rejected");
-        failExecution(isRejection ? "Transaction rejected by wallet." : msg);
+        try { failExecution(isRejection ? "Transaction rejected by wallet." : msg); } catch {}
       } finally {
         signingRef.current = false;
       }

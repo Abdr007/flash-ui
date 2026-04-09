@@ -67,7 +67,15 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     },
   }));
 
-  const { messages, sendMessage, status } = useChat({ transport: transportRef.current });
+  let chatHook: ReturnType<typeof useChat>;
+  try {
+    chatHook = useChat({ transport: transportRef.current });
+  } catch (e) {
+    console.error("[ChatPanel] useChat crashed:", e);
+    // Return a minimal safe state
+    chatHook = { messages: [], sendMessage: () => {}, status: "ready" } as unknown as ReturnType<typeof useChat>;
+  }
+  const { messages, sendMessage, status } = chatHook;
   const isStreaming = status === "streaming";
   const isError = status === "error";
   const hasMessages = messages.length > 0;

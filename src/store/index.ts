@@ -1071,7 +1071,8 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
     set({ activeTrade: null, isExecuting: false });
     tradeLock = false;
     resetExecution(); // Clear persisted execution state
-    get().refreshPositions();
+    // Delay position refresh to avoid race conditions with tab focus recovery
+    setTimeout(() => { try { get().refreshPositions(); } catch {} }, 1000);
   },
 
   // ---- Fail Execution (called by UI if wallet rejects or tx fails) ----
