@@ -167,12 +167,12 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
     data: {
       type: "wizard",
       intro: "Let's set up your trade. I'll walk you through it step by step.",
-      commandTemplate: "{0} {1} {2}x ${3}",
+      commandTemplate: "{0} {1} {2} {3}",
       steps: [
-        { question: "Which direction?", options: ["Long", "Short"] },
+        { question: "Which direction?", options: ["long", "short"] },
         { question: "Which market?", options: ["SOL", "BTC", "ETH"], allowCustom: true, customPlaceholder: "Enter market symbol..." },
         { question: "What leverage?", options: ["2x", "5x", "10x", "20x"], allowCustom: true, customPlaceholder: "e.g. 15x" },
-        { question: "How much collateral (USD)?", options: ["$10", "$25", "$50", "$100"], allowCustom: true, customPlaceholder: "e.g. $200" },
+        { question: "How much collateral (USD)?", options: ["$10", "$25", "$50", "$100"], allowCustom: true, customPlaceholder: "e.g. 200" },
       ],
     },
   },
