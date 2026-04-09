@@ -15,21 +15,21 @@ import { SectionBoundary } from "@/components/ErrorBoundary";
 import DataStatusBanner from "@/components/layout/DataStatusBanner";
 
 // Auto-recovering error boundary for chat — retries automatically after crash
-class ChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; key: number }> {
+class ChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
     super(props);
-    this.state = { hasError: false, key: 0 };
+    this.state = { hasError: false };
   }
   static getDerivedStateFromError(): { hasError: boolean } { return { hasError: true }; }
   componentDidCatch(error: Error) {
     console.error("[ChatCrash]", error?.message);
-    // Auto-recover after 500ms
-    setTimeout(() => this.setState((s) => ({ hasError: false, key: s.key + 1 })), 500);
+    // Auto-recover after 300ms — keep same key to preserve chat history
+    setTimeout(() => this.setState({ hasError: false }), 300);
   }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col h-full items-center justify-center">
           <div className="flex items-center gap-2 text-[13px] text-text-tertiary">
             <span className="w-4 h-4 border-2 border-text-tertiary border-t-transparent rounded-full" style={{ animation: "spin 0.8s linear infinite" }} />
             Reconnecting...
@@ -37,7 +37,7 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
         </div>
       );
     }
-    return <div key={this.state.key} className="flex flex-col h-full">{this.props.children}</div>;
+    return <div className="flex flex-col h-full">{this.props.children}</div>;
   }
 }
 

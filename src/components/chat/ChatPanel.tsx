@@ -195,7 +195,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
       <div ref={scrollRef} onScroll={handleScroll} className="no-scrollbar flex-1 overflow-y-auto scroll-smooth">
         {!hasMessages ? (
           /* ---- Hero: centers vertically in available space ---- */
-          <div className="flex flex-col items-center justify-end dot-grid pb-8" style={{ minHeight: "100%" }}>
+          <div className="flex flex-col items-center justify-center dot-grid" style={{ minHeight: "100%" }}>
             <PortfolioHero onAction={handleSubmit} />
           </div>
         ) : (
