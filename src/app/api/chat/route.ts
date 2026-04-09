@@ -370,8 +370,12 @@ function matchDirectTool(input: string): DirectToolMatch | null {
   }
 
   // ── Earn deposit: "deposit 50 USDC into crypto pool" ──
-  m = /^deposit\s+(\d+(?:\.\d+)?)\s+(?:USDC\s+)?(?:into?|to)\s+(\w+)\s*(?:pool)?$/i.exec(t);
+  m = /^deposit\s+\$?(\d+(?:\.\d+)?)\s+(?:USDC\s+)?(?:into?|to)\s+(\w+)\s*(?:pool)?$/i.exec(t);
   if (m) return { toolName: "earn_deposit", params: { pool: m[2].toLowerCase(), amount_usdc: parseFloat(m[1]) } };
+
+  // ── Earn withdraw: "withdraw 50% from crypto pool" ──
+  m = /^withdraw\s+(\d+(?:\.\d+)?)%?\s+(?:from\s+)?(\w+)\s*(?:pool)?$/i.exec(t);
+  if (m) return { toolName: "earn_withdraw", params: { pool: m[2].toLowerCase(), percent: parseFloat(m[1]) } };
 
   // ── Show earn positions ──
   if (/^(?:(?:show\s+)?(?:my\s+)?earn(?:ing)?\s+(?:positions?|deposits?)|(?:my\s+)?(?:earn|yield)\s+(?:positions?|deposits?))$/i.test(t)) {

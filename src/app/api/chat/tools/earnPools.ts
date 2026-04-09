@@ -162,3 +162,89 @@ export function createEarnPositionsTool(wallet: string) {
     },
   });
 }
+
+// ============================================
+// Tool: earn_withdraw (withdraw preview)
+// ============================================
+
+const POOL_FLP_MAP: Record<string, string> = {
+  crypto: "FLP.1", defi: "FLP.3", gold: "FLP.2", meme: "FLP.4",
+  wif: "FLP.5", fart: "FLP.7", ore: "FLP.8",
+};
+
+const POOL_NAMES_W: Record<string, string> = {
+  crypto: "Crypto Pool", defi: "DeFi Pool", gold: "Gold Pool",
+  meme: "Meme Pool", wif: "WIF Pool", fart: "FART Pool", ore: "Ore Pool",
+};
+
+export function createEarnWithdrawTool(wallet: string) {
+  return tool({
+    description:
+      "Preview withdrawing from an earn pool. Shows current balance, withdrawal amount, and value. " +
+      "Call when user says 'withdraw from crypto pool', 'withdraw 50% from defi pool'.",
+    inputSchema: z.object({
+      pool: z.string().describe("Pool name"),
+      percent: z.number().min(1).max(100).default(100).describe("Percentage to withdraw"),
+    }),
+    execute: async ({ pool, percent }): Promise<ToolResponse<unknown>> => {
+      const requestId = makeRequestId();
+      const start = Date.now();
+      logToolCall("earn_withdraw", requestId, wallet, { pool, percent });
+
+      if (!wallet) {
+        return { status: "error", data: null, error: "Connect your wallet to withdraw.", request_id: requestId, latency_ms: 0 };
+      }
+
+      const poolLower = (pool ?? "").toLowerCase();
+      const flpSymbol = POOL_FLP_MAP[poolLower];
+      if (!flpSymbol) {
+        return { status: "error", data: null, error: `Unknown pool: ${pool}. Valid: ${Object.keys(POOL_FLP_MAP).join(", ")}`, request_id: requestId, latency_ms: 0 };
+      }
+
+      try {
+        const [poolRes, balRes] = await Promise.all([
+          fetch("https://api.prod.flash.trade/earn-page/data", { signal: AbortSignal.timeout(8000) }),
+          fetch(`https://api.prod.flash.trade/flp-balances/${wallet}`, { signal: AbortSignal.timeout(8000) }),
+        ]);
+
+        const poolData = poolRes.ok ? await poolRes.json() : { pools: [] };
+        const balData = balRes.ok ? await balRes.json() : {};
+
+        const poolInfo = (poolData.pools ?? []).find((p: Record<string, unknown>) => p.flpTokenSymbol === flpSymbol);
+        const flpPrice = Number(poolInfo?.flpPrice) || 0;
+        const apy = Number(poolInfo?.flpWeeklyApy) || 0;
+        const userShares = Number(balData[flpSymbol]) || 0;
+
+        if (userShares <= 0) {
+          return { status: "error", data: null, error: `You have no deposits in ${POOL_NAMES_W[poolLower] ?? pool}.`, request_id: requestId, latency_ms: Date.now() - start };
+        }
+
+        const withdrawShares = userShares * (percent / 100);
+        const withdrawUsd = withdrawShares * flpPrice;
+
+        logToolResult("earn_withdraw", requestId, wallet, Date.now() - start, "success");
+        return {
+          status: "success",
+          data: {
+            type: "earn_withdraw_preview",
+            action: "earn_withdraw",
+            pool: poolLower,
+            pool_name: POOL_NAMES_W[poolLower] ?? pool,
+            percent,
+            total_shares: Math.round(userShares * 10000) / 10000,
+            withdraw_shares: Math.round(withdrawShares * 10000) / 10000,
+            withdraw_usd: Math.round(withdrawUsd * 100) / 100,
+            remaining_shares: Math.round((userShares - withdrawShares) * 10000) / 10000,
+            flp_price: Math.round(flpPrice * 10000) / 10000,
+            apy: Math.round(apy * 10) / 10,
+          },
+          request_id: requestId,
+          latency_ms: Date.now() - start,
+        };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Withdraw preview failed";
+        return { status: "error", data: null, error: msg, request_id: requestId, latency_ms: Date.now() - start };
+      }
+    },
+  });
+}

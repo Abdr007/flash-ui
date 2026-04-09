@@ -70,6 +70,7 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   earn_deposit: "Earn Deposit",
   earn_pools: "Earn Pools",
   earn_positions: "Earn Positions",
+  earn_withdraw: "Withdraw",
   action_options: "",
   transfer_picker: "",
   wizard: "",
@@ -108,6 +109,7 @@ const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: 
     case "earn_deposit": card = <EarnDepositCard output={output} />; break;
     case "earn_pools": card = <EarnPoolsCard output={output} onAction={onAction} />; break;
     case "earn_positions": card = <EarnPositionsCard output={output} />; break;
+    case "earn_withdraw": card = <EarnWithdrawCard output={output} />; break;
     case "transfer_preview": card = <TransferPreviewCard output={output} />; break;
     case "transfer_history": card = <TransferHistoryCard output={output} />; break;
     case "faf_dashboard":
@@ -1524,6 +1526,90 @@ const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { output: 
           </div>
         </div>
       ))}
+    </div>
+  );
+});
+
+// ═══ EARN WITHDRAW PREVIEW ═══
+const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: ToolOutput }) {
+  const data = output.data as Record<string, unknown> | null;
+  if (!data) return <ToolError toolName="earn_withdraw" error={output.error} />;
+
+  const poolName = String(data.pool_name ?? "");
+  const percent = Number(data.percent ?? 100);
+  const withdrawShares = Number(data.withdraw_shares ?? 0);
+  const withdrawUsd = Number(data.withdraw_usd ?? 0);
+  const remainingShares = Number(data.remaining_shares ?? 0);
+  const flpPrice = Number(data.flp_price ?? 0);
+  const apy = Number(data.apy ?? 0);
+
+  const walletAddress = useFlashStore((s) => s.walletAddress);
+  const { signTransaction, connected } = useWallet();
+  const [status, setStatus] = useState<"idle" | "executing" | "signing" | "confirming" | "success" | "error">("idle");
+  const [txSig, setTxSig] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (status === "success" && txSig) {
+    return (
+      <div className="glass-card-solid overflow-hidden success-glow max-w-[460px]" style={{ borderColor: "rgba(0,210,106,0.15)" }}>
+        <div className="px-5 py-4 flex items-center gap-3">
+          <span className="text-[14px]" style={{ color: "var(--color-accent-long)" }}>&#10003;</span>
+          <div>
+            <div className="text-[14px] font-semibold text-text-primary">Withdrawn from {poolName}</div>
+            <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noopener noreferrer"
+              className="text-[12px] font-mono text-accent-blue hover:underline">View on Solscan &rarr;</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="glass-card-solid overflow-hidden max-w-[460px]" style={{ borderColor: "rgba(255,77,77,0.15)" }}>
+        <div className="px-5 py-4">
+          <div className="text-[14px] font-semibold text-accent-short mb-1">Withdrawal Failed</div>
+          <div className="text-[12px] text-text-tertiary">{error}</div>
+        </div>
+        <div className="flex border-t border-border-subtle">
+          <button onClick={() => { setStatus("idle"); setError(null); }} className="btn-secondary flex-1 py-2.5 text-[12px] font-semibold text-text-secondary cursor-pointer">Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status !== "idle") {
+    return (
+      <div className="glass-card-solid overflow-hidden px-5 py-4 flex items-center gap-3 max-w-[460px]">
+        <span className="w-4 h-4 border-2 border-accent-blue border-t-transparent rounded-full" style={{ animation: "spin 0.8s linear infinite" }} />
+        <span className="text-[13px] text-text-secondary">{status === "executing" ? "Building..." : status === "signing" ? "Sign in wallet..." : "Confirming..."}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass-card-solid overflow-hidden w-full max-w-[460px]">
+      <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-accent-warn)" }} />
+          <span className="text-[16px] font-bold text-text-primary">{poolName}</span>
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(245,166,35,0.12)", color: "var(--color-accent-warn)" }}>WITHDRAW</span>
+        </div>
+        <span className="text-[14px] num font-bold" style={{ color: apy > 0 ? "#2CE800" : "var(--color-text-tertiary)" }}>{apy}% APY</span>
+      </div>
+      <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
+        <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">Withdraw</div><div className="text-[16px] num font-semibold text-text-primary">{percent}%</div></div>
+        <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">Value</div><div className="text-[16px] num font-semibold text-text-primary">${withdrawUsd.toFixed(2)}</div></div>
+        <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">FLP Shares</div><div className="text-[16px] num font-semibold text-text-primary">{withdrawShares.toFixed(4)}</div></div>
+        <div className="px-5 py-3 bg-bg-card-solid"><div className="text-[11px] text-text-tertiary mb-1">Remaining</div><div className="text-[16px] num font-semibold text-text-primary">{remainingShares.toFixed(4)}</div></div>
+      </div>
+      <button
+        onClick={() => setError("Withdraw execution coming soon — use flash.trade for now")}
+        disabled={!walletAddress || !connected}
+        className="w-full py-3.5 text-[14px] font-bold cursor-pointer transition-all disabled:opacity-30"
+        style={{ background: "var(--color-accent-warn)", color: "#0a0a0a" }}>
+        Withdraw {percent}%
+      </button>
     </div>
   );
 });
