@@ -90,28 +90,24 @@ export function useWalletSign() {
           }
         }
 
-        // Wait for tab to fully regain focus before updating state — prevents crash
-        const complete = () => {
-          try { completeExecution(signature); } catch (e) {
-            console.error("[useWalletSign] completeExecution error:", e);
-          }
-        };
-        // If tab is hidden (wallet popup still active), wait for visibility change
-        if (document.hidden) {
-          const onVisible = () => {
-            document.removeEventListener("visibilitychange", onVisible);
-            setTimeout(complete, 500);
-          };
-          document.addEventListener("visibilitychange", onVisible);
-          // Safety: complete after 5s even if visibility event never fires
-          setTimeout(() => { document.removeEventListener("visibilitychange", onVisible); complete(); }, 5000);
-        } else {
-          setTimeout(complete, 300);
-        }
+        // Decouple state update from React — use double rAF + setTimeout for maximum safety
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              try { completeExecution(signature); } catch (e) {
+                console.error("[useWalletSign] completeExecution error:", e);
+              }
+            }, 200);
+          });
+        });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Transaction failed";
         const isRejection = msg.includes("User rejected") || msg.includes("rejected");
-        try { failExecution(isRejection ? "Transaction rejected by wallet." : msg); } catch {}
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            try { failExecution(isRejection ? "Transaction rejected by wallet." : msg); } catch {}
+          }, 200);
+        });
       } finally {
         signingRef.current = false;
       }
