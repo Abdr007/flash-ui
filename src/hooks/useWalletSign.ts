@@ -30,10 +30,14 @@ export function useWalletSign() {
   const signingRef = useRef(false);
 
   useEffect(() => {
+    // Trade signing is now handled directly in TradePreviewCard (same pattern as earn/FAF)
+    // This hook only handles TP/SL trigger orders after the main trade confirms
     if (!activeTrade || activeTrade.status !== "SIGNING") return;
     if (!activeTrade.unsigned_tx) return;
     if (!connected || !signTransaction || !publicKey) return;
     if (signingRef.current) return;
+    // Skip if the card is already handling signing
+    if ((activeTrade as unknown as Record<string, unknown>)?._cardSigning) return;
 
     signingRef.current = true;
     const walletAddress = useFlashStore.getState().walletAddress;
