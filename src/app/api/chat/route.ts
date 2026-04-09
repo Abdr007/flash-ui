@@ -160,18 +160,61 @@ function createFafStreamResponse(toolName: string, result: Record<string, unknow
 
 // Button-triggered intents return Galileo-style option cards (rendered by OptionsCard)
 const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<string, unknown> }[] = [
+  // ═══ TRADE WIZARD — Step 1: Direction ═══
   {
     pattern: /^I want to trade$/i,
     toolName: "action_options",
     data: {
       type: "action_options",
-      title: "What would you like to trade?",
+      title: "Choose your direction",
       options: [
-        { label: "Long SOL", intent: "long SOL 5x $25", description: "5x leverage, $25 collateral" },
-        { label: "Short SOL", intent: "short SOL 3x $25", description: "3x leverage, $25 collateral" },
-        { label: "Long BTC", intent: "long BTC 5x $50", description: "5x leverage, $50 collateral" },
-        { label: "Long ETH", intent: "long ETH 5x $25", description: "5x leverage, $25 collateral" },
-        { label: "All markets", intent: "show all prices", description: "View prices + open interest" },
+        { label: "Long", intent: "I want to go long", description: "Buy — profit when price goes up" },
+        { label: "Short", intent: "I want to go short", description: "Sell — profit when price goes down" },
+      ],
+    },
+  },
+  // ═══ TRADE WIZARD — Step 2: Market ═══
+  {
+    pattern: /^I want to go (long|short)$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "Choose a market",
+      options: [
+        { label: "SOL", intent: "__SIDE__ SOL", description: "Solana" },
+        { label: "BTC", intent: "__SIDE__ BTC", description: "Bitcoin" },
+        { label: "ETH", intent: "__SIDE__ ETH", description: "Ethereum" },
+        { label: "All markets", intent: "show all prices", description: "View all available markets" },
+      ],
+    },
+  },
+  // ═══ TRADE WIZARD — Step 3: Leverage ═══
+  {
+    pattern: /^(long|short) (SOL|BTC|ETH|SUI|JUP|BONK|WIF|DOGE|PEPE|AVAX|LINK|ARB|OP|APT|NEAR|RENDER|ONDO|TRUMP|PENGU|FARTCOIN)$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "Choose leverage",
+      options: [
+        { label: "2x", intent: "__SIDE__ __MARKET__ 2x", description: "Low risk" },
+        { label: "5x", intent: "__SIDE__ __MARKET__ 5x", description: "Moderate" },
+        { label: "10x", intent: "__SIDE__ __MARKET__ 10x", description: "High risk" },
+        { label: "20x", intent: "__SIDE__ __MARKET__ 20x", description: "Very high risk" },
+      ],
+    },
+  },
+  // ═══ TRADE WIZARD — Step 4: Collateral ═══
+  {
+    pattern: /^(long|short) (\w+) (\d+)x$/i,
+    toolName: "action_options",
+    data: {
+      type: "action_options",
+      title: "Choose collateral amount",
+      options: [
+        { label: "$10", intent: "__SIDE__ __MARKET__ __LEV__x $10", description: "Size: $__SIZE10__" },
+        { label: "$25", intent: "__SIDE__ __MARKET__ __LEV__x $25", description: "Size: $__SIZE25__" },
+        { label: "$50", intent: "__SIDE__ __MARKET__ __LEV__x $50", description: "Size: $__SIZE50__" },
+        { label: "$100", intent: "__SIDE__ __MARKET__ __LEV__x $100", description: "Size: $__SIZE100__" },
       ],
     },
   },
@@ -214,10 +257,44 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
   },
 ];
 
-function matchConversationalIntent(input: string): (typeof CONVERSATIONAL_INTENTS)[number] | null {
+function matchConversationalIntent(input: string): { toolName: string; data: Record<string, unknown> } | null {
   const trimmed = input.trim();
   for (const intent of CONVERSATIONAL_INTENTS) {
-    if (intent.pattern.test(trimmed)) return intent;
+    const match = intent.pattern.exec(trimmed);
+    if (!match) continue;
+
+    // Deep clone data to avoid mutating the template
+    const data = JSON.parse(JSON.stringify(intent.data)) as Record<string, unknown>;
+
+    // Replace placeholders in options with matched values
+    const side = (match[1] ?? "").toUpperCase();
+    const market = (match[2] ?? "").toUpperCase();
+    const lev = match[3] ?? "";
+
+    // For Step 2 (market selection): inject side
+    // For Step 3 (leverage): inject side + market
+    // For Step 4 (collateral): inject side + market + leverage + calculated sizes
+    const options = data.options as { label: string; intent: string; description: string }[];
+    if (options) {
+      for (const opt of options) {
+        opt.intent = opt.intent
+          .replace("__SIDE__", side.toLowerCase())
+          .replace("__MARKET__", market)
+          .replace("__LEV__", lev);
+        opt.description = opt.description
+          .replace("__SIZE10__", lev ? String(10 * Number(lev)) : "")
+          .replace("__SIZE25__", lev ? String(25 * Number(lev)) : "")
+          .replace("__SIZE50__", lev ? String(50 * Number(lev)) : "")
+          .replace("__SIZE100__", lev ? String(100 * Number(lev)) : "");
+      }
+    }
+
+    // Update title with context
+    if (side && !market) data.title = `Choose a market to ${side}`;
+    if (side && market && !lev) data.title = `${side} ${market} — choose leverage`;
+    if (side && market && lev) data.title = `${side} ${market} ${lev}x — choose collateral`;
+
+    return { toolName: intent.toolName, data };
   }
   return null;
 }
