@@ -53,7 +53,7 @@ html, body {
   z-index: 0;
   pointer-events: none;
   background-image: url('/ft-pattern.svg');
-  background-size: 90px 90px;
+  background-size: 100px 100px;
   background-repeat: repeat;
   mask-image: radial-gradient(ellipse 85% 80% at 50% 45%, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 65%, transparent 100%);
   -webkit-mask-image: radial-gradient(ellipse 85% 80% at 50% 45%, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 65%, transparent 100%);
@@ -165,7 +165,7 @@ html, body {
 
 .dot-grid {
   background-image: url('/ft-pattern.svg');
-  background-size: 90px 90px;
+  background-size: 100px 100px;
   background-repeat: repeat;
 }
 

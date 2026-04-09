@@ -311,7 +311,7 @@ function TrendArrow({ positive }: { positive: boolean }) {
 }
 
 // ═══ TRENDING STRIP — real 24h % changes from CoinGecko (like Galileo) ═══
-const CG_IDS: Record<string, string> = { SOL: "solana", BTC: "bitcoin", ETH: "ethereum", FAF: "flash-trade" };
+const CG_IDS: Record<string, string> = { SOL: "solana", BTC: "bitcoin", ETH: "ethereum", JUP: "jupiter-exchange-solana" };
 
 const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd: string) => void }) {
   const [trending, setTrending] = useState<{ symbol: string; change: number; logo: string; color: string }[]>([]);
@@ -359,10 +359,10 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
         Trending
       </span>
       {trending.map((t, i) => (
-        <button key={t.symbol} onClick={() => onAction(t.symbol === "FAF" ? "faf" : `price of ${t.symbol}`)}
+        <button key={t.symbol} onClick={() => onAction(`price of ${t.symbol}`)}
           className="flex items-center gap-1.5 cursor-pointer transition-opacity duration-150 hover:opacity-70"
-          style={{ marginLeft: i > 0 ? "12px" : "0", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none", paddingLeft: i > 0 ? "12px" : "0" }}>
-          <TokenIcon token={t} size={18} />
+          style={{ marginLeft: i > 0 ? "14px" : "0", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none", paddingLeft: i > 0 ? "14px" : "0" }}>
+          <TokenIcon token={t} size={20} />
           <span className="text-[13px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>{t.symbol}</span>
           <span className="text-[13px] num font-bold" style={{ color: t.change >= 0 ? "#2CE800" : "#FF4D4D" }}>
             {t.change >= 0 ? "+" : ""}{t.change.toFixed(2)}%
