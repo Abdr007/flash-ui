@@ -347,10 +347,14 @@ function matchConversationalIntent(input: string): { toolName: string; data: Rec
       }
     }
 
-    // Update title with context
-    if (side && !market) data.title = `Choose a market to ${side}`;
-    if (side && market && !lev) data.title = `${side} ${market} — choose leverage`;
-    if (side && market && lev) data.title = `${side} ${market} ${lev}x — choose collateral`;
+    // Update title with context — only for trade wizard (not earn/transfer)
+    const origTitle = String(data.title ?? "");
+    const isTradeWizard = origTitle.includes("market") || origTitle.includes("leverage") || origTitle.includes("collateral") || origTitle.includes("direction");
+    if (isTradeWizard) {
+      if (side && !market) data.title = `Choose a market to ${side}`;
+      if (side && market && !lev) data.title = `${side} ${market} — choose leverage`;
+      if (side && market && lev) data.title = `${side} ${market} ${lev}x — choose collateral`;
+    }
 
     return { toolName: intent.toolName, data };
   }
