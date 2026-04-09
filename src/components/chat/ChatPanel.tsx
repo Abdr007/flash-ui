@@ -336,6 +336,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
           </div>
         </div>
       </div>
+      </div>
     </div>
   );
 }
