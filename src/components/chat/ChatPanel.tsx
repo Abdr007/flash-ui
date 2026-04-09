@@ -202,8 +202,8 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
       {/* ---- Scrollable area ---- */}
       <div ref={scrollRef} onScroll={handleScroll} className="no-scrollbar flex-1 overflow-y-auto scroll-smooth">
         {!hasMessages ? (
-          /* ---- Hero state: centered vertically, input pinned below ---- */
-          <div className="flex items-center justify-center dot-grid" style={{ minHeight: "calc(100vh - 160px)" }}>
+          /* ---- Hero state: content centered, input right below ---- */
+          <div className="flex flex-col items-center dot-grid">
             <PortfolioHero onAction={handleSubmit} />
           </div>
         ) : (
@@ -253,14 +253,13 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
             />
           </div>
         )}
-      </div>
 
-      {/* ---- Gradient fade (Neur: h-40, pointer-events-none) ---- */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-40"
-        style={{ background: "linear-gradient(to top, var(--color-bg-root), var(--color-bg-root) 20%, transparent)" }} />
+        {/* ---- Gradient fade above input ---- */}
+        <div className="sticky bottom-[120px] z-[5] h-20 pointer-events-none -mb-20"
+          style={{ background: "linear-gradient(to top, var(--color-bg-root), transparent)" }} />
 
-      {/* ---- Input (fixed at bottom of flex container) ---- */}
-      <div className="shrink-0 z-10 safe-bottom relative">
+        {/* ---- Input (sticky inside scroll) ---- */}
+        <div className="sticky bottom-0 z-10 safe-bottom" style={{ background: "var(--color-bg-root)" }}>
         <div className="relative mx-auto w-full max-w-3xl px-4 py-4">
           {/* Autocomplete */}
           {autocomplete.length > 0 && (
