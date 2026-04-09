@@ -1606,17 +1606,39 @@ const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: To
           setStatus("executing");
           try {
             const { buildEarnWithdraw } = await import("@/lib/earn-sdk");
-            const { Connection, Keypair } = await import("@solana/web3.js");
+            const { Connection, Keypair, VersionedTransaction, ComputeBudgetProgram, MessageV0, PublicKey } = await import("@solana/web3.js");
             const conn = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
+            const pubkey = new PublicKey(walletAddress);
             const kp = Keypair.generate();
-            const walletObj = { publicKey: new (await import("@solana/web3.js")).PublicKey(walletAddress), signTransaction: async (tx: unknown) => tx, signAllTransactions: async (txs: unknown[]) => txs, payer: kp } as never;
-            const result = await buildEarnWithdraw(conn, walletObj, percent, String(data.pool), flpPrice, 0.75);
-            const { TransactionMessage, VersionedTransaction, ComputeBudgetProgram } = await import("@solana/web3.js");
-            const allIx = [ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000 }), ...result.instructions];
+            const walletObj = { publicKey: pubkey, signTransaction: async (tx: unknown) => tx, signAllTransactions: async (txs: unknown[]) => txs, payer: kp };
+            const result = await buildEarnWithdraw(conn, walletObj as never, percent, String(data.pool), flpPrice, 0.75);
+
+            const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
+            const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000 });
+            const allIxs = [cuLimit, cuPrice, ...result.instructions];
+
+            // Use Address Lookup Tables from pool config (prevents "encoding overruns" error)
+            const altAccounts = [];
+            for (const addr of result.poolConfig.addressLookupTableAddresses ?? []) {
+              try { const alt = await conn.getAddressLookupTable(addr); if (alt.value) altAccounts.push(alt.value); } catch {}
+            }
+
             const { blockhash } = await conn.getLatestBlockhash("confirmed");
-            const msg = new TransactionMessage({ payerKey: new (await import("@solana/web3.js")).PublicKey(walletAddress), recentBlockhash: blockhash, instructions: allIx }).compileToV0Message();
-            const tx = new VersionedTransaction(msg);
+            const message = MessageV0.compile({ payerKey: pubkey, recentBlockhash: blockhash, instructions: allIxs, addressLookupTableAccounts: altAccounts });
+            const tx = new VersionedTransaction(message);
             if (result.additionalSigners.length > 0) tx.sign(result.additionalSigners);
+
+            // Simulate before signing
+            const simResult = await conn.simulateTransaction(tx, { sigVerify: false, replaceRecentBlockhash: true });
+            if (simResult.value.err) {
+              const logs = simResult.value.logs?.slice(-3)?.join(" ") ?? "";
+              throw new Error(
+                logs.includes("insufficient") ? "Insufficient FLP balance"
+                : logs.includes("AccountNotFound") ? "No FLP tokens found — deposit first"
+                : `Simulation failed: ${JSON.stringify(simResult.value.err).slice(0, 80)}`
+              );
+            }
+
             setStatus("signing");
             const signed = await signTransaction(tx);
             const signedB64 = Buffer.from(signed.serialize()).toString("base64");
@@ -1625,11 +1647,10 @@ const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: To
             if (!bResp.ok || !bJson?.signature) throw new Error("Broadcast failed");
             setTxSig(bJson.signature);
             setStatus("confirming");
-            const connConfirm = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
             let confirmed = false;
-            const start = Date.now();
-            while (Date.now() - start < 45000) {
-              try { const { value } = await connConfirm.getSignatureStatuses([bJson.signature]); const s = value[0]; if (s?.err) throw new Error("Failed on-chain"); if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") { confirmed = true; break; } } catch (e) { if (e instanceof Error && e.message.includes("on-chain")) throw e; }
+            const startT = Date.now();
+            while (Date.now() - startT < 45000) {
+              try { const { value } = await conn.getSignatureStatuses([bJson.signature]); const s = value[0]; if (s?.err) throw new Error("Failed on-chain"); if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") { confirmed = true; break; } } catch (e) { if (e instanceof Error && e.message.includes("on-chain")) throw e; }
               await new Promise((r) => setTimeout(r, 2000));
             }
             if (!confirmed) throw new Error("Not confirmed in 45s");
