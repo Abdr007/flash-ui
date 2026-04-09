@@ -37,7 +37,7 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
         </div>
       );
     }
-    return <div key={this.state.key}>{this.props.children}</div>;
+    return <div key={this.state.key} className="flex flex-col h-full">{this.props.children}</div>;
   }
 }
 
