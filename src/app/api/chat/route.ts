@@ -160,65 +160,23 @@ function createFafStreamResponse(toolName: string, result: Record<string, unknow
 
 // Button-triggered intents return Galileo-style option cards (rendered by OptionsCard)
 const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<string, unknown> }[] = [
-  // ═══ TRADE WIZARD — Step 1: Direction ═══
+  // ═══ TRADE WIZARD — Single card, 4 steps ═══
   {
     pattern: /^I want to trade$/i,
-    toolName: "action_options",
+    toolName: "wizard",
     data: {
-      type: "action_options",
-      title: "Choose your direction",
-      options: [
-        { label: "Long", intent: "I want to go long", description: "Buy — profit when price goes up" },
-        { label: "Short", intent: "I want to go short", description: "Sell — profit when price goes down" },
+      type: "wizard",
+      intro: "Let's set up your trade. I'll walk you through it step by step.",
+      commandTemplate: "{0} {1} {2}x ${3}",
+      steps: [
+        { question: "Which direction?", options: ["Long", "Short"] },
+        { question: "Which market?", options: ["SOL", "BTC", "ETH"], allowCustom: true, customPlaceholder: "Enter market symbol..." },
+        { question: "What leverage?", options: ["2x", "5x", "10x", "20x"], allowCustom: true, customPlaceholder: "e.g. 15x" },
+        { question: "How much collateral (USD)?", options: ["$10", "$25", "$50", "$100"], allowCustom: true, customPlaceholder: "e.g. $200" },
       ],
     },
   },
-  // ═══ TRADE WIZARD — Step 2: Market ═══
-  {
-    pattern: /^I want to go (long|short)$/i,
-    toolName: "action_options",
-    data: {
-      type: "action_options",
-      title: "Choose a market",
-      options: [
-        { label: "SOL", intent: "__SIDE__ SOL", description: "Solana" },
-        { label: "BTC", intent: "__SIDE__ BTC", description: "Bitcoin" },
-        { label: "ETH", intent: "__SIDE__ ETH", description: "Ethereum" },
-        { label: "All markets", intent: "show all prices", description: "View all available markets" },
-      ],
-    },
-  },
-  // ═══ TRADE WIZARD — Step 3: Leverage ═══
-  {
-    pattern: /^(long|short) (SOL|BTC|ETH|SUI|JUP|BONK|WIF|DOGE|PEPE|AVAX|LINK|ARB|OP|APT|NEAR|RENDER|ONDO|TRUMP|PENGU|FARTCOIN)$/i,
-    toolName: "action_options",
-    data: {
-      type: "action_options",
-      title: "Choose leverage",
-      options: [
-        { label: "2x", intent: "__SIDE__ __MARKET__ 2x", description: "Low risk" },
-        { label: "5x", intent: "__SIDE__ __MARKET__ 5x", description: "Moderate" },
-        { label: "10x", intent: "__SIDE__ __MARKET__ 10x", description: "High risk" },
-        { label: "20x", intent: "__SIDE__ __MARKET__ 20x", description: "Very high risk" },
-      ],
-    },
-  },
-  // ═══ TRADE WIZARD — Step 4: Collateral ═══
-  {
-    pattern: /^(long|short) (\w+) (\d+)x$/i,
-    toolName: "action_options",
-    data: {
-      type: "action_options",
-      title: "Choose collateral amount",
-      options: [
-        { label: "$10", intent: "__SIDE__ __MARKET__ __LEV__x $10", description: "Size: $__SIZE10__" },
-        { label: "$25", intent: "__SIDE__ __MARKET__ __LEV__x $25", description: "Size: $__SIZE25__" },
-        { label: "$50", intent: "__SIDE__ __MARKET__ __LEV__x $50", description: "Size: $__SIZE50__" },
-        { label: "$100", intent: "__SIDE__ __MARKET__ __LEV__x $100", description: "Size: $__SIZE100__" },
-      ],
-    },
-  },
-  // ═══ EARN WIZARD ═══
+  // ═══ EARN — Quick actions (not wizard — these go to tools directly) ═══
   {
     pattern: /^I want to earn yield$/i,
     toolName: "action_options",
@@ -227,74 +185,38 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       title: "Earn Yield",
       options: [
         { label: "View all pools", intent: "show earn pools", description: "Live APY + pool stats" },
-        { label: "Deposit to pool", intent: "deposit to earn pool", description: "Add USDC liquidity" },
-        { label: "Withdraw from pool", intent: "withdraw from earn pool", description: "Remove liquidity" },
+        { label: "Deposit to pool", intent: "deposit to earn pool wizard", description: "Add USDC liquidity" },
         { label: "My earn positions", intent: "show my earn positions", description: "Current deposits + earnings" },
       ],
     },
   },
+  // ═══ EARN DEPOSIT WIZARD — Single card ═══
   {
-    pattern: /^deposit to earn pool$/i,
-    toolName: "action_options",
+    pattern: /^deposit to earn pool wizard$/i,
+    toolName: "wizard",
     data: {
-      type: "action_options",
-      title: "Choose a pool to deposit",
-      options: [
-        { label: "Crypto Pool", intent: "deposit to crypto pool", description: "SOL, BTC, ETH perps" },
-        { label: "DeFi Pool", intent: "deposit to defi pool", description: "JUP, PYTH, JTO perps" },
-        { label: "Community Pool", intent: "deposit to meme pool", description: "BONK, PENGU, WIF perps" },
-        { label: "Gold Pool", intent: "deposit to gold pool", description: "XAU perps" },
+      type: "wizard",
+      intro: "Let's deposit into an earn pool. I'll guide you through it.",
+      commandTemplate: "deposit {1} USDC into {0} pool",
+      steps: [
+        { question: "Which pool?", options: ["Crypto", "DeFi", "Meme", "Gold"], allowCustom: false },
+        { question: "How much USDC to deposit?", options: ["$10", "$25", "$50", "$100"], allowCustom: true, customPlaceholder: "e.g. 200" },
       ],
     },
   },
-  {
-    pattern: /^withdraw from earn pool$/i,
-    toolName: "action_options",
-    data: {
-      type: "action_options",
-      title: "Choose a pool to withdraw from",
-      options: [
-        { label: "Crypto Pool", intent: "withdraw from crypto pool", description: "SOL, BTC, ETH" },
-        { label: "DeFi Pool", intent: "withdraw from defi pool", description: "JUP, PYTH, JTO" },
-        { label: "Community Pool", intent: "withdraw from meme pool", description: "BONK, PENGU, WIF" },
-        { label: "Gold Pool", intent: "withdraw from gold pool", description: "XAU" },
-      ],
-    },
-  },
-  {
-    pattern: /^deposit to (\w+) pool$/i,
-    toolName: "action_options",
-    data: {
-      type: "action_options",
-      title: "Choose deposit amount",
-      options: [
-        { label: "$10", intent: "deposit 10 USDC into __POOL__ pool", description: "" },
-        { label: "$25", intent: "deposit 25 USDC into __POOL__ pool", description: "" },
-        { label: "$50", intent: "deposit 50 USDC into __POOL__ pool", description: "" },
-        { label: "$100", intent: "deposit 100 USDC into __POOL__ pool", description: "" },
-      ],
-    },
-  },
-  {
-    pattern: /^withdraw from (\w+) pool$/i,
-    toolName: "action_options",
-    data: {
-      type: "action_options",
-      title: "Choose withdrawal amount",
-      options: [
-        { label: "25%", intent: "withdraw 25% from __POOL__ pool", description: "" },
-        { label: "50%", intent: "withdraw 50% from __POOL__ pool", description: "" },
-        { label: "100%", intent: "withdraw 100% from __POOL__ pool", description: "Full withdrawal" },
-      ],
-    },
-  },
+  // ═══ TRANSFER WIZARD — Single card, 3 steps ═══
   {
     pattern: /^I want to transfer tokens$/i,
-    toolName: "transfer_picker",
+    toolName: "wizard",
     data: {
-      type: "transfer_picker",
-      title: "Transfer Tokens",
-      tokens: ["SOL", "USDC"],
+      type: "wizard",
+      intro: "I'd be happy to help you transfer assets! To get started, I need a few details:",
+      commandTemplate: "send {1} {0} to {2}",
+      steps: [
+        { question: "Which token would you like to transfer?", options: ["SOL", "USDC", "JUP"], allowCustom: true, customPlaceholder: "Token symbol or mint address..." },
+        { question: "How much would you like to transfer?", options: ["0.1", "0.5", "1", "10"], allowCustom: true, customPlaceholder: "Enter amount..." },
+        { question: "What's the recipient's wallet address?", options: [], allowCustom: true, customPlaceholder: "Solana wallet address..." },
+      ],
     },
   },
   {

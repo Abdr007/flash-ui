@@ -72,6 +72,7 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   earn_positions: "Earn Positions",
   action_options: "",
   transfer_picker: "",
+  wizard: "",
 };
 
 const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: ToolPart; onAction?: (cmd: string) => void }) {
@@ -117,6 +118,7 @@ const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: 
     case "faf_cancel_unstake":
     case "faf_tier": card = <FafCard toolName={part.toolName} output={output} onAction={onAction} />; break;
     case "action_options": card = <ActionOptionsCard output={output} onAction={onAction} />; break;
+    case "wizard": card = <WizardToolCard output={output} onAction={onAction} />; break;
     case "transfer_picker": // fall through — rendered by ActionOptionsCard with special type
       card = <TransferPickerCard output={output} onAction={onAction} />; break;
     default: card = <GenericCard toolName={part.toolName} output={output} />; break;
@@ -2543,6 +2545,32 @@ const TransferPickerCard = memo(function TransferPickerCard({ output, onAction }
       </button>
     </div>
   );
+});
+
+// ============================================
+// Wizard Tool Card — wraps WizardCard for tool outputs
+// ============================================
+import WizardCard from "./WizardCard";
+
+const WizardToolCard = memo(function WizardToolCard({ output, onAction }: { output: ToolOutput; onAction?: (cmd: string) => void }) {
+  const data = output.data as Record<string, unknown> | null;
+  if (!data) return null;
+
+  const intro = String(data.intro ?? "");
+  const steps = (data.steps ?? []) as { question: string; options: string[]; allowCustom?: boolean; customPlaceholder?: string }[];
+  const commandTemplate = String(data.commandTemplate ?? "");
+
+  const handleComplete = useCallback((answers: string[]) => {
+    if (!onAction) return;
+    // Build the final command from template + answers
+    let cmd = commandTemplate;
+    answers.forEach((a, i) => { cmd = cmd.replace(`{${i}}`, a); });
+    onAction(cmd);
+  }, [onAction, commandTemplate]);
+
+  if (steps.length === 0) return null;
+
+  return <WizardCard intro={intro} steps={steps} onComplete={handleComplete} />;
 });
 
 // ============================================
