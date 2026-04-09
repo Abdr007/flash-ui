@@ -41,8 +41,11 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const prices = useFlashStore((s) => s.prices);
   const lastTradeDraft = useFlashStore((s) => s.lastTradeDraft);
   const recentMarkets = useFlashStore((s) => s.contextMemory.recentMarkets);
-  const isExecuting = useFlashStore((s) => s.isExecuting);
-  const activeTrade = useFlashStore((s) => s.activeTrade);
+  // Read isExecuting/activeTrade lazily via getState() — NOT as reactive subscriptions
+  // This prevents the cascade crash when completeExecution sets both to null/false simultaneously
+  const getIsExecuting = useCallback(() => useFlashStore.getState().isExecuting, []);
+  const getActiveTrade = useCallback(() => useFlashStore.getState().activeTrade, []);
+  const isExecuting = getIsExecuting();
   const setStreaming = useFlashStore((s) => s.setStreaming);
 
   const transportRef = useRef(new DefaultChatTransport({
@@ -102,8 +105,8 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   // Predictions
   const predictionState = useMemo(() => ({
     positions, lastTradeDraft, recentMarkets, prices,
-    walletConnected, hasActiveTrade: !!activeTrade, isExecuting,
-  }), [positions, lastTradeDraft, recentMarkets, prices, walletConnected, activeTrade, isExecuting]);
+    walletConnected, hasActiveTrade: !!getActiveTrade(), isExecuting: getIsExecuting(),
+  }), [positions, lastTradeDraft, recentMarkets, prices, walletConnected, getActiveTrade, getIsExecuting]);
 
   const actionGroups = useMemo(() => getSuggestedActionGroups(predictionState), [predictionState]);
   const flatSuggestions = useMemo(() => getSuggestedActions(predictionState), [predictionState]);
@@ -137,7 +140,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
 
   const handleSubmit = useCallback((text?: string) => {
     const msg = (text ?? input).trim();
-    if (!msg || isStreaming || isExecuting) return;
+    if (!msg || isStreaming || getIsExecuting()) return;
 
     // Optimistic: show typing indicator BEFORE server responds
     setOptimisticPending(true);
@@ -150,7 +153,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     setInput("");
     setAutocomplete([]);
     setSelectedAC(-1);
-  }, [input, isStreaming, isExecuting, sendMessage]);
+  }, [input, isStreaming, getIsExecuting, sendMessage]);
 
   // Clear optimistic state once real streaming starts
   useEffect(() => {
