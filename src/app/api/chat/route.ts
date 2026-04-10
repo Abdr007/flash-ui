@@ -19,7 +19,27 @@ import {
   smoothStream,
   type UIMessage,
 } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { google } from "@ai-sdk/google";
+
+// ---- Model tiers (multi-model cost optimization) ----
+// Layer 2: light/fast — greetings + parser-resolved intents
+// Layer 3: main brain — ambiguous / multi-step reasoning
+// Fallback: Gemini if Anthropic key missing (zero-config degrade)
+const HAS_ANTHROPIC = !!process.env.ANTHROPIC_API_KEY;
+const LIGHT_MODEL = HAS_ANTHROPIC
+  ? anthropic("claude-haiku-4-5")
+  : google("gemini-2.5-flash");
+const HEAVY_MODEL = HAS_ANTHROPIC
+  ? anthropic("claude-sonnet-4-6")
+  : google("gemini-2.5-flash");
+
+// Context window control — never send more than last N messages to model.
+// Fast paths already captured structured state; model only needs recency.
+const MAX_MSG_CONTEXT = 4;
+function trimMessages(msgs: UIMessage[]): UIMessage[] {
+  return msgs.length > MAX_MSG_CONTEXT ? msgs.slice(-MAX_MSG_CONTEXT) : msgs;
+}
 
 import { getSystemPrompt } from "./system-prompt";
 import { resolveIntent } from "./hybrid-engine";
@@ -627,51 +647,56 @@ export async function POST(req: Request) {
   const greetingPattern = /^(h(ello|i|ey|owdy)|gm|good\s*(morning|evening|night)|yo|sup|what'?s?\s*up|thanks?|ty|ok|okay|sure|yes|no|yep|nah)\b/i;
   try {
 
+  // Trim context once — shared across all AI paths
+  const trimmed = trimMessages(messages);
+  const modelMessages = await convertToModelMessages(trimmed);
+  const systemPrompt = getSystemPrompt(context);
+
+  // ─── LAYER 2a: Greeting (Haiku, no tools, ultra-short) ───
   if (greetingPattern.test(lastUserText.trim())) {
     const result = streamText({
-      model: google("gemini-2.5-flash"),
-      system: getSystemPrompt(context),
-      messages: await convertToModelMessages(messages),
+      model: LIGHT_MODEL,
+      system: systemPrompt,
+      messages: modelMessages,
       experimental_transform: smoothStream(),
       temperature: 0,
-      maxOutputTokens: 80,
+      maxOutputTokens: 40,
     });
     return result.toUIMessageStreamResponse();
   }
 
-  // Parser resolved a known intent — let AI call the right tool
+  // ─── LAYER 2b: Parser-resolved intent (Haiku, tools, 1–2 steps) ───
   if (
     !hybrid.aiNeeded &&
     hybrid.parseResult &&
     hybrid.parseResult.type !== "unknown"
   ) {
     const result = streamText({
-      model: google("gemini-2.5-flash"),
-      system: getSystemPrompt(context),
-      messages: await convertToModelMessages(messages),
+      model: LIGHT_MODEL,
+      system: systemPrompt,
+      messages: modelMessages,
       tools,
       stopWhen: stepCountIs(3),
       experimental_transform: smoothStream(),
       temperature: 0,
-      maxOutputTokens: 200,
+      maxOutputTokens: 160,
     });
-
     return result.toUIMessageStreamResponse();
   }
 
-  // Full AI path
-    const result = streamText({
-      model: google("gemini-2.5-flash"),
-      system: getSystemPrompt(context),
-      messages: await convertToModelMessages(messages),
-      tools,
-      stopWhen: stepCountIs(5),
-      experimental_transform: smoothStream(),
-      temperature: 0,
-      maxOutputTokens: 400,
-    });
+  // ─── LAYER 3: Full reasoning (Sonnet 4.6, multi-step tool use) ───
+  const result = streamText({
+    model: HEAVY_MODEL,
+    system: systemPrompt,
+    messages: modelMessages,
+    tools,
+    stopWhen: stepCountIs(5),
+    experimental_transform: smoothStream(),
+    temperature: 0,
+    maxOutputTokens: 320,
+  });
 
-    return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "AI processing failed";
     logError("ai_request", { wallet: walletAddress, error: msg });
