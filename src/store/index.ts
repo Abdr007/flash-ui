@@ -109,6 +109,7 @@ export interface FlashStore {
 
   // ---- Existing Actions (UNTOUCHED) ----
   sendMessage: (input: string) => Promise<void>;
+  setTriggers: (tradeId: string, triggers: { tp?: number | null; sl?: number | null }) => Promise<void>;
   confirmTrade: () => void;
   executeTrade: () => Promise<void>;
   completeExecution: (txSignature: string) => void;
@@ -593,6 +594,40 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
     }
   },
 
+  // ---- Set TP/SL on active trade (keystroke-driven) ----
+  // Mutates the active trade's take_profit_price / stop_loss_price and
+  // re-runs enrichTradeWithQuote — the canonical validator handles
+  // direction checks (LONG TP > entry, etc.), distance bounds, and
+  // NaN/Infinity guards. The card's existing error branch renders
+  // enrich errors automatically.
+  setTriggers: async (tradeId, triggers) => {
+    const current = get().activeTrade;
+    if (!current || current.id !== tradeId) return;
+    if (current.status !== "READY" && current.status !== "INCOMPLETE" && current.status !== "ERROR") return;
+
+    const versionBefore = ++stateVersion;
+
+    const next: TradeObject = {
+      ...current,
+      take_profit_price: "tp" in triggers ? triggers.tp ?? null : current.take_profit_price ?? null,
+      stop_loss_price: "sl" in triggers ? triggers.sl ?? null : current.stop_loss_price ?? null,
+      status: "INCOMPLETE",
+      error: undefined,
+    };
+
+    updateLastTradeCard(get, set, next);
+    set({ activeTrade: next });
+
+    const enriched = await enrichTradeWithQuote(next);
+
+    // Race guard: discard if a newer update landed during the async gap
+    if (stateVersion !== versionBefore) return;
+    if (get().activeTrade?.id !== tradeId) return;
+
+    updateLastTradeCard(get, set, enriched);
+    set({ activeTrade: enriched });
+  },
+
   // ---- Confirm Trade (step 1: validation + expiry check + show overlay) ----
   confirmTrade: () => {
     const trade = get().activeTrade;
@@ -710,10 +745,11 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
 
   // ---- Execute Trade (step 2: build tx + send) ----
   executeTrade: async () => {
-    const trade = get().activeTrade;
+    const initialTrade = get().activeTrade;
 
     // STRICT state gate: only from CONFIRMING
-    if (!trade || trade.status !== "CONFIRMING") return;
+    if (!initialTrade || initialTrade.status !== "CONFIRMING") return;
+    let trade: TradeObject = initialTrade;
 
     const wallet = get().walletAddress;
     if (!wallet) return;
@@ -890,6 +926,20 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
 
       // ---- TOCTOU COMPLETE — proceed to API call ----
 
+      // Defense-in-depth enrich fence: user may have edited TP/SL inside the
+      // debounce window, or a background price tick may have invalidated
+      // bounds/direction since the last enrich. Re-run the canonical validator
+      // against the current trade and bail on ERROR before sending to the API.
+      const fenced = await enrichTradeWithQuote(trade);
+      if (fenced.status === "ERROR") {
+        const errorTrade: TradeObject = { ...trade, status: "ERROR", error: fenced.error ?? "Validation failed" };
+        updateLastTradeCard(get, set, errorTrade);
+        set({ activeTrade: errorTrade, isExecuting: false });
+        tradeLock = false;
+        return;
+      }
+      trade = fenced;
+
       const { buildOpenPosition } = await import("@/lib/api");
 
       logTrace({
@@ -911,6 +961,8 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
           collateral,
           leverage,
           owner: wallet,
+          takeProfitPrice: trade.take_profit_price ?? undefined,
+          stopLossPrice: trade.stop_loss_price ?? undefined,
         })
       );
 

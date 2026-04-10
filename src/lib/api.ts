@@ -244,8 +244,11 @@ export async function buildOpenPosition(
       tradeType: params.side,
       owner: params.owner,
       slippageBps: params.slippageBps ?? 80,
-      takeProfitPrice: params.takeProfitPrice,
-      stopLossPrice: params.stopLossPrice,
+      // Wire fields are `takeProfit` / `stopLoss` (string), not `*Price`.
+      // When supplied, the Flash builder inlines TP + SL instructions into
+      // the same versioned tx — single base64, single signature.
+      takeProfit: params.takeProfitPrice != null ? String(params.takeProfitPrice) : undefined,
+      stopLoss: params.stopLossPrice != null ? String(params.stopLossPrice) : undefined,
     }
   );
 
@@ -360,6 +363,9 @@ export interface BuildTriggerParams {
   collateralTokenSymbol: string;
 }
 
+// Used by the future "add TP/SL to existing position" flow.
+// Not used by the open-position flow — TP/SL is bundled inline via buildOpenPosition
+// (see takeProfit/stopLoss fields there).
 export async function buildPlaceTriggerOrder(
   params: BuildTriggerParams
 ): Promise<{ transactionBase64?: string; err: string | null }> {

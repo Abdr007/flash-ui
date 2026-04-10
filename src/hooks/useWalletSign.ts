@@ -9,17 +9,11 @@ import { executeSignedTransaction } from "@/lib/tx-executor";
 /**
  * Watches for SIGNING state on activeTrade.
  *
- * Flow WITH TP/SL:
- *   1. Sign + broadcast open position → confirmed
- *   2. Build TP trigger order via Flash API (position now exists on-chain)
- *   3. Sign + broadcast TP → confirmed
- *   4. Build SL trigger order via Flash API
- *   5. Sign + broadcast SL → confirmed
- *
- * Flow WITHOUT TP/SL:
- *   1. Sign + broadcast → confirmed (unchanged)
- *
- * TP/SL failures don't fail the main trade.
+ * TP/SL are bundled into the open-position tx by the Flash builder (see
+ * buildOpenPosition in src/lib/api.ts — `takeProfit` / `stopLoss` wire
+ * fields). The hook signs and broadcasts ONE versioned transaction that
+ * contains open + optional TP + optional SL in a single atomic step.
+ * No second or third signatures, no orphaned trigger orders.
  */
 export function useWalletSign() {
   const { connection } = useConnection();
@@ -30,8 +24,6 @@ export function useWalletSign() {
   const signingRef = useRef(false);
 
   useEffect(() => {
-    // Trade signing is now handled directly in TradePreviewCard (same pattern as earn/FAF)
-    // This hook only handles TP/SL trigger orders after the main trade confirms
     if (!activeTrade || activeTrade.status !== "SIGNING") return;
     if (!activeTrade.unsigned_tx) return;
     if (!connected || !signTransaction || !publicKey) return;
@@ -42,7 +34,6 @@ export function useWalletSign() {
 
     (async () => {
       try {
-        // ---- STEP 1: Sign + broadcast the main trade ----
         const cleanBase64 = await cleanTx(activeTrade.unsigned_tx!, walletAddress);
         const txBytes = Uint8Array.from(atob(cleanBase64), (c) => c.charCodeAt(0));
         const transaction = VersionedTransaction.deserialize(txBytes);
@@ -50,45 +41,6 @@ export function useWalletSign() {
         const signed = await signTransaction(transaction);
         const signedBase64 = Buffer.from(signed.serialize()).toString("base64");
         const signature = await executeSignedTransaction(signedBase64, connection);
-
-        // ---- STEP 2: Place TP/SL trigger orders (position now exists on-chain) ----
-        if (activeTrade.take_profit_price || activeTrade.stop_loss_price) {
-          // Wait for position to be readable on-chain
-          await new Promise((r) => setTimeout(r, 2000));
-
-          const { buildPlaceTriggerOrder } = await import("@/lib/api");
-          const posSize = activeTrade.position_size ?? 0;
-          const entry = activeTrade.entry_price ?? 1;
-          const sizeAmount = entry > 0 ? String(Math.round((posSize / entry) * 10000) / 10000) : "0";
-
-          // Place TP
-          if (activeTrade.take_profit_price) {
-            await placeTriggerAndSign({
-              owner: walletAddress!,
-              marketSymbol: activeTrade.market,
-              side: activeTrade.action,
-              triggerPriceUi: String(activeTrade.take_profit_price),
-              sizeUsdUi: String(posSize),
-              sizeAmountUi: sizeAmount,
-              isStopLoss: false,
-              collateralTokenSymbol: "USDC",
-            }, walletAddress, signTransaction, connection, buildPlaceTriggerOrder);
-          }
-
-          // Place SL
-          if (activeTrade.stop_loss_price) {
-            await placeTriggerAndSign({
-              owner: walletAddress!,
-              marketSymbol: activeTrade.market,
-              side: activeTrade.action,
-              triggerPriceUi: String(activeTrade.stop_loss_price),
-              sizeUsdUi: String(posSize),
-              sizeAmountUi: sizeAmount,
-              isStopLoss: true,
-              collateralTokenSymbol: "USDC",
-            }, walletAddress, signTransaction, connection, buildPlaceTriggerOrder);
-          }
-        }
 
         // Decouple state update from React — use double rAF + setTimeout for maximum safety
         requestAnimationFrame(() => {
@@ -128,30 +80,4 @@ async function cleanTx(txBase64: string, walletAddress: string | null): Promise<
   if (data.error) throw new Error(data.error);
   if (!data.txBase64) throw new Error("No cleaned transaction returned");
   return data.txBase64;
-}
-
-async function placeTriggerAndSign(
-  params: import("@/lib/api").BuildTriggerParams,
-  walletAddress: string | null,
-  signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>,
-  connection: import("@solana/web3.js").Connection,
-  buildPlaceTriggerOrder: typeof import("@/lib/api").buildPlaceTriggerOrder,
-): Promise<void> {
-  try {
-    const result = await buildPlaceTriggerOrder(params);
-    if (result.err || !result.transactionBase64) {
-      console.warn(`[TP/SL] Build failed: ${result.err ?? "no tx"}`);
-      return; // Don't fail the main trade
-    }
-
-    const cleaned = await cleanTx(result.transactionBase64, walletAddress);
-    const bytes = Uint8Array.from(atob(cleaned), (c) => c.charCodeAt(0));
-    const tx = VersionedTransaction.deserialize(bytes);
-    const signed = await signTransaction(tx);
-    const base64 = Buffer.from(signed.serialize()).toString("base64");
-    await executeSignedTransaction(base64, connection);
-  } catch (e) {
-    // TP/SL failure must NOT fail the main trade
-    console.warn(`[TP/SL] ${params.isStopLoss ? "SL" : "TP"} failed:`, e instanceof Error ? e.message : e);
-  }
 }
