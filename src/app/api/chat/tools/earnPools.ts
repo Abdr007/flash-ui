@@ -120,32 +120,60 @@ export function createEarnPositionsTool(wallet: string) {
         return { status: "error", data: null, error: "Connect your wallet to view earn positions.", request_id: requestId, latency_ms: 0 };
       }
 
+      // Mainnet FLP compounding mints (from flash-sdk PoolConfig.json)
+      const FLP_MINTS: Record<string, string> = {
+        "FLP.1": "NUZ3FDWTtN5SP72BsefbsqpnbAY5oe21LE8bCSkqsEK",
+        "FLP.2": "AbVzeRUss8QJYzv2WDizDJ2RtsD1jkVyRjNdAzX94JhG",
+        "FLP.3": "4PZTRNrHnxWBqLRvX5nuE6m1cNR8RqB4kWvVYjDkMd2H",
+        "FLP.4": "EngqvevoQ8yaNdtxY7sSh5J7NF74k3cDKi9v9pHi5H3B",
+        "FLP.5": "Ab6K8anKSwAz8VXJPVvAVjPQMJNoVhwzfF7FtAB5PNW9",
+        "FLP.7": "2aAQefifU14gxfc2FQHruFrp2UViLF4TYwzvbfyKFiFa",
+        "FLP.8": "EViAVW2WXmbQhGwH4rjAvxAVAtXn1W8g2izbHUQ9s2AW",
+        "FLP.x": "HokRUTnsr3FgLj9sq2iw3F6XkPoHn62wytcdNuPZowa7",
+      };
+      const POOL_NAME_BY_FLP: Record<string, string> = {
+        "FLP.1": "Crypto", "FLP.2": "Gold", "FLP.3": "DeFi",
+        "FLP.4": "Community", "FLP.5": "WIF", "FLP.7": "FART",
+        "FLP.8": "Ore", "FLP.x": "Equity",
+      };
+
       try {
         // Fetch pool data for FLP prices
         const poolRes = await fetch("https://api.prod.flash.trade/earn-page/data", { signal: AbortSignal.timeout(8000) });
         const poolData = poolRes.ok ? await poolRes.json() : { pools: [] };
 
-        // Try to fetch user's compounding positions from Flash API
-        let balData: Record<string, unknown> = {};
+        // Read FLP balances on-chain via Helius RPC
+        const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
+        const balData: Record<string, number> = {};
         try {
-          const balRes = await fetch(`https://api.prod.flash.trade/compounding-positions/${wallet}`, { signal: AbortSignal.timeout(5000) });
-          if (balRes.ok) balData = await balRes.json();
+          const rpcResp = await fetch(RPC_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              jsonrpc: "2.0", id: 1, method: "getTokenAccountsByOwner",
+              params: [wallet, { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }, { encoding: "jsonParsed" }],
+            }),
+            signal: AbortSignal.timeout(8000),
+          });
+          if (rpcResp.ok) {
+            const rpcData = await rpcResp.json();
+            const accounts = rpcData?.result?.value ?? [];
+            for (const acc of accounts) {
+              const mint = acc?.account?.data?.parsed?.info?.mint;
+              const uiAmount = Number(acc?.account?.data?.parsed?.info?.tokenAmount?.uiAmount ?? 0);
+              if (!mint || uiAmount <= 0) continue;
+              for (const [sym, mintAddr] of Object.entries(FLP_MINTS)) {
+                if (mintAddr === mint) { balData[sym] = uiAmount; break; }
+              }
+            }
+          }
         } catch {}
-        // Fallback: try token balances endpoint
-        if (Object.keys(balData).length === 0) {
-          try {
-            const balRes2 = await fetch(`https://api.prod.flash.trade/user-flp-balances/${wallet}`, { signal: AbortSignal.timeout(5000) });
-            if (balRes2.ok) balData = await balRes2.json();
-          } catch {}
-        }
 
         const poolMap: Record<string, { name: string; flpPrice: number; apy: number }> = {};
         for (const p of poolData.pools ?? []) {
           const sym = String(p.flpTokenSymbol ?? "");
           poolMap[sym] = {
-            name: sym === "FLP.1" ? "Crypto" : sym === "FLP.3" ? "DeFi" : sym === "FLP.2" ? "Gold"
-              : sym === "FLP.4" ? "Meme" : sym === "FLP.5" ? "WIF" : sym === "FLP.7" ? "FART"
-              : sym === "FLP.8" ? "Ore" : sym,
+            name: POOL_NAME_BY_FLP[sym] ?? sym,
             flpPrice: Number(p.flpPrice) || 0,
             apy: Number(p.flpWeeklyApy) || 0,
           };
