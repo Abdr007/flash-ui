@@ -13,6 +13,7 @@ import { useFlashStore } from "@/store";
 import ToolResultCard from "./ToolResultCard";
 import QuickReply from "./QuickReply";
 import PortfolioHero from "@/components/portfolio/PortfolioHero";
+import { SectionBoundary } from "@/components/ErrorBoundary";
 import {
   getSuggestedActions,
   getSuggestedActionGroups,
@@ -221,23 +222,39 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                 && !isStreaming
                 && !isExecuting;
 
+              // Per-message error boundary — a crashing tool card replaces only
+              // its own slot with a small inline fallback. ChatPanel does NOT
+              // unmount, so useChat messages survive. Without this, any render
+              // error anywhere in a child triggers React's error boundary
+              // mechanics, which remount the subtree below the boundary,
+              // re-initializing useChat with empty messages and flashing the
+              // PortfolioHero — user sees "navigated to homepage".
               return (
-                <div key={message.id} className={`${message.role === "user" ? "msg-anim-instant" : "msg-anim"} ${mt}`}>
-                  {message.role === "user" ? (
-                    <>
-                      <UserMessage text={userText} />
-                      {showQuickReply && (
-                        <QuickReply
-                          userMessage={userText}
-                          onSelect={handleSubmit}
-                          disabled={isStreaming || isExecuting}
-                        />
-                      )}
-                    </>
-                  ) : (
-                    <AssistantMessage parts={(message.parts ?? []) as Record<string, unknown>[]} onAction={handleSubmit} />
-                  )}
-                </div>
+                <SectionBoundary
+                  key={message.id}
+                  fallback={
+                    <div className="text-[12px] text-text-tertiary px-3 py-2 opacity-60">
+                      [This message failed to render. Continue chatting.]
+                    </div>
+                  }
+                >
+                  <div className={`${message.role === "user" ? "msg-anim-instant" : "msg-anim"} ${mt}`}>
+                    {message.role === "user" ? (
+                      <>
+                        <UserMessage text={userText} />
+                        {showQuickReply && (
+                          <QuickReply
+                            userMessage={userText}
+                            onSelect={handleSubmit}
+                            disabled={isStreaming || isExecuting}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <AssistantMessage parts={(message.parts ?? []) as Record<string, unknown>[]} onAction={handleSubmit} />
+                    )}
+                  </div>
+                </SectionBoundary>
               );
             })}
             {(isStreaming || optimisticPending) && <StreamingDot />}

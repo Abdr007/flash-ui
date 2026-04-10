@@ -14,8 +14,17 @@ import SystemStatus from "@/components/layout/SystemStatus";
 import { SectionBoundary } from "@/components/ErrorBoundary";
 import DataStatusBanner from "@/components/layout/DataStatusBanner";
 
-// Auto-recovering error boundary for chat — retries automatically after crash
-// Transparent error boundary — catches errors but NEVER unmounts children (preserves chat history)
+// Secondary safety-net boundary for ChatPanel's top-level render.
+//
+// NOTE: React error boundaries inherently unmount-and-remount the subtree on
+// catch — returning `{children}` from render() creates a fresh subtree, it
+// does NOT reuse prior instances. This means a catch here DOES lose useChat
+// state (messages array resets) and flashes PortfolioHero.
+//
+// The primary defense is inside ChatPanel — per-message SectionBoundary that
+// isolates tool-card crashes without unmounting ChatPanel. This outer
+// boundary only fires if something in ChatPanel's own render code throws,
+// which should be rare.
 class ChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -24,11 +33,9 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
   static getDerivedStateFromError(): { hasError: boolean } { return { hasError: true }; }
   componentDidCatch(error: Error) {
     console.error("[ChatCrash]", error?.message);
-    // Immediately clear error — never show fallback, never unmount children
     setTimeout(() => this.setState({ hasError: false }), 0);
   }
   render() {
-    // ALWAYS render children — never show a fallback, never unmount
     return <div className="flex flex-col h-full">{this.props.children}</div>;
   }
 }
