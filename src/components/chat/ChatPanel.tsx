@@ -475,7 +475,22 @@ const UserMessage = memo(function UserMessage({ text }: { text: string }) {
 
 const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { parts: Record<string, unknown>[]; onAction?: (cmd: string) => void }) {
   // Guard: parts could be undefined/null/not-array from bad API response
-  const safeParts = Array.isArray(parts) ? parts : [];
+  const rawParts = Array.isArray(parts) ? parts : [];
+
+  // If the assistant message has ANY tool part, the tool card IS the response
+  // — strip text parts so we don't render the model's filler text repeating
+  // the card's data ("BTC SHORT 2x | $10 collateral — Ready to execute?").
+  // The system prompt forbids this but the model ignores it; enforce client-side.
+  const hasToolPart = rawParts.some((p) => {
+    const type = typeof p?.type === "string" ? (p.type as string) : "";
+    return type === "dynamic-tool" || type.startsWith("tool-");
+  });
+  const safeParts = hasToolPart
+    ? rawParts.filter((p) => {
+        const type = typeof p?.type === "string" ? (p.type as string) : "";
+        return type !== "text";
+      })
+    : rawParts;
 
   // Detect fast-path response and extract trade summary for intelligence signal
   let fastPathSummary = "";

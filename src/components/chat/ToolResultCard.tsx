@@ -311,8 +311,10 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
 
   if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Trade cancelled.</div>;
 
-  // Trade was submitted and completed successfully
+  // Trade was submitted and completed successfully — minimal success card:
+  // green check, "Trade executed", and a direct Solscan link. Nothing else.
   if (tradeCompleted && (tradeStatus === "SUCCESS" || !activeTrade)) {
+    const sig = activeTrade?.tx_signature;
     return (
       <div className="w-full max-w-[460px]">
         <div className="glass-card overflow-hidden success-glow">
@@ -320,25 +322,18 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
             style={{ background: "rgba(16,185,129,0.06)" }}>
             <span className="text-[14px]" style={{ color: "var(--color-accent-long)" }}>✓</span>
             <span className="text-[14px] font-medium" style={{ color: "var(--color-accent-long)" }}>Trade executed</span>
-            {activeTrade?.tx_signature && (
-              <span className="text-[12px] text-text-tertiary ml-auto num">
-                {activeTrade.tx_signature.slice(0, 8)}..
-              </span>
+            {sig && (
+              <a
+                href={`https://solscan.io/tx/${sig}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[12px] text-text-tertiary ml-auto hover:text-text-primary underline"
+              >
+                View on Solscan →
+              </a>
             )}
           </div>
         </div>
-        {postTradeInsight && (
-          <div className="mt-2 flex items-center gap-2 px-1 msg-anim">
-            <span className="text-[11px] font-medium" style={{ color: postTradeInsight.color }}>{postTradeInsight.message}</span>
-          </div>
-        )}
-        {(() => {
-          try { const oi = getOutcomeInsight(); if (oi && (!postTradeInsight || oi.message !== postTradeInsight.message)) return (
-            <div className="mt-1 flex items-center gap-2 px-1 msg-anim">
-              <span className="text-[10px]" style={{ color: oi.color }}>{oi.message}</span>
-            </div>
-          ); } catch {} return null;
-        })()}
       </div>
     );
   }
