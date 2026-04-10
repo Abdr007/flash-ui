@@ -227,6 +227,10 @@ function validateTpSlAgainstEntry(
 // ---- Trade Preview Card ----
 
 const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: ToolOutput }) {
+  // ─── ALL HOOKS MUST BE CALLED UNCONDITIONALLY ───
+  // Early returns below must not be moved above this block or React will
+  // see a mismatched hook count between renders and crash with
+  // "Rendered fewer hooks than expected".
   const [submitting, setSubmitting] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [tpDraft, setTpDraft] = useState<string>("");
@@ -238,29 +242,54 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
   const cancelTrade = useFlashStore((s) => s.cancelTrade);
   const isExecuting = useFlashStore((s) => s.isExecuting);
   const activeTrade = useFlashStore((s) => s.activeTrade);
-  // Reset submitting when trade completes or is cancelled
+
+  // Non-hook derivations (safe before hooks that depend on them)
   const tradeStatus = activeTrade?.status;
   const tradeCompleted = submitting && !isExecuting && tradeStatus !== "CONFIRMING" && tradeStatus !== "EXECUTING" && tradeStatus !== "SIGNING";
 
-  if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Trade cancelled.</div>;
+  // Firewall runs during render — synchronous, not a hook
+  const firewall = validateTrade(output.data, walletAddress ?? "", positions);
+  const firewallValid = firewall.valid;
+  const t = firewallValid ? firewall.trade : null;
 
-  // Compute insight unconditionally (hooks can't be conditional)
+  // Safe values for hook deps when firewall rejects
+  const hookEntry = t?.entry_price ?? 0;
+  const hookLiqPrice = t?.liquidation_price ?? 0;
+  const hookSide = t?.side ?? "LONG";
+  const hookLeverage = t?.leverage ?? 0;
+  const hookCollateral = t?.collateral_usd ?? 0;
+  const hookPositionSize = t?.position_size ?? 0;
+  const hookFees = t?.fees ?? 0;
+  const liqDist = t ? liqDistancePct(hookEntry, hookLiqPrice, hookSide) : 0;
+
   const postTradeInsight = useMemo<TradeInsight | null>(() => {
     if (!tradeCompleted) return null;
     try {
-      const t = output.data as Record<string, unknown> | null;
-      if (!t) return null;
+      const raw = output.data as Record<string, unknown> | null;
+      if (!raw) return null;
       return getPostTradeInsight({
-        market: String(t.market ?? ""),
-        side: String(t.side ?? "LONG") as "LONG" | "SHORT",
-        leverage: Number(t.leverage ?? 0),
-        collateral: Number(t.collateral_usd ?? 0),
+        market: String(raw.market ?? ""),
+        side: String(raw.side ?? "LONG") as "LONG" | "SHORT",
+        leverage: Number(raw.leverage ?? 0),
+        collateral: Number(raw.collateral_usd ?? 0),
         timestamp: Date.now(),
-        hasTp: !!t.take_profit_price,
-        hasSl: !!t.stop_loss_price,
+        hasTp: !!raw.take_profit_price,
+        hasSl: !!raw.stop_loss_price,
       });
     } catch { return null; }
   }, [tradeCompleted, output.data]);
+
+  const springLiqDist = useNumberSpring(liqDist);
+  const bounceStyle = useBounceIn();
+
+  const confidence = useMemo(() => getTradeConfidence({
+    leverage: hookLeverage, collateral_usd: hookCollateral, position_size: hookPositionSize,
+    fees: hookFees, entry_price: hookEntry, liquidation_price: hookLiqPrice, side: hookSide,
+  }), [hookLeverage, hookCollateral, hookPositionSize, hookFees, hookEntry, hookLiqPrice, hookSide]);
+
+  // ─── END HOOKS — early returns and conditional rendering below this line ───
+
+  if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Trade cancelled.</div>;
 
   // Trade was submitted and completed successfully
   if (tradeCompleted && (tradeStatus === "SUCCESS" || !activeTrade)) {
@@ -304,22 +333,12 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
     );
   }
 
-  const firewall = validateTrade(output.data, walletAddress ?? "", positions);
   if (!firewall.valid) return <ToolError toolName="build_trade" error={`Trade blocked: ${firewall.errors.join("; ")}`} />;
+  if (!t) return null;
 
-  const t = firewall.trade;
   const isLong = t.side === "LONG";
   const accent = isLong ? "var(--color-accent-long)" : "var(--color-accent-short)";
-  const liqDist = liqDistancePct(t.entry_price, t.liquidation_price, t.side);
   const highLev = t.leverage >= HIGH_LEVERAGE_THRESHOLD;
-
-  const springLiqDist = useNumberSpring(liqDist);
-  const bounceStyle = useBounceIn();
-
-  const confidence = useMemo(() => getTradeConfidence({
-    leverage: t.leverage, collateral_usd: t.collateral_usd, position_size: t.position_size,
-    fees: t.fees, entry_price: t.entry_price, liquidation_price: t.liquidation_price, side: t.side,
-  }), [t.leverage, t.collateral_usd, t.position_size, t.fees, t.entry_price, t.liquidation_price, t.side]);
 
   // ─── TP/SL draft parse + live validation (derived during render) ───
   const tpParsed = tpDraft.trim() === "" ? null : Number(tpDraft);

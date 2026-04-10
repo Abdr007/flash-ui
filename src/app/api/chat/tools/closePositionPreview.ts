@@ -109,26 +109,53 @@ export function createClosePositionPreviewTool(wallet: string) {
         }
 
         // ---- STEP 6: Build close preview ----
-        const exitPrice = result.priceData?.price ?? position.mark_price;
-        const closeRatio = close_percent / 100;
+        // Always source `side` from the actual position — the AI input is
+        // optional and can be null/undefined/wrong. The position object is
+        // guaranteed LONG or SHORT via fetchPositions normalization.
+        const effectiveSide: "LONG" | "SHORT" = position.side;
+
+        // Defensive close_percent normalization — Zod's .default() may not
+        // apply if the AI passes null instead of omitting the field.
+        const pctRaw = Number(close_percent);
+        const effectivePercent = Number.isFinite(pctRaw) && pctRaw >= 1 && pctRaw <= 100
+          ? pctRaw
+          : 100;
+
+        const exitPrice = Number.isFinite(result.priceData?.price)
+          ? (result.priceData!.price as number)
+          : position.mark_price;
+
+        if (!Number.isFinite(exitPrice) || exitPrice <= 0) {
+          return {
+            status: "error",
+            data: null,
+            error: "Could not determine exit price. Try again.",
+            request_id: requestId,
+            latency_ms,
+          };
+        }
+        if (!Number.isFinite(position.entry_price) || position.entry_price <= 0) {
+          return {
+            status: "error",
+            data: null,
+            error: "Position has no valid entry price on-chain.",
+            request_id: requestId,
+            latency_ms,
+          };
+        }
+
+        const closeRatio = effectivePercent / 100;
         const closingSize = position.size_usd * closeRatio;
         const closeFee = closingSize * 0.0008;
 
-        let pnl: number;
-        if (side === "LONG") {
-          pnl =
-            ((exitPrice - position.entry_price) / position.entry_price) *
-            closingSize;
-        } else {
-          pnl =
-            ((position.entry_price - exitPrice) / position.entry_price) *
-            closingSize;
-        }
+        const pnl = effectiveSide === "LONG"
+          ? ((exitPrice - position.entry_price) / position.entry_price) * closingSize
+          : ((position.entry_price - exitPrice) / position.entry_price) * closingSize;
 
         const preview = {
           market: resolved,
-          side,
-          close_percent,
+          side: effectiveSide,
+          close_percent: effectivePercent,
           exit_price: exitPrice,
           closing_size: closingSize,
           estimated_pnl: pnl,
