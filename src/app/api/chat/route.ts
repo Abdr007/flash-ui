@@ -262,8 +262,8 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       title: "Portfolio",
       options: [
         { label: "My positions", intent: "show my positions", description: "Open trades" },
-        { label: "Wallet balances", intent: "what are my token balances?", description: "All tokens" },
-        { label: "Portfolio risk", intent: "analyze my portfolio risk and exposure", description: "Risk analysis" },
+        { label: "Wallet balances", intent: "show my wallet balances", description: "All tokens" },
+        { label: "Portfolio risk", intent: "analyze my portfolio risk with leverage concentration and liquidation distances", description: "Risk analysis" },
         { label: "FAF staking", intent: "faf", description: "Staking dashboard" },
       ],
     },

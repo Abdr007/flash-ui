@@ -41,7 +41,12 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const positions = useFlashStore((s) => s.positions);
   const prices = useFlashStore((s) => s.prices);
   const lastTradeDraft = useFlashStore((s) => s.lastTradeDraft);
-  const recentMarkets = useFlashStore((s) => s.contextMemory.recentMarkets);
+  // Optional-chain contextMemory because during initial hydration / hot
+  // reload the selector can briefly see a store snapshot where nested
+  // objects aren't populated yet, throwing "Cannot read properties of
+  // undefined (reading 'recentMarkets')" which the error boundary then
+  // catches with a generic 'state' stack trace.
+  const recentMarkets = useFlashStore((s) => s.contextMemory?.recentMarkets ?? []);
   // Read isExecuting/activeTrade lazily via getState() — NOT as reactive subscriptions
   // This prevents the cascade crash when completeExecution sets both to null/false simultaneously
   const getIsExecuting = useCallback(() => useFlashStore.getState().isExecuting, []);

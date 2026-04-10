@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logInfo, logError } from "@/lib/logger";
 
 const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 
@@ -23,9 +24,11 @@ interface WalletTokens {
 }
 
 export async function POST(req: NextRequest) {
+  const start = Date.now();
   try {
     const { wallet } = await req.json();
     if (!wallet) return NextResponse.json({ error: "No wallet" }, { status: 400 });
+    logInfo("cache_miss", { wallet, data: { action: "fetch_start" } });
 
     // Check cache
     const cached = cache.get(wallet);
@@ -96,34 +99,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Re-price ALL tokens via Jupiter (same price source as Galileo) for exact balance match
+    // Re-price ALL tokens via Jupiter lite-api v3.
+    //
+    // Prior code used api.jup.ag/price/v2 which has been silently deprecated
+    // and now returns empty data, causing FAF, FLP.1, and other long-tail
+    // tokens to stay at usdValue=0 — which then got filtered out downstream,
+    // making the Terminal's total balance ~$15 lower than Jupiter's. v3
+    // returns { [mint]: { usdPrice, decimals, liquidity, priceChange24h } }
+    // and works for any indexed SPL token including Flash's FAF and FLP mints.
     {
       const allMints = tokens.map((t) => t.mint).filter(Boolean);
-      // Also include SOL mint for accurate SOL pricing
       const solMint = "So11111111111111111111111111111111111111112";
       const mintIds = [solMint, ...allMints].join(",");
       try {
         const jupResp = await fetch(
-          `https://api.jup.ag/price/v2?ids=${mintIds}`,
+          `https://lite-api.jup.ag/price/v3?ids=${mintIds}`,
           { signal: AbortSignal.timeout(5000) }
         );
         if (jupResp.ok) {
-          const jupData = await jupResp.json();
-          const jupPrices = jupData?.data ?? {};
+          const jupPrices = (await jupResp.json()) as Record<string, { usdPrice?: number }>;
           // Re-price SOL
-          if (jupPrices[solMint]?.price) {
-            const jupSolPrice = Number(jupPrices[solMint].price);
-            const diff = (solBalance * jupSolPrice) - solUsd;
-            solUsd = solBalance * jupSolPrice;
+          const solUsdPrice = Number(jupPrices[solMint]?.usdPrice ?? 0);
+          if (solUsdPrice > 0) {
+            const diff = (solBalance * solUsdPrice) - solUsd;
+            solUsd = solBalance * solUsdPrice;
             totalUsd += diff;
           }
-          // Re-price all tokens with Jupiter prices
+          // Re-price every SPL token with Jupiter prices
           for (const t of tokens) {
-            if (t.mint && jupPrices[t.mint]?.price) {
-              const jupPrice = Number(jupPrices[t.mint].price);
+            const usdPrice = Number(jupPrices[t.mint]?.usdPrice ?? 0);
+            if (t.mint && usdPrice > 0) {
               const oldUsd = t.usdValue;
-              t.pricePerToken = jupPrice;
-              t.usdValue = t.amount * jupPrice;
+              t.pricePerToken = usdPrice;
+              t.usdValue = t.amount * usdPrice;
               totalUsd += (t.usdValue - oldUsd);
             }
           }
@@ -145,9 +153,14 @@ export async function POST(req: NextRequest) {
       if (oldest) cache.delete(oldest);
     }
 
+    logInfo("cache_miss", {
+      wallet,
+      data: { action: "fetch_ok", tokens: tokens.length, total_usd: Math.round(totalUsd * 100) / 100, latency_ms: Date.now() - start },
+    });
     return NextResponse.json(walletTokens);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed";
+    logError("cache_miss", { error: msg, data: { latency_ms: Date.now() - start } });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
