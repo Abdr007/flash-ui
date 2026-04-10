@@ -32,27 +32,46 @@ export function createEarnPoolsTool(wallet: string) {
       logToolCall("earn_pools", requestId, wallet);
 
       try {
-        const res = await fetch("https://api.prod.flash.trade/earn-page/data", {
-          signal: AbortSignal.timeout(8000),
-        });
-        if (!res.ok) throw new Error(`Flash API ${res.status}`);
-        const data = await res.json();
+        // Fetch both official earn data (APY) AND pool-data (custodies, stables) in parallel
+        const [earnRes, poolRes] = await Promise.all([
+          fetch("https://api.prod.flash.trade/earn-page/data", { signal: AbortSignal.timeout(8000) }),
+          fetch("https://flashapi.trade/pool-data", { signal: AbortSignal.timeout(8000) }).catch(() => null),
+        ]);
 
-        const poolMeta: Record<string, { name: string; markets: string }> = {
-          "FLP.1": { name: "Crypto Pool", markets: "SOL, BTC, ETH, BNB" },
-          "FLP.3": { name: "DeFi Pool", markets: "JUP, PYTH, JTO, RAY" },
-          "FLP.2": { name: "Gold Pool", markets: "XAU" },
-          "FLP.4": { name: "Meme Pool", markets: "BONK, PENGU" },
-          "FLP.5": { name: "WIF Pool", markets: "WIF" },
-          "FLP.7": { name: "FART Pool", markets: "FARTCOIN" },
-          "FLP.8": { name: "Ore Pool", markets: "ORE" },
+        if (!earnRes.ok) throw new Error(`Flash API ${earnRes.status}`);
+        const earnData = await earnRes.json();
+        const poolData = poolRes && poolRes.ok ? await poolRes.json() : null;
+
+        const poolMeta: Record<string, { name: string; poolName: string }> = {
+          "FLP.1": { name: "Crypto Pool", poolName: "Crypto.1" },
+          "FLP.2": { name: "Gold Pool", poolName: "Virtual.1" },
+          "FLP.3": { name: "DeFi Pool", poolName: "Governance.1" },
+          "FLP.4": { name: "Community Pool", poolName: "Community.1" },
+          "FLP.5": { name: "WIF Pool", poolName: "Community.2" },
+          "FLP.6": { name: "TRUMP Pool", poolName: "Trump.1" },
+          "FLP.7": { name: "Ore Pool", poolName: "Ore.1" },
+          "FLP.8": { name: "Equity Pool", poolName: "Equity.1" },
         };
 
+        // Build custody map from pool-data endpoint
+        const custodyMap: Record<string, string[]> = {};
+        if (poolData?.pools) {
+          for (const pool of poolData.pools as Record<string, unknown>[]) {
+            const name = String(pool.poolName ?? "");
+            const custodies = (pool.custodyStats ?? []) as Record<string, unknown>[];
+            custodyMap[name] = custodies
+              .map((c) => String(c.tokenSymbol ?? c.symbol ?? "").toUpperCase())
+              .filter(Boolean);
+          }
+        }
+
         const pools: PoolInfo[] = [];
-        for (const p of data.pools ?? []) {
+        for (const p of earnData.pools ?? []) {
           const sym = String(p.flpTokenSymbol ?? "");
           const meta = poolMeta[sym];
           if (!meta) continue;
+          const custodies = custodyMap[meta.poolName] ?? [];
+          const markets = custodies.length > 0 ? custodies.join(", ") : "—";
           pools.push({
             name: meta.name,
             symbol: sym,
@@ -60,7 +79,7 @@ export function createEarnPoolsTool(wallet: string) {
             apy: Math.round((Number(p.flpWeeklyApy) || 0) * 10) / 10,
             tvl: Math.round(Number(p.aum) || 0),
             flpPrice: Math.round((Number(p.flpPrice) || 0) * 10000) / 10000,
-            markets: meta.markets,
+            markets,
           });
         }
 
