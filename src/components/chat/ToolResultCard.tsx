@@ -1326,17 +1326,11 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
   const [usdcBal, setUsdcBal] = useState(0);
   const [expanded, setExpanded] = useState(false);
 
-  const [allTokens, setAllTokens] = useState<{ symbol: string; amount: number; usdValue: number; color: string }[]>([]);
+  const [allTokens, setAllTokens] = useState<{ symbol: string; amount: number; usdValue: number; logoUri?: string }[]>([]);
 
-  const TOKEN_COLORS: Record<string, string> = {
-    SOL: "#9945FF", USDC: "#2775CA", JitoSOL: "#8B5CF6", JUP: "#00D18C",
-    BONK: "#F59E0B", WIF: "#A855F7", PYTH: "#7142CF", JTO: "#4E7CFF",
-    WBTC: "#F7931A", BTC: "#F7931A", ETH: "#627EEA", ORE: "#F97316",
-    HYPE: "#3B82F6", RAY: "#4F46E5", PENGU: "#7DD3FC", FAF: "#FF6B6B",
-    SPYx: "#3B82F6", WSOL: "#9945FF",
-  };
-
-  // Fetch ALL wallet tokens via Helius DAS API (single call, auto-priced)
+  // Fetch ALL wallet tokens via Helius DAS API (single call, auto-priced).
+  // Each token carries its logoUri from Helius metadata, so any SPL token —
+  // even ones we don't have in TOKEN_ICONS — renders with its real logo.
   useEffect(() => {
     if (!walletAddress) return;
     let cancelled = false;
@@ -1351,24 +1345,23 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
         const data = await resp.json().catch(() => null);
         if (!data) return;
 
-        const tokens: { symbol: string; amount: number; usdValue: number; color: string }[] = [];
+        const tokens: { symbol: string; amount: number; usdValue: number; logoUri?: string }[] = [];
 
-        // SOL
+        // Native SOL — use curated icon from TOKEN_ICONS map
         tokens.push({
           symbol: "SOL",
           amount: data.solBalance ?? 0,
           usdValue: data.solUsd ?? 0,
-          color: "#9945FF",
         });
         if (!cancelled) setSolBal(data.solBalance ?? 0);
 
-        // All SPL tokens
+        // All SPL tokens — forward Helius metadata logoUri
         for (const t of data.tokens ?? []) {
           tokens.push({
             symbol: t.symbol,
             amount: t.amount,
             usdValue: t.usdValue,
-            color: TOKEN_COLORS[t.symbol] ?? `hsl(${Math.abs(t.symbol.charCodeAt(0) * 37) % 360}, 60%, 55%)`,
+            logoUri: t.logoUri,
           });
           if (t.symbol === "USDC" && !cancelled) setUsdcBal(t.amount);
         }
@@ -1418,14 +1411,13 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
         <div className="flex items-center gap-4 flex-wrap">
           {allTokens.filter((t) => t.usdValue >= 0.01).map((t, i) => (
             <div key={i} className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
-                style={{ background: t.color }}>{t.symbol.slice(0, 1)}</div>
+              <TokenIcon symbol={t.symbol} size={20} src={t.logoUri} />
               <span className="text-[14px] font-medium text-text-primary num">{formatUsd(t.usdValue)}</span>
             </div>
           ))}
           {collateral > 0 && (
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#3B82F6" }}>P</div>
+              <TokenIcon symbol="Positions" size={20} />
               <span className="text-[14px] font-medium text-text-primary num">{formatUsd(collateral)}</span>
             </div>
           )}
@@ -1452,11 +1444,9 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
           const pnlPct = Number(pos.unrealized_pnl_pct ?? 0);
           const leverage = Number(pos.leverage ?? 0);
           const entry = Number(pos.entry_price ?? 0);
-          const dotColor = (MARKETS as Record<string, { dotColor: string }>)[market]?.dotColor ?? "#555";
           return (
             <div key={i} className="flex items-center gap-3 py-2">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                style={{ background: dotColor }}>{market.slice(0, 1)}</div>
+              <TokenIcon symbol={market} size={28} />
               <div className="flex-1">
                 <span className="text-[14px] font-medium text-text-primary">{market}</span>
                 <span className="text-[11px] text-text-tertiary ml-2 num">{safe(leverage).toFixed(1)}x · {formatPrice(entry)}</span>
@@ -1489,8 +1479,7 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
           <div className="mt-3 space-y-2">
             {allTokens.filter((t) => t.amount > 0).map((t, i) => (
               <div key={i} className="flex items-center gap-3">
-                <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
-                  style={{ background: t.color }}>{t.symbol.slice(0, 1)}</div>
+                <TokenIcon symbol={t.symbol} size={20} src={t.logoUri} />
                 <span className="text-[13px] text-text-primary flex-1">{t.symbol}</span>
                 <span className="text-[12px] text-text-secondary num">{safe(t.amount) < 1 ? safe(t.amount).toFixed(6) : safe(t.amount).toFixed(2)}</span>
                 <span className="text-[12px] text-text-primary num w-16 text-right">{formatUsd(t.usdValue)}</span>
@@ -1508,52 +1497,89 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
 });
 
 // ---- Token icon registry ----
-// CoinGecko CDN URLs (stable permanent IDs). Fallback = colored letter tile.
-// For commodities/equities, Wikimedia Commons public-domain logos.
+// Strategy: curated URLs for Flash Trade markets, then fall through to a
+// per-symbol gradient tile with the full ticker. Callers can also pass a
+// `src` override — used by PortfolioCard to surface Helius DAS metadata
+// logos for arbitrary SPL tokens in a user's wallet. This way, even a
+// brand-new user with random tokens gets real logos without the
+// registry needing to know about them.
 const TOKEN_ICONS: Record<string, string> = {
-  // Crypto majors
+  // ---- Crypto majors ----
   BTC:       "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
   ETH:       "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
   SOL:       "https://assets.coingecko.com/coins/images/4128/small/solana.png",
   BNB:       "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png",
   ZEC:       "https://assets.coingecko.com/coins/images/486/small/circle-zcash-color.png",
-  // Solana ecosystem
+  // ---- Solana ecosystem ----
   JUP:       "https://assets.coingecko.com/coins/images/34188/small/jup.png",
   PYTH:      "https://assets.coingecko.com/coins/images/31924/small/pyth.png",
   JTO:       "https://assets.coingecko.com/coins/images/33228/small/jto.png",
   RAY:       "https://assets.coingecko.com/coins/images/13928/small/PSigc4ie_400x400.jpg",
   KMNO:      "https://assets.coingecko.com/coins/images/37522/small/kmno.png",
-  // Memes
+  // ---- Memes ----
   BONK:      "https://assets.coingecko.com/coins/images/28600/small/bonk.jpg",
   WIF:       "https://assets.coingecko.com/coins/images/33051/small/dogwifhat.jpg",
-  PENGU:     "https://assets.coingecko.com/coins/images/52622/small/PUDGY_PENGUIN_LOGO.png",
   FARTCOIN:  "https://assets.coingecko.com/coins/images/33597/small/fart.png",
   ORE:       "https://assets.coingecko.com/coins/images/35266/small/ORE.png",
-  PUMP:      "https://assets.coingecko.com/coins/images/53774/small/pump.jpg",
-  HYPE:      "https://assets.coingecko.com/coins/images/52596/small/hyperliquid.png",
-  // Commodities — gold bar icon (Wikimedia)
-  XAU:       "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Gold-bar.svg/48px-Gold-bar.svg.png",
+  HYPE:      "https://assets.coingecko.com/coins/images/50882/small/hyperliquid.jpg",
+  // ---- Stablecoins & wrapped ----
+  USDC:      "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
+  USDT:      "https://assets.coingecko.com/coins/images/325/small/Tether.png",
+  WBTC:      "https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png",
+  WSOL:      "https://assets.coingecko.com/coins/images/4128/small/solana.png",
+  JitoSOL:   "https://assets.coingecko.com/coins/images/28046/small/JitoSOL-200.png",
+  jitoSOL:   "https://assets.coingecko.com/coins/images/28046/small/JitoSOL-200.png",
+  mSOL:      "https://assets.coingecko.com/coins/images/17752/small/mSOL.png",
+  bSOL:      "https://assets.coingecko.com/coins/images/26636/small/blazesolana.png",
+  // ---- Commodities (Wikimedia / CoinGecko) ----
   XAUt:      "https://assets.coingecko.com/coins/images/27947/small/tether-gold.png",
-  // US equities — ticker tiles (no reliable icon source, rendered as letter tiles)
+  XAU:       "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Gold-bar.svg/48px-Gold-bar.svg.png",
+  // ---- US equities (Wikimedia SVG — stable, permanent) ----
+  AAPL:      "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
+  TSLA:      "https://upload.wikimedia.org/wikipedia/commons/b/bb/Tesla_T_symbol.svg",
+  NVDA:      "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo.svg",
+  AMD:       "https://upload.wikimedia.org/wikipedia/commons/7/7c/AMD_Logo.svg",
+  AMZN:      "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
+  // FAF — Flash Trade protocol token
+  FAF:       "/ft-logo.svg",
 };
 
-function TokenIcon({ symbol, size = 28 }: { symbol: string; size?: number }) {
+// Stable hashed gradient colors so the fallback tile looks intentional and
+// different tokens visually distinguish from each other.
+function hashGradient(symbol: string): { from: string; to: string } {
+  let h = 0;
+  for (let i = 0; i < symbol.length; i++) h = (h * 31 + symbol.charCodeAt(i)) >>> 0;
+  const hue1 = h % 360;
+  const hue2 = (h * 7 + 40) % 360;
+  return {
+    from: `hsl(${hue1}, 55%, 42%)`,
+    to:   `hsl(${hue2}, 60%, 22%)`,
+  };
+}
+
+function TokenIcon({ symbol, size = 28, src }: { symbol: string; size?: number; src?: string }) {
   const [failed, setFailed] = useState(false);
-  const url = TOKEN_ICONS[symbol];
-  const dotColor = (MARKETS as Record<string, { dotColor: string }>)[symbol]?.dotColor ?? "#3a3a3a";
+  // Prefer explicit override (Helius metadata URI), fall back to curated map
+  const url = (src && src.trim()) || TOKEN_ICONS[symbol];
 
   if (!url || failed) {
+    // Full-ticker gradient tile — handles ANY unknown symbol elegantly
+    const display = symbol.length > 4 ? symbol.slice(0, 4) : symbol;
+    const grad = hashGradient(symbol);
+    const fontSize = display.length <= 2 ? size * 0.44 : display.length === 3 ? size * 0.32 : size * 0.26;
     return (
       <div
-        className="rounded-full flex items-center justify-center font-bold text-white shrink-0"
+        className="rounded-full shrink-0 flex items-center justify-center font-bold text-white"
         style={{
           width: size,
           height: size,
-          background: dotColor,
-          fontSize: Math.round(size * 0.42),
+          background: `linear-gradient(135deg, ${grad.from}, ${grad.to})`,
+          fontSize: Math.round(fontSize),
+          letterSpacing: "0.02em",
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
         }}
       >
-        {symbol.slice(0, 1)}
+        {display}
       </div>
     );
   }

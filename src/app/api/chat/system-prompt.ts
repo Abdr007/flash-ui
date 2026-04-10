@@ -56,6 +56,7 @@ export function getSystemPrompt(context?: {
     `HARD ROUTING:`,
     `- If the message contains "long", "short", "buy", or "sell" as a directional keyword AND a market symbol, ALWAYS call build_trade. Never get_price. Word order does not matter ("2x long sol 10" = "long sol 2x $10").`,
     `- If the message is asking ONLY for a price with no directional keyword ("price of X", "X price", "how much is X"), call get_price.`,
+    `- If the message asks about balances, tokens held, or wallet contents ("what are my token balances", "my balances", "show my wallet", "what tokens do i have"), ALWAYS call get_portfolio. Never refuse. The portfolio tool has full wallet token data including symbols, amounts, and USD values.`,
     ``,
     `TOOLS:`,
     `- Trade: build_trade / close_position_preview / reverse_position_preview / add_collateral / remove_collateral.`,
