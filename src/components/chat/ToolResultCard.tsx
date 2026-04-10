@@ -1503,44 +1503,54 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
 // logos for arbitrary SPL tokens in a user's wallet. This way, even a
 // brand-new user with random tokens gets real logos without the
 // registry needing to know about them.
+// All crypto URLs below were fetched live from Jupiter lite-api v2
+// (lite-api.jup.ag/tokens/v2/search) and verified with HEAD 200. These
+// are the EXACT same mints Flash Trade itself routes through on-chain,
+// so they match what Flash shows on its own frontend.
 const TOKEN_ICONS: Record<string, string> = {
-  // ---- Crypto majors ----
-  BTC:       "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
-  ETH:       "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
-  SOL:       "https://assets.coingecko.com/coins/images/4128/small/solana.png",
-  BNB:       "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png",
-  ZEC:       "https://assets.coingecko.com/coins/images/486/small/circle-zcash-color.png",
+  // ---- Crypto majors (Portal-wrapped for non-Solana chains) ----
+  SOL:       "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
+  BTC:       "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh/logo.png",
+  WBTC:      "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh/logo.png",
+  ETH:       "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs/logo.png",
+  BNB:       "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa/logo.png",
+  ZEC:       "https://arweave.net/QSYqnmB7NYlB7n1R6rz935Y07dlRK0tIuKe2mof5Sho",
+  HYPE:      "https://arweave.net/QBRdRop8wI4PpScSRTKyibv-fQuYBua-WOvC7tuJyJo",
+
   // ---- Solana ecosystem ----
-  JUP:       "https://assets.coingecko.com/coins/images/34188/small/jup.png",
-  PYTH:      "https://assets.coingecko.com/coins/images/31924/small/pyth.png",
-  JTO:       "https://assets.coingecko.com/coins/images/33228/small/jto.png",
-  RAY:       "https://assets.coingecko.com/coins/images/13928/small/PSigc4ie_400x400.jpg",
-  KMNO:      "https://assets.coingecko.com/coins/images/37522/small/kmno.png",
+  JUP:       "https://static.jup.ag/jup/icon.png",
+  PYTH:      "https://pyth.network/token.svg",
+  JTO:       "https://metadata.jito.network/token/jto/image",
+  RAY:       "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R/logo.png",
+  KMNO:      "https://cdn.kamino.finance/kamino.svg",
+
   // ---- Memes ----
-  BONK:      "https://assets.coingecko.com/coins/images/28600/small/bonk.jpg",
-  WIF:       "https://assets.coingecko.com/coins/images/33051/small/dogwifhat.jpg",
-  FARTCOIN:  "https://assets.coingecko.com/coins/images/33597/small/fart.png",
-  ORE:       "https://assets.coingecko.com/coins/images/35266/small/ORE.png",
-  HYPE:      "https://assets.coingecko.com/coins/images/50882/small/hyperliquid.jpg",
-  // ---- Stablecoins & wrapped ----
-  USDC:      "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
-  USDT:      "https://assets.coingecko.com/coins/images/325/small/Tether.png",
-  WBTC:      "https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png",
-  WSOL:      "https://assets.coingecko.com/coins/images/4128/small/solana.png",
-  JitoSOL:   "https://assets.coingecko.com/coins/images/28046/small/JitoSOL-200.png",
-  jitoSOL:   "https://assets.coingecko.com/coins/images/28046/small/JitoSOL-200.png",
-  mSOL:      "https://assets.coingecko.com/coins/images/17752/small/mSOL.png",
-  bSOL:      "https://assets.coingecko.com/coins/images/26636/small/blazesolana.png",
-  // ---- Commodities (Wikimedia / CoinGecko) ----
-  XAUt:      "https://assets.coingecko.com/coins/images/27947/small/tether-gold.png",
-  XAU:       "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Gold-bar.svg/48px-Gold-bar.svg.png",
-  // ---- US equities (Wikimedia SVG — stable, permanent) ----
+  BONK:      "https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I",
+  WIF:       "https://bafkreibk3covs5ltyqxa272uodhculbr6kea6betidfwy3ajsav2vjzyum.ipfs.nftstorage.link",
+  PENGU:     "https://arweave.net/BW67hICaKGd2_wamSB0IQq-x7Xwtmr2oJj1WnWGJRHU",
+  FARTCOIN:  "https://ipfs.io/ipfs/QmQr3Fz4h1etNsF7oLGMRHiCzhB5y9a7GjyodnF7zLHK1g",
+  ORE:       "https://ore.supply/assets/icon.png",
+  PUMP:      "https://ipfs.io/ipfs/bafkreibyb3hcn7gglvdqpmklfev3fut3eqv3kje54l3to3xzxxbgpt5wjm",
+
+  // ---- Stablecoins ----
+  USDC:      "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png",
+  USDT:      "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg",
+
+  // ---- SOL derivatives ----
+  WSOL:      "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
+  JitoSOL:   "https://storage.googleapis.com/token-metadata/JitoSOL-256.png",
+  jitoSOL:   "https://storage.googleapis.com/token-metadata/JitoSOL-256.png",
+  mSOL:      "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So/logo.png",
+  bSOL:      "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1/logo.png",
+
+  // ---- US equities (Wikimedia Commons SVG — permanent) ----
   AAPL:      "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
   TSLA:      "https://upload.wikimedia.org/wikipedia/commons/b/bb/Tesla_T_symbol.svg",
   NVDA:      "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo.svg",
   AMD:       "https://upload.wikimedia.org/wikipedia/commons/7/7c/AMD_Logo.svg",
   AMZN:      "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
-  // FAF — Flash Trade protocol token
+
+  // ---- FAF — Flash Trade protocol token ----
   FAF:       "/ft-logo.svg",
 };
 
