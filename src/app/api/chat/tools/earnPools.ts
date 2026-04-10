@@ -58,7 +58,7 @@ export function createEarnPoolsTool(wallet: string) {
             symbol: sym,
             flpSymbol: sym,
             apy: Math.round((Number(p.flpWeeklyApy) || 0) * 10) / 10,
-            tvl: Math.round(Number(p.poolTvl) || 0),
+            tvl: Math.round(Number(p.aum) || 0),
             flpPrice: Math.round((Number(p.flpPrice) || 0) * 10000) / 10000,
             markets: meta.markets,
           });
