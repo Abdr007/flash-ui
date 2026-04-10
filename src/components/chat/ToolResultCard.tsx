@@ -239,13 +239,33 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const setTradeFromAI = useFlashStore((s) => s.setTradeFromAI);
   const confirmTrade = useFlashStore((s) => s.confirmTrade);
+  const executeTrade = useFlashStore((s) => s.executeTrade);
   const cancelTrade = useFlashStore((s) => s.cancelTrade);
   const isExecuting = useFlashStore((s) => s.isExecuting);
   const activeTrade = useFlashStore((s) => s.activeTrade);
 
   // Non-hook derivations (safe before hooks that depend on them)
   const tradeStatus = activeTrade?.status;
-  const tradeCompleted = submitting && !isExecuting && tradeStatus !== "CONFIRMING" && tradeStatus !== "EXECUTING" && tradeStatus !== "SIGNING";
+
+  // Outcome tracking — refs updated during render. Distinguishes SUCCESS
+  // from CANCEL (both end with activeTrade=null). Without this, cancelling
+  // at the overlay would show "Trade executed" — a VERY bad UX lie.
+  const outcomeRef = useRef<"pending" | "success" | "error">("pending");
+  if (activeTrade?.tx_signature) outcomeRef.current = "success";
+  else if (activeTrade?.status === "ERROR") outcomeRef.current = "error";
+
+  // If the trade was cancelled (activeTrade cleared without resolution),
+  // reset submitting so the user can try again. Can't call setState during
+  // render — use an effect.
+  useEffect(() => {
+    if (submitting && !activeTrade && outcomeRef.current === "pending") {
+      setSubmitting(false);
+    }
+  }, [submitting, activeTrade]);
+
+  const tradeCompleted = submitting
+    && !isExecuting
+    && (outcomeRef.current === "success" || outcomeRef.current === "error");
 
   // Firewall runs during render — synchronous, not a hook
   const firewall = validateTrade(output.data, walletAddress ?? "", positions);
@@ -369,7 +389,13 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
 
     const ok = setTradeFromAI(enriched, walletAddress ?? "", positions);
     if (!ok) { setSubmitting(false); return; }
+
+    // Fire-and-forget: confirmTrade sets status=CONFIRMING synchronously,
+    // then executeTrade's sync prefix immediately transitions to EXECUTING.
+    // React batches these within the same event handler, so the CONFIRMING
+    // state is never rendered — no modal interstitial, wallet opens directly.
     confirmTrade();
+    void executeTrade();
   }
 
   return (
@@ -619,6 +645,11 @@ const TradeHints = memo(function TradeHints({
   onApplySl?: (value: number) => void;
 }) {
   const [dismissed, setDismissed] = useState(false);
+  // Per-chip applied state: applying TP must NOT remove the SL chip and
+  // vice versa. Previously a single `dismissed` flag killed every chip on
+  // the first click.
+  const [tpApplied, setTpApplied] = useState(false);
+  const [slApplied, setSlApplied] = useState(false);
 
   if (dismissed) return null;
 
@@ -630,7 +661,7 @@ const TradeHints = memo(function TradeHints({
   const riskProfile = getRiskProfile();
 
   // No SL → suggest adding one (boosted if outcome data shows SL helps)
-  if (!trade.stop_loss_price) {
+  if (!trade.stop_loss_price && !slApplied) {
     const slMul = trade.side === "LONG" ? (1 - slDistPct / 100) : (1 + slDistPct / 100);
     const suggestedSl = Math.round(trade.entry_price * slMul * 100) / 100;
     const boost = shouldBoostSlSuggestion();
@@ -643,7 +674,7 @@ const TradeHints = memo(function TradeHints({
   }
 
   // No TP → suggest adding one (using user's preferred distance)
-  if (!trade.take_profit_price) {
+  if (!trade.take_profit_price && !tpApplied) {
     const tpMul = trade.side === "LONG" ? (1 + tpDistPct / 100) : (1 - tpDistPct / 100);
     const suggestedTp = Math.round(trade.entry_price * tpMul * 100) / 100;
     hints.push({
@@ -695,21 +726,23 @@ const TradeHints = memo(function TradeHints({
         <button
           key={i}
           onClick={() => {
-            setDismissed(true);
             try { recordSuggestionAccepted(); } catch {}
 
-            // TP/SL hints apply to the inline card inputs. Other hints
-            // (leverage, collateral, cross-feature) still fill the chat
-            // textarea because they require a brand-new trade command.
+            // TP/SL hints apply to the inline card inputs and hide ONLY
+            // their own chip. Other hints (leverage, collateral, cross-
+            // feature) still fill the chat textarea and dismiss the row.
             if (h.applyTp != null && onApplyTp) {
               onApplyTp(h.applyTp);
+              setTpApplied(true);
               return;
             }
             if (h.applySl != null && onApplySl) {
               onApplySl(h.applySl);
+              setSlApplied(true);
               return;
             }
 
+            setDismissed(true);
             try {
               const input = document.querySelector<HTMLTextAreaElement>("textarea");
               if (input) {

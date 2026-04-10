@@ -9,7 +9,6 @@
 import { useState, useCallback, Component, type ReactNode } from "react";
 import ChatPanel from "@/components/chat/ChatPanel";
 import PortfolioPanel from "@/components/portfolio/PortfolioPanel";
-import ConfirmOverlay from "@/components/trade/ConfirmOverlay";
 import SystemStatus from "@/components/layout/SystemStatus";
 import { SectionBoundary } from "@/components/ErrorBoundary";
 import DataStatusBanner from "@/components/layout/DataStatusBanner";
@@ -72,10 +71,9 @@ export default function MainLayout() {
         </ChatErrorBoundary>
       </div>
 
-      {/* ---- Confirm Overlay ---- */}
-      <SectionBoundary>
-        <ConfirmOverlay />
-      </SectionBoundary>
+      {/* ConfirmOverlay removed — trade preview card has all the detail
+          already, and clicking Confirm Trade now fires the signing flow
+          directly (no interstitial modal). See TradePreviewCard.handleConfirm. */}
     </div>
   );
 }
