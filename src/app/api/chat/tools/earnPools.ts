@@ -48,7 +48,7 @@ export function createEarnPoolsTool(wallet: string) {
           "FLP.3": { name: "DeFi Pool", poolName: "Governance.1" },
           "FLP.4": { name: "Community Pool", poolName: "Community.1" },
           "FLP.5": { name: "WIF Pool", poolName: "Community.2" },
-          "FLP.7": { name: "TRUMP Pool", poolName: "Trump.1" },
+          "FLP.7": { name: "FART Pool", poolName: "Trump.1" },
           "FLP.8": { name: "Ore Pool", poolName: "Ore.1" },
           "FLP.x": { name: "Equity Pool", poolName: "Equity.1" },
         };
@@ -76,7 +76,7 @@ export function createEarnPoolsTool(wallet: string) {
             name: meta.name,
             symbol: sym,
             flpSymbol: sym,
-            apy: Math.round((Number(p.flpWeeklyApy) || 0) * 10) / 10,
+            apy: Math.round((Number(p.flpWeeklyApy) || 0) * 100) / 100,
             tvl: Math.round(Number(p.aum) || 0),
             flpPrice: Math.round((Number(p.flpPrice) || 0) * 10000) / 10000,
             markets,

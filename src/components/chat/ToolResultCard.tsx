@@ -1473,7 +1473,7 @@ const EarnPoolsCard = memo(function EarnPoolsCard({ output, onAction }: { output
           </div>
           <div className="text-right">
             <div className="text-[14px] num font-bold" style={{ color: p.apy > 0 ? "#2CE800" : "var(--color-text-secondary)" }}>
-              {p.apy > 0 ? `${p.apy}%` : "—"} <span className="text-[10px] font-normal text-text-tertiary">APY</span>
+              {p.apy >= 0.01 ? `${p.apy}%` : "—"} <span className="text-[10px] font-normal text-text-tertiary">APY</span>
             </div>
             <div className="text-[11px] num mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
               TVL {fmtTvl(p.tvl)}
