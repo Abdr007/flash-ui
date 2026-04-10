@@ -38,12 +38,10 @@ export interface TradeObject {
   order_type?: OrderType;
   /** Limit order price — required when order_type is "limit" */
   limit_price?: number | null;
-  /** Take profit price — passed to Flash API */
+  /** Take profit price — bundled into the open-position tx by the Flash builder */
   take_profit_price?: number | null;
-  /** Stop loss price — passed to Flash API */
+  /** Stop loss price — bundled into the open-position tx by the Flash builder */
   stop_loss_price?: number | null;
-  /** Base64-encoded unsigned trigger order transactions (TP/SL) — signed after main tx */
-  trigger_txs?: string[];
 }
 
 export interface Position {

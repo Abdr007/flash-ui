@@ -4,7 +4,8 @@
 // Flash AI — Trade Card (Galileo-Style)
 // ============================================
 
-import type { TradeObject } from "@/lib/types";
+import { useEffect, useRef, useState } from "react";
+import type { TradeObject, Side } from "@/lib/types";
 import { useFlashStore } from "@/store";
 import { useNumberSpring } from "@/hooks/useSpring";
 import {
@@ -21,6 +22,7 @@ import { getTradeConfidence, type TradeConfidence } from "@/lib/predictive-actio
 export default function TradeCard({ trade }: { trade: TradeObject }) {
   const confirmTrade = useFlashStore((s) => s.confirmTrade);
   const cancelTrade = useFlashStore((s) => s.cancelTrade);
+  const setTriggers = useFlashStore((s) => s.setTriggers);
   const walletConnected = useFlashStore((s) => s.walletConnected);
 
   const isLong = trade.action === "LONG";
@@ -100,6 +102,18 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
           <Cell label="Collateral" value={trade.collateral_usd ? formatUsd(trade.collateral_usd) : "—"} />
           <Cell label="Fees" value={trade.fees != null && trade.fee_rate != null ? `${formatUsd(trade.fees)} (${formatPercent(trade.fee_rate)})` : "—"} />
         </div>
+
+        {/* TP/SL editable inputs (only while the card is being composed) */}
+        {(trade.status === "INCOMPLETE" || trade.status === "READY") && (
+          <TpSlInputs
+            tradeId={trade.id}
+            side={trade.action}
+            entryPrice={trade.entry_price}
+            takeProfit={trade.take_profit_price ?? null}
+            stopLoss={trade.stop_loss_price ?? null}
+            onChange={(triggers) => { void setTriggers(trade.id, triggers); }}
+          />
+        )}
 
         {/* TP/SL badges */}
         {(trade.take_profit_price || trade.stop_loss_price) && (
@@ -259,6 +273,115 @@ function Cell({ label, value, color }: { label: string; value: string; color?: s
     <div className="bg-bg-card px-5 py-3">
       <div className="text-[11px] text-text-tertiary mb-0.5">{label}</div>
       <div className="num text-[15px] font-medium" style={{ color: color ?? "var(--color-text-primary)" }}>{value}</div>
+    </div>
+  );
+}
+
+// ---- TP/SL Inputs ----
+// Debounced keystroke → store.setTriggers. Defaults are derived during
+// render (no useEffect for derived state). Empty string clears the trigger.
+
+const TRIGGER_DEBOUNCE_MS = 250;
+
+function TpSlInputs({
+  tradeId,
+  side,
+  entryPrice,
+  takeProfit,
+  stopLoss,
+  onChange,
+}: {
+  tradeId: string;
+  side: Side;
+  entryPrice: number | null;
+  takeProfit: number | null;
+  stopLoss: number | null;
+  onChange: (triggers: { tp?: number | null; sl?: number | null }) => void;
+}) {
+  // Local drafts for free-text editing. When the store value or trade id
+  // changes (e.g., a new trade card, or the user typed a value that enrich
+  // then normalized), reset the drafts. React's recommended pattern:
+  // compare to a stored "prevKey" and call setState during render.
+  const storeKey = `${tradeId}|${takeProfit ?? ""}|${stopLoss ?? ""}`;
+  const [tpDraft, setTpDraft] = useState<string>(takeProfit != null ? String(takeProfit) : "");
+  const [slDraft, setSlDraft] = useState<string>(stopLoss != null ? String(stopLoss) : "");
+  const [prevStoreKey, setPrevStoreKey] = useState<string>(storeKey);
+  if (prevStoreKey !== storeKey) {
+    setPrevStoreKey(storeKey);
+    setTpDraft(takeProfit != null ? String(takeProfit) : "");
+    setSlDraft(stopLoss != null ? String(stopLoss) : "");
+  }
+
+  // Derived placeholders during render (no effect, no state)
+  const tpHint = entryPrice != null
+    ? (side === "LONG" ? entryPrice * 1.1 : entryPrice * 0.9)
+    : null;
+  const slHint = entryPrice != null
+    ? (side === "LONG" ? entryPrice * 0.95 : entryPrice * 1.05)
+    : null;
+
+  const tpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (tpTimer.current) clearTimeout(tpTimer.current);
+    if (slTimer.current) clearTimeout(slTimer.current);
+  }, []);
+
+  const schedule = (kind: "tp" | "sl", raw: string) => {
+    const timerRef = kind === "tp" ? tpTimer : slTimer;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      const trimmed = raw.trim();
+      if (trimmed === "") {
+        onChange(kind === "tp" ? { tp: null } : { sl: null });
+        return;
+      }
+      const parsed = Number(trimmed);
+      if (!Number.isFinite(parsed) || parsed <= 0) return;
+      onChange(kind === "tp" ? { tp: parsed } : { sl: parsed });
+    }, TRIGGER_DEBOUNCE_MS);
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-px border-t border-border-subtle"
+      style={{ background: "var(--color-border-subtle)" }}>
+      <div className="bg-bg-card px-5 py-3">
+        <label className="text-[11px] text-text-tertiary mb-0.5 block" htmlFor={`tp-${tradeId}`}>
+          Take Profit
+        </label>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[13px] text-text-tertiary">$</span>
+          <input
+            id={`tp-${tradeId}`}
+            inputMode="decimal"
+            autoComplete="off"
+            spellCheck={false}
+            value={tpDraft}
+            placeholder={tpHint != null ? tpHint.toFixed(2) : "—"}
+            onChange={(e) => { setTpDraft(e.target.value); schedule("tp", e.target.value); }}
+            className="num text-[15px] font-medium bg-transparent outline-none w-full text-text-primary placeholder:text-text-tertiary"
+          />
+        </div>
+      </div>
+      <div className="bg-bg-card px-5 py-3">
+        <label className="text-[11px] text-text-tertiary mb-0.5 block" htmlFor={`sl-${tradeId}`}>
+          Stop Loss
+        </label>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[13px] text-text-tertiary">$</span>
+          <input
+            id={`sl-${tradeId}`}
+            inputMode="decimal"
+            autoComplete="off"
+            spellCheck={false}
+            value={slDraft}
+            placeholder={slHint != null ? slHint.toFixed(2) : "—"}
+            onChange={(e) => { setSlDraft(e.target.value); schedule("sl", e.target.value); }}
+            className="num text-[15px] font-medium bg-transparent outline-none w-full text-text-primary placeholder:text-text-tertiary"
+          />
+        </div>
+      </div>
     </div>
   );
 }
