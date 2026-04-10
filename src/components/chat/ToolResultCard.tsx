@@ -1507,75 +1507,194 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
   );
 });
 
+// ---- Token icon registry ----
+// CoinGecko CDN URLs (stable permanent IDs). Fallback = colored letter tile.
+// For commodities/equities, Wikimedia Commons public-domain logos.
+const TOKEN_ICONS: Record<string, string> = {
+  // Crypto majors
+  BTC:       "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
+  ETH:       "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+  SOL:       "https://assets.coingecko.com/coins/images/4128/small/solana.png",
+  BNB:       "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png",
+  ZEC:       "https://assets.coingecko.com/coins/images/486/small/circle-zcash-color.png",
+  // Solana ecosystem
+  JUP:       "https://assets.coingecko.com/coins/images/34188/small/jup.png",
+  PYTH:      "https://assets.coingecko.com/coins/images/31924/small/pyth.png",
+  JTO:       "https://assets.coingecko.com/coins/images/33228/small/jto.png",
+  RAY:       "https://assets.coingecko.com/coins/images/13928/small/PSigc4ie_400x400.jpg",
+  KMNO:      "https://assets.coingecko.com/coins/images/37522/small/kmno.png",
+  // Memes
+  BONK:      "https://assets.coingecko.com/coins/images/28600/small/bonk.jpg",
+  WIF:       "https://assets.coingecko.com/coins/images/33051/small/dogwifhat.jpg",
+  PENGU:     "https://assets.coingecko.com/coins/images/52622/small/PUDGY_PENGUIN_LOGO.png",
+  FARTCOIN:  "https://assets.coingecko.com/coins/images/33597/small/fart.png",
+  ORE:       "https://assets.coingecko.com/coins/images/35266/small/ORE.png",
+  PUMP:      "https://assets.coingecko.com/coins/images/53774/small/pump.jpg",
+  HYPE:      "https://assets.coingecko.com/coins/images/52596/small/hyperliquid.png",
+  // Commodities — gold bar icon (Wikimedia)
+  XAU:       "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Gold-bar.svg/48px-Gold-bar.svg.png",
+  XAUt:      "https://assets.coingecko.com/coins/images/27947/small/tether-gold.png",
+  // US equities — ticker tiles (no reliable icon source, rendered as letter tiles)
+};
+
+function TokenIcon({ symbol, size = 28 }: { symbol: string; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  const url = TOKEN_ICONS[symbol];
+  const dotColor = (MARKETS as Record<string, { dotColor: string }>)[symbol]?.dotColor ?? "#3a3a3a";
+
+  if (!url || failed) {
+    return (
+      <div
+        className="rounded-full flex items-center justify-center font-bold text-white shrink-0"
+        style={{
+          width: size,
+          height: size,
+          background: dotColor,
+          fontSize: Math.round(size * 0.42),
+        }}
+      >
+        {symbol.slice(0, 1)}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt={symbol}
+      width={size}
+      height={size}
+      className="rounded-full shrink-0"
+      style={{ width: size, height: size, objectFit: "cover", background: "rgba(255,255,255,0.04)" }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+// ---- Price Card (both single-price and all-prices variants) ----
+// Live prices: subscribes to Zustand `prices` (streamed via WebSocket) and
+// overlays them on top of the static tool-output snapshot, so the card
+// ticks in real time instead of freezing at whatever the tool returned.
+
+const CRYPTO_SYMBOLS = new Set([
+  "SOL", "BTC", "ETH", "BNB", "ZEC", "BONK", "WIF", "JUP", "PYTH",
+  "JTO", "RAY", "PENGU", "FARTCOIN", "ORE", "HYPE", "KMNO", "PUMP",
+]);
+const COMMODITY_SYMBOLS = new Set(["XAU", "XAUt"]);
+
+interface PriceRow { symbol: string; price: number; }
+
 const PriceCard = memo(function PriceCard({ toolName, output }: { toolName: string; output: ToolOutput }) {
   const data = output.data;
-  if (toolName === "get_all_prices" && data && typeof data === "object") {
-    const allPrices = Object.values(data as Record<string, Record<string, unknown>>)
-      .filter((p) => Number(p.price ?? 0) > 0)
-      .sort((a, b) => Number(b.price ?? 0) - Number(a.price ?? 0));
+  const livePrices = useFlashStore((s) => s.prices);
 
-    // Group into categories
-    const crypto = allPrices.filter((p) => ["SOL", "BTC", "ETH", "BNB", "ZEC", "BONK", "WIF", "JUP", "PYTH", "JTO", "RAY", "PENGU", "FARTCOIN", "ORE", "HYPE", "KMNO", "PUMP"].includes(String(p.symbol ?? "")));
-    const other = allPrices.filter((p) => !crypto.includes(p));
+  // ---- All-prices (markets) variant ----
+  if (toolName === "get_all_prices" && data && typeof data === "object") {
+    const raw = Object.values(data as Record<string, Record<string, unknown>>);
+    // Merge static snapshot with live WS prices — prefer live where available
+    const rows: PriceRow[] = raw
+      .map((p) => {
+        const sym = String(p.symbol ?? "");
+        const live = livePrices[sym]?.price;
+        const price = Number.isFinite(live) && (live as number) > 0
+          ? (live as number)
+          : Number(p.price ?? 0);
+        return { symbol: sym, price };
+      })
+      .filter((r) => r.symbol && r.price > 0)
+      .sort((a, b) => b.price - a.price);
+
+    const crypto = rows.filter((r) => CRYPTO_SYMBOLS.has(r.symbol));
+    const commodities = rows.filter((r) => COMMODITY_SYMBOLS.has(r.symbol));
+    const equities = rows.filter((r) => !CRYPTO_SYMBOLS.has(r.symbol) && !COMMODITY_SYMBOLS.has(r.symbol));
 
     return (
       <div className="w-full max-w-[500px] glass-card overflow-hidden">
-        <div className="px-5 py-4">
-          <div className="text-[11px] text-text-tertiary tracking-wider uppercase mb-1">Markets</div>
-          <div className="text-[20px] font-semibold text-text-primary">{allPrices.length} active</div>
+        <div className="px-5 py-4 flex items-center justify-between">
+          <div>
+            <div className="text-[11px] text-text-tertiary tracking-wider uppercase mb-1">Markets</div>
+            <div className="text-[20px] font-semibold text-text-primary">{rows.length} active</div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-long)", animation: "pulseDot 2s infinite" }} />
+            <span className="text-[10px] tracking-wider uppercase" style={{ color: "var(--color-accent-long)" }}>Live</span>
+          </div>
         </div>
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-          {crypto.slice(0, 8).map((p, i) => {
-            const sym = String(p.symbol ?? "");
-            const price = Number(p.price ?? 0);
-            const dotColor = (MARKETS as Record<string, { dotColor: string }>)[sym]?.dotColor ?? "#555";
-            return (
-              <div key={i} className="flex items-center gap-3 px-5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-                  style={{ background: dotColor }}>{sym.slice(0, 1)}</div>
-                <span className="text-[14px] font-medium text-text-primary flex-1">{sym}</span>
-                <span className="text-[14px] num text-text-secondary">{formatPrice(price)}</span>
-              </div>
-            );
-          })}
-        </div>
-        {other.length > 0 && (
+
+        {crypto.length > 0 && <PriceSection rows={crypto} />}
+
+        {commodities.length > 0 && (
           <>
-            <div className="px-5 py-2 text-[10px] text-text-tertiary tracking-wider uppercase" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-              Commodities & Equities
-            </div>
-            {other.slice(0, 6).map((p, i) => {
-              const sym = String(p.symbol ?? "");
-              const price = Number(p.price ?? 0);
-              return (
-                <div key={i} className="flex items-center gap-3 px-5 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                  <span className="w-6 h-6 rounded-full bg-bg-elevated flex items-center justify-center text-[9px] font-bold text-text-tertiary">{sym.slice(0, 1)}</span>
-                  <span className="text-[13px] font-medium text-text-primary flex-1">{sym}</span>
-                  <span className="text-[13px] num text-text-secondary">{formatPrice(price)}</span>
-                </div>
-              );
-            })}
+            <SectionHeader label="Commodities" />
+            <PriceSection rows={commodities} />
+          </>
+        )}
+
+        {equities.length > 0 && (
+          <>
+            <SectionHeader label="Equities" />
+            <PriceSection rows={equities} />
           </>
         )}
       </div>
     );
   }
+
+  // ---- Single price variant ----
   if (data && typeof data === "object") {
     const p = data as Record<string, unknown>;
     const sym = String(p.symbol ?? "");
-    const price = Number(p.price ?? 0);
-    const dotColor = (MARKETS as Record<string, { dotColor: string }>)[sym]?.dotColor ?? "#555";
+    const live = livePrices[sym]?.price;
+    const price = Number.isFinite(live) && (live as number) > 0
+      ? (live as number)
+      : Number(p.price ?? 0);
+    const pool = (MARKETS as Record<string, { pool: string }>)[sym]?.pool ?? "—";
+
     return (
-      <div className="inline-flex items-center gap-3 py-2">
-        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-          style={{ background: dotColor }}>{sym.slice(0, 1)}</div>
-        <span className="text-[15px] font-semibold text-text-primary">{sym}</span>
-        <span className="text-[15px] num text-text-secondary">{formatPrice(price)}</span>
+      <div className="w-full max-w-[320px] glass-card overflow-hidden">
+        <div className="px-5 py-4 flex items-center gap-4">
+          <TokenIcon symbol={sym} size={44} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-[15px] font-semibold text-text-primary">{sym}</span>
+              <span className="text-[10px] text-text-tertiary tracking-wider uppercase">{pool}</span>
+            </div>
+            <div className="text-[22px] font-semibold num text-text-primary leading-none">{formatPrice(price)}</div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-long)", animation: "pulseDot 2s infinite" }} />
+            <span className="text-[9px] tracking-wider uppercase" style={{ color: "var(--color-accent-long)" }}>Live</span>
+          </div>
+        </div>
       </div>
     );
   }
   return null;
 });
+
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div className="px-5 py-2 text-[10px] text-text-tertiary tracking-wider uppercase"
+      style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+      {label}
+    </div>
+  );
+}
+
+function PriceSection({ rows }: { rows: PriceRow[] }) {
+  return (
+    <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+      {rows.map((r) => (
+        <div key={r.symbol} className="flex items-center gap-3 px-5 py-2.5"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+          <TokenIcon symbol={r.symbol} size={28} />
+          <span className="text-[14px] font-medium text-text-primary flex-1">{r.symbol}</span>
+          <span className="text-[14px] num text-text-secondary">{formatPrice(r.price)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const MarketInfoCard = memo(function MarketInfoCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
