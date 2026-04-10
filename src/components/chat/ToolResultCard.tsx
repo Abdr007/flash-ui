@@ -197,11 +197,40 @@ const StreamingSteps = memo(function StreamingSteps({ toolName, step, input }: {
   );
 });
 
+// ---- TP/SL validator (mirrors trade-firewall checks so errors surface live) ----
+function validateTpSlAgainstEntry(
+  tp: number | null,
+  sl: number | null,
+  entry: number,
+  side: "LONG" | "SHORT",
+): string | null {
+  if (!Number.isFinite(entry) || entry <= 0) return null;
+  if (tp != null) {
+    if (!Number.isFinite(tp) || tp <= 0) return "Take profit must be a positive number.";
+    const dist = Math.abs(tp - entry) / entry;
+    if (dist > 5) return `Take profit $${tp} is >500% from entry $${entry.toFixed(2)} — unrealistic.`;
+    if (dist < 0.001) return `Take profit $${tp} is <0.1% from entry $${entry.toFixed(2)} — too tight.`;
+    if (side === "LONG" && tp <= entry) return `LONG take profit must be above entry $${entry.toFixed(2)}.`;
+    if (side === "SHORT" && tp >= entry) return `SHORT take profit must be below entry $${entry.toFixed(2)}.`;
+  }
+  if (sl != null) {
+    if (!Number.isFinite(sl) || sl <= 0) return "Stop loss must be a positive number.";
+    const dist = Math.abs(sl - entry) / entry;
+    if (dist > 5) return `Stop loss $${sl} is >500% from entry $${entry.toFixed(2)} — unrealistic.`;
+    if (dist < 0.001) return `Stop loss $${sl} is <0.1% from entry $${entry.toFixed(2)} — too tight.`;
+    if (side === "LONG" && sl >= entry) return `LONG stop loss must be below entry $${entry.toFixed(2)}.`;
+    if (side === "SHORT" && sl <= entry) return `SHORT stop loss must be above entry $${entry.toFixed(2)}.`;
+  }
+  return null;
+}
+
 // ---- Trade Preview Card ----
 
 const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: ToolOutput }) {
   const [submitting, setSubmitting] = useState(false);
   const [cancelled, setCancelled] = useState(false);
+  const [tpDraft, setTpDraft] = useState<string>("");
+  const [slDraft, setSlDraft] = useState<string>("");
   const positions = useFlashStore((s) => s.positions);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const setTradeFromAI = useFlashStore((s) => s.setTradeFromAI);
@@ -292,10 +321,29 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
     fees: t.fees, entry_price: t.entry_price, liquidation_price: t.liquidation_price, side: t.side,
   }), [t.leverage, t.collateral_usd, t.position_size, t.fees, t.entry_price, t.liquidation_price, t.side]);
 
+  // ─── TP/SL draft parse + live validation (derived during render) ───
+  const tpParsed = tpDraft.trim() === "" ? null : Number(tpDraft);
+  const slParsed = slDraft.trim() === "" ? null : Number(slDraft);
+  const tpHint = isLong ? t.entry_price * 1.10 : t.entry_price * 0.90;
+  const slHint = isLong ? t.entry_price * 0.95 : t.entry_price * 1.05;
+  const triggerError = validateTpSlAgainstEntry(tpParsed, slParsed, t.entry_price, t.side);
+
   function handleConfirm() {
     if (submitting || isExecuting) return;
+    if (triggerError) return;
     setSubmitting(true);
-    const ok = setTradeFromAI(output.data, walletAddress ?? "", positions);
+
+    // Inject drafts into a shallow clone of output.data so setTradeFromAI
+    // carries them into the TradeObject, which executeTrade then forwards
+    // to buildOpenPosition. The Flash builder bundles TP+SL into the same
+    // versioned tx — single signature, single broadcast.
+    const enriched = {
+      ...(output.data as Record<string, unknown>),
+      take_profit_price: tpParsed,
+      stop_loss_price: slParsed,
+    };
+
+    const ok = setTradeFromAI(enriched, walletAddress ?? "", positions);
     if (!ok) { setSubmitting(false); return; }
     confirmTrade();
   }
@@ -351,6 +399,53 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
         <Cell label="Collateral" value={formatUsd(t.collateral_usd)} />
         <Cell label="Fees" value={t.fee_rate != null ? `${formatUsd(t.fees)} (${formatPercent(t.fee_rate)})` : formatUsd(t.fees)} />
       </div>
+
+      {/* Inline TP/SL inputs — bundled atomically into the open-position tx */}
+      {!submitting && (
+        <>
+          <div className="grid grid-cols-2 gap-px border-t border-border-subtle"
+            style={{ background: "var(--color-border-subtle)" }}>
+            <div className="bg-bg-card px-5 py-3">
+              <label className="text-[11px] text-text-tertiary mb-0.5 block" htmlFor="tpsl-tp">Take Profit</label>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[13px] text-text-tertiary">$</span>
+                <input
+                  id="tpsl-tp"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={tpDraft}
+                  placeholder={tpHint.toFixed(2)}
+                  onChange={(e) => setTpDraft(e.target.value)}
+                  className="num text-[15px] font-medium bg-transparent outline-none w-full text-text-primary placeholder:text-text-tertiary"
+                />
+              </div>
+            </div>
+            <div className="bg-bg-card px-5 py-3">
+              <label className="text-[11px] text-text-tertiary mb-0.5 block" htmlFor="tpsl-sl">Stop Loss</label>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[13px] text-text-tertiary">$</span>
+                <input
+                  id="tpsl-sl"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={slDraft}
+                  placeholder={slHint.toFixed(2)}
+                  onChange={(e) => setSlDraft(e.target.value)}
+                  className="num text-[15px] font-medium bg-transparent outline-none w-full text-text-primary placeholder:text-text-tertiary"
+                />
+              </div>
+            </div>
+          </div>
+          {triggerError && (
+            <div className="px-5 py-2 text-[12px] border-t border-border-subtle"
+              style={{ color: "var(--color-accent-short)", background: "rgba(239,68,68,0.04)" }}>
+              {triggerError}
+            </div>
+          )}
+        </>
+      )}
 
       {/* TP/SL badges */}
       {(t.take_profit_price || t.stop_loss_price) && (
@@ -450,7 +545,7 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
       <div className="flex border-t border-border-subtle">
         <button
           onClick={handleConfirm}
-          disabled={submitting || isExecuting}
+          disabled={submitting || isExecuting || !!triggerError}
           className="btn-primary flex-1 py-3 text-[13px] font-bold tracking-wide
             cursor-pointer disabled:opacity-25 disabled:cursor-default rounded-none rounded-bl-xl"
           style={{ color: "#000", background: accent }}
