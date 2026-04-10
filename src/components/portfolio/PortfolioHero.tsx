@@ -18,6 +18,7 @@ interface PortfolioHeroProps {
 }
 
 interface WalletToken {
+  mint: string;
   symbol: string; name: string; amount: number; usd: number;
   pricePerToken: number; logo: string; logoFallback: string;
   color: string; portfolioPct: number;
@@ -72,7 +73,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
         const toks: WalletToken[] = [];
         if (data.solBalance > 0) {
           const m = TOKEN_META["SOL"];
-          toks.push({ symbol: "SOL", name: m?.name ?? "Solana", amount: data.solBalance,
+          toks.push({ mint: "So11111111111111111111111111111111111111112", symbol: "SOL", name: m?.name ?? "Solana", amount: data.solBalance,
             usd: data.solUsd ?? 0, pricePerToken: (data.solUsd ?? 0) / data.solBalance,
             logo: m?.logo ?? "", logoFallback: "", color: m?.color ?? "#9945FF", portfolioPct: 0 });
         }
@@ -82,7 +83,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
           const m = TOKEN_META[sym] ?? TOKEN_META[t.symbol];
           const dasLogo = t.logoUri || "";
           const primaryLogo = m?.logo || dasLogo;
-          toks.push({ symbol: sym, name: m?.name ?? sym, amount: t.amount, usd: t.usdValue,
+          toks.push({ mint: String(t.mint ?? ""), symbol: sym, name: m?.name ?? sym, amount: t.amount, usd: t.usdValue,
             pricePerToken: t.pricePerToken ?? 0, logo: primaryLogo,
             logoFallback: primaryLogo !== dasLogo ? dasLogo : "", color: m?.color ?? "#3E5068", portfolioPct: 0 });
         }
@@ -213,8 +214,8 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             overflowY: assetsExpanded ? "auto" : "hidden",
             transition: "max-height 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms",
           }}>
-            {tokens.map((t, i) => (
-              <div key={t.symbol}
+            {tokens.map((t) => (
+              <div key={t.mint || t.symbol}
                 className="flex items-center justify-between px-6 py-4 transition-colors duration-100 hover:bg-white/[0.02]"
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                 <div className="flex items-center gap-4">

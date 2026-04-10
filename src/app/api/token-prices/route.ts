@@ -21,7 +21,12 @@ interface WalletTokens {
   solUsd: number;
   tokens: TokenBalance[];
   totalUsd: number;
+  // Staked FAF balance (Flash's own staking program) — included in totalUsd
+  stakedFaf: number;
+  stakedFafUsd: number;
 }
+
+const FAF_MINT = "FAFxVxnkzZHMCodkWyoccgUNgVScqMw2mhhQBYDFjFAF";
 
 export async function POST(req: NextRequest) {
   const start = Date.now();
@@ -99,6 +104,30 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ---- Fetch staked FAF balance in parallel ----
+    // Jupiter Portfolio shows wallet + staked FAF in the same total; match it.
+    let stakedFaf = 0;
+    let stakedFafUsd = 0;
+    const stakedFafPromise = (async () => {
+      try {
+        const { Connection, PublicKey, Keypair } = await import("@solana/web3.js");
+        const { getFafStakeInfo } = await import("@/lib/faf-sdk");
+        const conn = new Connection(RPC_URL, { commitment: "confirmed" });
+        const pubkey = new PublicKey(wallet);
+        const kp = Keypair.generate();
+        const dummyWallet = {
+          publicKey: pubkey,
+          signTransaction: async (tx: unknown) => tx,
+          signAllTransactions: async (txs: unknown[]) => txs,
+          payer: kp,
+        } as unknown as import("@coral-xyz/anchor").Wallet;
+        const info = await getFafStakeInfo(conn, dummyWallet, pubkey);
+        stakedFaf = info?.stakedAmount ?? 0;
+      } catch {
+        // FAF stake unavailable — continue without it
+      }
+    })();
+
     // Re-price ALL tokens via Jupiter lite-api v3.
     //
     // Prior code used api.jup.ag/price/v2 which has been silently deprecated
@@ -110,7 +139,8 @@ export async function POST(req: NextRequest) {
     {
       const allMints = tokens.map((t) => t.mint).filter(Boolean);
       const solMint = "So11111111111111111111111111111111111111112";
-      const mintIds = [solMint, ...allMints].join(",");
+      // Always include FAF mint so we can price staked FAF too
+      const mintIds = Array.from(new Set([solMint, FAF_MINT, ...allMints])).join(",");
       try {
         const jupResp = await fetch(
           `https://lite-api.jup.ag/price/v3?ids=${mintIds}`,
@@ -135,16 +165,24 @@ export async function POST(req: NextRequest) {
               totalUsd += (t.usdValue - oldUsd);
             }
           }
+          // Wait for FAF stake info and price it with Jupiter FAF price
+          await stakedFafPromise;
+          const fafPrice = Number(jupPrices[FAF_MINT]?.usdPrice ?? 0);
+          if (stakedFaf > 0 && fafPrice > 0) {
+            stakedFafUsd = stakedFaf * fafPrice;
+            totalUsd += stakedFafUsd;
+          }
         }
       } catch {
         // Jupiter unavailable — continue with Helius prices
+        await stakedFafPromise; // still await to avoid unhandled promise
       }
     }
 
     // Sort by USD value descending
     tokens.sort((a, b) => b.usdValue - a.usdValue);
 
-    const walletTokens: WalletTokens = { solBalance, solUsd, tokens, totalUsd };
+    const walletTokens: WalletTokens = { solBalance, solUsd, tokens, totalUsd, stakedFaf, stakedFafUsd };
 
     cache.set(wallet, { data: walletTokens, ts: Date.now() });
     // Bound cache size
