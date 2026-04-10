@@ -310,8 +310,15 @@ function TrendArrow({ positive }: { positive: boolean }) {
   );
 }
 
-// ═══ TRENDING STRIP — real 24h % changes from CoinGecko (like Galileo) ═══
-const CG_IDS: Record<string, string> = { SOL: "solana", BTC: "bitcoin", ETH: "ethereum", JUP: "jupiter-exchange-solana" };
+// ═══ TRENDING STRIP — real 24h % changes from Pyth (oracle-grade, no rate limit) ═══
+// Uses Pyth Hermes for current price + Pyth Benchmarks for prior-day close.
+// 24h change = (current - yesterday_close) / yesterday_close * 100.
+const PYTH_FEEDS: Record<string, { id: string; symbol: string }> = {
+  BTC: { id: "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43", symbol: "Crypto.BTC/USD" },
+  ETH: { id: "ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace", symbol: "Crypto.ETH/USD" },
+  SOL: { id: "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d", symbol: "Crypto.SOL/USD" },
+  JUP: { id: "0a0408d619e9380abad35060f9192039ed5042fa6f82301d0e48bb52be830996", symbol: "Crypto.JUP/USD" },
+};
 
 const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd: string) => void }) {
   const [trending, setTrending] = useState<{ symbol: string; change: number; logo: string; color: string }[]>([]);
@@ -319,19 +326,53 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
   useEffect(() => {
     async function load() {
       try {
-        const ids = Object.values(CG_IDS).join(",");
-        const resp = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
-          { signal: AbortSignal.timeout(5000) }
+        // 1) Current prices via Pyth Hermes (one request, all feeds)
+        const ids = Object.values(PYTH_FEEDS).map((f) => `ids%5B%5D=0x${f.id}`).join("&");
+        const curResp = await fetch(
+          `https://hermes.pyth.network/v2/updates/price/latest?${ids}&parsed=true`,
+          { signal: AbortSignal.timeout(5000) },
         );
-        if (!resp.ok) return;
-        const data = await resp.json();
+        if (!curResp.ok) return;
+        const curData = await curResp.json();
+        const parsed = (curData?.parsed ?? []) as Array<{ id: string; price: { price: string; expo: number } }>;
+        const currentBySymbol: Record<string, number> = {};
+        for (const [sym, feed] of Object.entries(PYTH_FEEDS)) {
+          const match = parsed.find((p) => p.id?.toLowerCase() === feed.id.toLowerCase());
+          if (match?.price) {
+            currentBySymbol[sym] = Number(match.price.price) * Math.pow(10, match.price.expo);
+          }
+        }
+
+        // 2) Prior 24h candle open via Pyth Benchmarks — one call per symbol
+        const nowSec = Math.floor(Date.now() / 1000);
+        const fromSec = nowSec - 90_000; // ~25h window to guarantee a daily candle
+        const historyResults = await Promise.all(
+          Object.entries(PYTH_FEEDS).map(async ([sym, feed]) => {
+            try {
+              const r = await fetch(
+                `https://benchmarks.pyth.network/v1/shims/tradingview/history?symbol=${encodeURIComponent(feed.symbol)}&resolution=D&from=${fromSec}&to=${nowSec}`,
+                { signal: AbortSignal.timeout(5000) },
+              );
+              if (!r.ok) return [sym, null] as const;
+              const d = await r.json();
+              const opens = Array.isArray(d?.o) ? d.o as number[] : [];
+              return [sym, opens[opens.length - 1] ?? null] as const;
+            } catch {
+              return [sym, null] as const;
+            }
+          }),
+        );
+        const openBySymbol: Record<string, number | null> = {};
+        for (const [sym, open] of historyResults) openBySymbol[sym] = open;
+
         const items: { symbol: string; change: number; logo: string; color: string }[] = [];
-        for (const [sym, cgId] of Object.entries(CG_IDS)) {
-          const d = data[cgId];
-          if (!d) continue;
+        for (const sym of Object.keys(PYTH_FEEDS)) {
+          const current = currentBySymbol[sym];
+          const open = openBySymbol[sym];
+          if (!Number.isFinite(current) || !Number.isFinite(open) || !open) continue;
+          const change = ((current - (open as number)) / (open as number)) * 100;
           const meta = TOKEN_META[sym];
-          items.push({ symbol: sym, change: d.usd_24h_change ?? 0, logo: meta?.logo ?? "", color: meta?.color ?? "#555" });
+          items.push({ symbol: sym, change, logo: meta?.logo ?? "", color: meta?.color ?? "#555" });
         }
         setTrending(items);
       } catch {}
