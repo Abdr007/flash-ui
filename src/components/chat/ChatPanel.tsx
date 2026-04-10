@@ -502,12 +502,14 @@ const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { p
 
   return (
     <div className="flex items-start gap-3">
-      <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center mt-0.5"
-        style={{ background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-          <path d="M3 12L8 3L13 12H3Z" fill="var(--color-accent-blue)" fillOpacity="0.9" />
-        </svg>
-      </div>
+      <img
+        src="/ft-logo.svg"
+        alt="Flash Trade"
+        width={32}
+        height={32}
+        className="w-8 h-8 rounded-full shrink-0 mt-0.5"
+        style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+      />
 
       <div className="flex flex-col gap-3 min-w-0 flex-1">
         {isFastPath && (

@@ -1098,6 +1098,13 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
         last.trade_card = undefined;
         set({ messages: msgs });
       }
+      // Clear activeTrade after the card has had time to show the success
+      // state. If a new trade has been started in the meantime, don't clobber
+      // it — only clear if the current activeTrade is still this one.
+      const cur = get().activeTrade;
+      if (cur?.tx_signature === txSignature) {
+        set({ activeTrade: null });
+      }
     }, 8000);
 
     // Record trade action for user pattern learning (fire-and-forget)
@@ -1120,7 +1127,12 @@ export const useFlashStore = create<FlashStore>((set, get) => ({
       }).catch(() => {});
     } catch {}
 
-    set({ activeTrade: null, isExecuting: false });
+    // Set activeTrade to the SUCCESS state (NOT null) so TradePreviewCard
+    // can observe the tx_signature and flip to the success UI. Prior code
+    // immediately nulled activeTrade, which meant the card never saw the
+    // signature — it just saw activeTrade go from SIGNING to null, which
+    // is indistinguishable from a cancel.
+    set({ activeTrade: successTrade, isExecuting: false });
     tradeLock = false;
     resetExecution(); // Clear persisted execution state
     // Delay position refresh to avoid race conditions with tab focus recovery
