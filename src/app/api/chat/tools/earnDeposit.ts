@@ -57,8 +57,8 @@ export function createEarnDepositTool(wallet: string) {
             const poolMap: Record<string, string> = {
               crypto: "FLP.1", gold: "FLP.2", defi: "FLP.3",
               meme: "FLP.4", community: "FLP.4",
-              wif: "FLP.5", trump: "FLP.6", fart: "FLP.7",
-              ore: "FLP.8", equity: "FLP.9",
+              wif: "FLP.5", trump: "FLP.7", fart: "FLP.7",
+              ore: "FLP.8", equity: "FLP.x",
             };
             const sym = poolMap[poolLower];
             const poolData = (data.pools ?? []).find((p: Record<string, unknown>) => p.flpTokenSymbol === sym);

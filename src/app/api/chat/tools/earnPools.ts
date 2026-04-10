@@ -48,9 +48,9 @@ export function createEarnPoolsTool(wallet: string) {
           "FLP.3": { name: "DeFi Pool", poolName: "Governance.1" },
           "FLP.4": { name: "Community Pool", poolName: "Community.1" },
           "FLP.5": { name: "WIF Pool", poolName: "Community.2" },
-          "FLP.6": { name: "TRUMP Pool", poolName: "Trump.1" },
-          "FLP.7": { name: "Ore Pool", poolName: "Ore.1" },
-          "FLP.8": { name: "Equity Pool", poolName: "Equity.1" },
+          "FLP.7": { name: "TRUMP Pool", poolName: "Trump.1" },
+          "FLP.8": { name: "Ore Pool", poolName: "Ore.1" },
+          "FLP.x": { name: "Equity Pool", poolName: "Equity.1" },
         };
 
         // Build custody map from pool-data endpoint
@@ -198,8 +198,8 @@ export function createEarnPositionsTool(wallet: string) {
 const POOL_FLP_MAP: Record<string, string> = {
   crypto: "FLP.1", gold: "FLP.2", defi: "FLP.3",
   meme: "FLP.4", community: "FLP.4",
-  wif: "FLP.5", trump: "FLP.6", fart: "FLP.7",
-  ore: "FLP.8", equity: "FLP.9",
+  wif: "FLP.5", trump: "FLP.7", fart: "FLP.7",
+  ore: "FLP.8", equity: "FLP.x",
 };
 
 const POOL_NAMES_W: Record<string, string> = {
