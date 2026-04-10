@@ -543,8 +543,16 @@ const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { p
             if (!part || typeof part !== "object") return null;
 
             if (part.type === "text") {
-              const text = String(part.text ?? "");
-              if (!text.trim()) return null;
+              // Strip <thinking>...</thinking> blocks (both complete and
+              // partial/streaming), plus common "The user said..." / "According
+              // to my protocol..." meta-narration that leaks from Claude
+              // despite system prompt rules.
+              let text = String(part.text ?? "");
+              text = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
+              text = text.replace(/<thinking>[\s\S]*$/gi, ""); // unclosed stream
+              text = text.replace(/^\s*(?:According to my protocol|The user said|Let me think)[^\n]*\n?/gi, "");
+              text = text.trim();
+              if (!text) return null;
               return (
                 <div key={i} className="text-[14px] text-text-secondary leading-relaxed">
                   <SimpleMarkdown text={text} onAction={onAction} />

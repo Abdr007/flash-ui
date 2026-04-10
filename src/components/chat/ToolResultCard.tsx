@@ -197,6 +197,41 @@ const StreamingSteps = memo(function StreamingSteps({ toolName, step, input }: {
   );
 });
 
+// ---- Unified transaction success card ----
+// Used by every card that transitions to a "tx broadcast, on-chain" state
+// (trade open, position close, collateral add/remove, earn deposit, etc).
+// Single source of truth for success styling — one line, inline Solscan link.
+function TxSuccessCard({
+  label,
+  signature,
+  variant = "long",
+}: {
+  label: string;
+  signature: string | null | undefined;
+  variant?: "long" | "short";
+}) {
+  const color = variant === "long" ? "var(--color-accent-long)" : "var(--color-accent-short)";
+  const bg = variant === "long" ? "rgba(16,185,129,0.06)" : "rgba(239,68,68,0.06)";
+  return (
+    <div className="w-full max-w-[460px] glass-card overflow-hidden success-glow">
+      <div className="px-5 py-3.5 flex items-center gap-2.5" style={{ background: bg }}>
+        <span className="text-[14px]" style={{ color }}>✓</span>
+        <span className="text-[14px] font-medium" style={{ color }}>{label}</span>
+        {signature && (
+          <a
+            href={`https://solscan.io/tx/${signature}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[12px] text-text-tertiary ml-auto hover:text-text-primary underline"
+          >
+            View on Solscan →
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ---- TP/SL validator (mirrors trade-firewall checks so errors surface live) ----
 function validateTpSlAgainstEntry(
   tp: number | null,
@@ -251,8 +286,16 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
   // from CANCEL (both end with activeTrade=null). Without this, cancelling
   // at the overlay would show "Trade executed" — a VERY bad UX lie.
   const outcomeRef = useRef<"pending" | "success" | "error">("pending");
-  if (activeTrade?.tx_signature) outcomeRef.current = "success";
-  else if (activeTrade?.status === "ERROR") outcomeRef.current = "error";
+  // Capture tx_signature the moment we first see it. The store clears
+  // activeTrade 8s after completion to avoid blocking the next trade;
+  // without this ref, the success card loses its Solscan link mid-view.
+  const capturedSigRef = useRef<string | null>(null);
+  if (activeTrade?.tx_signature) {
+    outcomeRef.current = "success";
+    capturedSigRef.current = activeTrade.tx_signature;
+  } else if (activeTrade?.status === "ERROR") {
+    outcomeRef.current = "error";
+  }
 
   // If the trade was cancelled (activeTrade cleared without resolution),
   // reset submitting so the user can try again. Can't call setState during
@@ -311,31 +354,10 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
 
   if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Trade cancelled.</div>;
 
-  // Trade was submitted and completed successfully — minimal success card:
-  // green check, "Trade executed", and a direct Solscan link. Nothing else.
+  // Trade was submitted and completed successfully — unified success card.
   if (tradeCompleted && (tradeStatus === "SUCCESS" || !activeTrade)) {
-    const sig = activeTrade?.tx_signature;
-    return (
-      <div className="w-full max-w-[460px]">
-        <div className="glass-card overflow-hidden success-glow">
-          <div className="px-5 py-3.5 flex items-center gap-2.5"
-            style={{ background: "rgba(16,185,129,0.06)" }}>
-            <span className="text-[14px]" style={{ color: "var(--color-accent-long)" }}>✓</span>
-            <span className="text-[14px] font-medium" style={{ color: "var(--color-accent-long)" }}>Trade executed</span>
-            {sig && (
-              <a
-                href={`https://solscan.io/tx/${sig}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[12px] text-text-tertiary ml-auto hover:text-text-primary underline"
-              >
-                View on Solscan →
-              </a>
-            )}
-          </div>
-        </div>
-      </div>
-    );
+    const sig = activeTrade?.tx_signature ?? capturedSigRef.current;
+    return <TxSuccessCard label="Trade executed" signature={sig} variant="long" />;
   }
 
   // Trade errored
@@ -1048,21 +1070,11 @@ const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { output: To
 
   if (status === "success") {
     return (
-      <div className="w-full max-w-[460px] glass-card overflow-hidden success-glow">
-        <div className="px-5 py-3.5 flex items-center gap-2.5" style={{ background: isProfit ? "rgba(16,185,129,0.06)" : "rgba(239,68,68,0.06)" }}>
-          <span className="text-[14px]" style={{ color: isProfit ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>✓</span>
-          <span className="text-[14px] font-medium" style={{ color: isProfit ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
-            Position closed — {receivedUsd ? `received $${receivedUsd}` : formatPnl(netPnl)}
-          </span>
-        </div>
-        {txSig && (
-          <div className="px-4 py-2 border-t border-border-subtle">
-            <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noopener noreferrer" className="text-[12px] text-text-secondary hover:text-text-primary underline">
-              View on Solscan →
-            </a>
-          </div>
-        )}
-      </div>
+      <TxSuccessCard
+        label={`Position closed — ${receivedUsd ? `received $${receivedUsd}` : formatPnl(netPnl)}`}
+        signature={txSig}
+        variant={isProfit ? "long" : "short"}
+      />
     );
   }
 
