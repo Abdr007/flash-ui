@@ -356,11 +356,16 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
     // carries them into the TradeObject, which executeTrade then forwards
     // to buildOpenPosition. The Flash builder bundles TP+SL into the same
     // versioned tx — single signature, single broadcast.
-    const enriched = {
-      ...(output.data as Record<string, unknown>),
-      take_profit_price: tpParsed,
-      stop_loss_price: slParsed,
-    };
+    //
+    // IMPORTANT: the firewall schema uses z.number().optional() — .optional()
+    // allows a MISSING field, not a null. Passing null silently fails
+    // validation and makes the Confirm button appear to do nothing. Only
+    // spread the keys when the user actually provided a value.
+    const enriched: Record<string, unknown> = { ...(output.data as Record<string, unknown>) };
+    if (tpParsed != null) enriched.take_profit_price = tpParsed;
+    else delete enriched.take_profit_price;
+    if (slParsed != null) enriched.stop_loss_price = slParsed;
+    else delete enriched.stop_loss_price;
 
     const ok = setTradeFromAI(enriched, walletAddress ?? "", positions);
     if (!ok) { setSubmitting(false); return; }
@@ -580,19 +585,44 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
       </div>
 
       {/* Smart suggestions — context-aware, non-intrusive */}
-      {!submitting && <TradeHints trade={t} />}
+      {!submitting && (
+        <TradeHints
+          trade={t}
+          onApplyTp={(v) => setTpDraft(String(v))}
+          onApplySl={(v) => setSlDraft(String(v))}
+        />
+      )}
     </div>
   );
 });
 
 // ---- Post-Intent Suggestions ----
 
-const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) {
+interface TradeHint {
+  label: string;
+  intent: string;
+  color: string;
+  // For TP/SL suggestions: apply directly to the card inputs instead of
+  // filling the chat bar. Leaves other hints (leverage, collateral, cross)
+  // on the existing textarea-fill flow.
+  applyTp?: number;
+  applySl?: number;
+}
+
+const TradeHints = memo(function TradeHints({
+  trade,
+  onApplyTp,
+  onApplySl,
+}: {
+  trade: TradePreview;
+  onApplyTp?: (value: number) => void;
+  onApplySl?: (value: number) => void;
+}) {
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
 
-  const hints: { label: string; intent: string; color: string }[] = [];
+  const hints: TradeHint[] = [];
 
   // Learned preferences (adapts to user behavior over time)
   const slDistPct = getPreferredSlDistance();  // learned or default 5%
@@ -608,6 +638,7 @@ const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) 
       label: boost ? `Add SL ~$${suggestedSl.toLocaleString()} (improves your win rate)` : `Add SL ~$${suggestedSl.toLocaleString()}`,
       intent: `${trade.side.toLowerCase()} ${trade.market} $${trade.collateral_usd} ${trade.leverage}x sl ${suggestedSl}`,
       color: "var(--color-accent-short)",
+      applySl: suggestedSl,
     });
   }
 
@@ -619,6 +650,7 @@ const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) 
       label: `Add TP ~$${suggestedTp.toLocaleString()}`,
       intent: `${trade.side.toLowerCase()} ${trade.market} $${trade.collateral_usd} ${trade.leverage}x tp ${suggestedTp}`,
       color: "var(--color-accent-long)",
+      applyTp: suggestedTp,
     });
   }
 
@@ -664,9 +696,20 @@ const TradeHints = memo(function TradeHints({ trade }: { trade: TradePreview }) 
           key={i}
           onClick={() => {
             setDismissed(true);
-            // Record suggestion acceptance for learning
             try { recordSuggestionAccepted(); } catch {}
-            // Fill input with suggested command
+
+            // TP/SL hints apply to the inline card inputs. Other hints
+            // (leverage, collateral, cross-feature) still fill the chat
+            // textarea because they require a brand-new trade command.
+            if (h.applyTp != null && onApplyTp) {
+              onApplyTp(h.applyTp);
+              return;
+            }
+            if (h.applySl != null && onApplySl) {
+              onApplySl(h.applySl);
+              return;
+            }
+
             try {
               const input = document.querySelector<HTMLTextAreaElement>("textarea");
               if (input) {
