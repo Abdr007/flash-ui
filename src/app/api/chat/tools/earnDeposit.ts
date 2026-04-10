@@ -10,12 +10,13 @@ import type { ToolResponse } from "./shared";
 import { logToolCall, logToolResult } from "./shared";
 import { makeRequestId } from "@/lib/tool-dedup";
 
-const VALID_POOLS = ["crypto", "defi", "gold", "meme", "wif", "fart", "ore", "stable"];
+const VALID_POOLS = ["crypto", "defi", "gold", "meme", "community", "wif", "fart", "trump", "ore", "equity", "stable"];
 
 const POOL_DISPLAY: Record<string, string> = {
   crypto: "Crypto Pool", defi: "DeFi Pool", gold: "Gold Pool",
-  meme: "Meme Pool", wif: "WIF Pool", fart: "FART Pool",
-  ore: "Ore Pool", stable: "Stable Pool",
+  meme: "Community Pool", community: "Community Pool",
+  wif: "WIF Pool", fart: "FART Pool", trump: "TRUMP Pool",
+  ore: "Ore Pool", equity: "Equity Pool", stable: "Stable Pool",
 };
 
 export function createEarnDepositTool(wallet: string) {
@@ -54,8 +55,10 @@ export function createEarnDepositTool(wallet: string) {
           if (res.ok) {
             const data = await res.json();
             const poolMap: Record<string, string> = {
-              crypto: "FLP.1", defi: "FLP.3", gold: "FLP.2", meme: "FLP.4",
-              wif: "FLP.5", fart: "FLP.7", ore: "FLP.8", stable: "FLP.x",
+              crypto: "FLP.1", gold: "FLP.2", defi: "FLP.3",
+              meme: "FLP.4", community: "FLP.4",
+              wif: "FLP.5", trump: "FLP.6", fart: "FLP.7",
+              ore: "FLP.8", equity: "FLP.9",
             };
             const sym = poolMap[poolLower];
             const poolData = (data.pools ?? []).find((p: Record<string, unknown>) => p.flpTokenSymbol === sym);

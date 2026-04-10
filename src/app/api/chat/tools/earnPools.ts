@@ -196,13 +196,17 @@ export function createEarnPositionsTool(wallet: string) {
 // ============================================
 
 const POOL_FLP_MAP: Record<string, string> = {
-  crypto: "FLP.1", defi: "FLP.3", gold: "FLP.2", meme: "FLP.4",
-  wif: "FLP.5", fart: "FLP.7", ore: "FLP.8",
+  crypto: "FLP.1", gold: "FLP.2", defi: "FLP.3",
+  meme: "FLP.4", community: "FLP.4",
+  wif: "FLP.5", trump: "FLP.6", fart: "FLP.7",
+  ore: "FLP.8", equity: "FLP.9",
 };
 
 const POOL_NAMES_W: Record<string, string> = {
-  crypto: "Crypto Pool", defi: "DeFi Pool", gold: "Gold Pool",
-  meme: "Meme Pool", wif: "WIF Pool", fart: "FART Pool", ore: "Ore Pool",
+  crypto: "Crypto Pool", gold: "Gold Pool", defi: "DeFi Pool",
+  meme: "Community Pool", community: "Community Pool",
+  wif: "WIF Pool", trump: "TRUMP Pool", fart: "FART Pool",
+  ore: "Ore Pool", equity: "Equity Pool",
 };
 
 export function createEarnWithdrawTool(wallet: string) {

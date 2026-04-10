@@ -21,9 +21,12 @@ const POOL_MAP: Record<string, string> = {
   gold: "Virtual.1",
   defi: "Governance.1",
   meme: "Community.1",
+  community: "Community.1",
   wif: "Community.2",
+  trump: "Trump.1",
   fart: "Trump.1",
   ore: "Ore.1",
+  equity: "Equity.1",
 };
 
 export function resolvePoolName(alias: string): string | null {
