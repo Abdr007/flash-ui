@@ -11,24 +11,22 @@
 // - [D3] Price freshness: optional timestamp validation
 
 import { z } from "zod";
-import { MARKETS, MIN_COLLATERAL, MAX_LEVERAGE } from "./constants";
+import { MIN_COLLATERAL, MAX_LEVERAGE } from "./constants";
+import { getMaxLeverage, hasMarket } from "./markets-registry";
 import type { Position } from "./types";
 
 // ---- Per-Market Leverage Caps ----
-
-const MAX_LEVERAGE_BY_MARKET: Record<string, number> = {
-  SOL: 100, BTC: 100, ETH: 100, BNB: 50, ZEC: 50,
-  JUP: 50, PYTH: 50, JTO: 50, RAY: 50,
-  BONK: 20, PENGU: 20,
-  WIF: 20,
-  FARTCOIN: 20,
-  ORE: 20,
-  XAU: 50,
-  SPY: 50, NVDA: 50, TSLA: 50,
-};
-
-export function getMaxLeverageForMarket(market: string): number {
-  return MAX_LEVERAGE_BY_MARKET[market] ?? MAX_LEVERAGE;
+//
+// Source of truth: markets registry SYMBOL_CAPS table (captured from the
+// live flash.trade UI). Falls back to the absolute ceiling if the registry
+// doesn't know the market yet.
+export function getMaxLeverageForMarket(
+  market: string,
+  degen = false,
+): number {
+  const mode = degen ? "degen" : "normal";
+  const fromRegistry = getMaxLeverage(market, mode);
+  return fromRegistry > 0 ? fromRegistry : MAX_LEVERAGE;
 }
 
 const MAX_COLLATERAL = 50_000;
@@ -36,8 +34,12 @@ const MAX_SLIPPAGE_BPS = 300;
 const MAX_FEE_RATE = 0.01;
 const CONSISTENCY_TOLERANCE = 0.02;
 
-// [E2] Minimum liquidation distance (%) — below this is structurally unsound
-const MIN_LIQ_DISTANCE_PCT = 0.5;
+// [E2] Absolute minimum liquidation distance (%) floor — below this, rounding
+// error dominates and the trade is structurally unsound regardless of leverage.
+// The effective minimum is computed dynamically per-trade from the natural
+// distance (1/leverage - feeRate), because a fixed floor would block all
+// trades above ~170x — at 500x natural distance is only 0.12%.
+const MIN_LIQ_DISTANCE_FLOOR_PCT = 0.05;
 
 // ---- Firewall Schema (STRICT — rejects unknown fields) ----
 
@@ -52,6 +54,7 @@ export const TradePreviewSchema = z.object({
   position_size: z.number().finite().positive(),
   slippage_bps: z.number().finite().min(0).max(500).optional().default(80),
   fee_rate: z.number().finite().min(0).max(0.05).optional(),
+  degen: z.boolean().optional().default(false),
   take_profit_price: z.number().finite().positive().optional(),
   stop_loss_price: z.number().finite().positive().optional(),
 }).strict(); // [STRICT] Reject unknown fields — no AI-injected extras
@@ -110,14 +113,18 @@ export function validateTrade(
   const t = parsed.data;
 
   // 2. Market existence
-  if (!(t.market in MARKETS)) {
+  if (!hasMarket(t.market)) {
     errors.push(`Unknown market: ${t.market}`);
   }
 
-  // 3. Per-market leverage cap
-  const maxLev = getMaxLeverageForMarket(t.market);
+  // 3. Per-market leverage cap. Degen is a tier selector — it unlocks a
+  // higher cap on SOL/BTC/ETH (100x → 500x) and is a no-op on every other
+  // market (cap unchanged). Setting degen:true on a flat-cap market is
+  // never an error.
+  const maxLev = getMaxLeverageForMarket(t.market, t.degen);
   if (t.leverage > maxLev) {
-    errors.push(`Leverage ${t.leverage}x exceeds ${t.market} max of ${maxLev}x`);
+    const modeLabel = t.degen ? " (degen)" : "";
+    errors.push(`Leverage ${t.leverage}x exceeds ${t.market} max of ${maxLev}x${modeLabel}`);
   }
   if (t.leverage < 1) {
     errors.push(`Leverage must be >= 1, got ${t.leverage}`);
@@ -157,26 +164,38 @@ export function validateTrade(
       errors.push(`SHORT liq price $${t.liquidation_price} <= entry $${t.entry_price}`);
     }
 
-    // [E2] Minimum liquidation distance check
+    // [E2] Liquidation distance checks — dynamic minimum that scales with
+    // leverage so degen (200x+) trades aren't falsely blocked.
     const liqDistPct = t.side === "LONG"
       ? ((t.entry_price - t.liquidation_price) / t.entry_price) * 100
       : ((t.liquidation_price - t.entry_price) / t.entry_price) * 100;
 
-    if (liqDistPct < MIN_LIQ_DISTANCE_PCT && liqDistPct >= 0) {
-      errors.push(
-        `Liquidation distance ${liqDistPct.toFixed(2)}% is below minimum ${MIN_LIQ_DISTANCE_PCT}% — structurally unsound`,
-      );
-    }
-
-    // [E2] Verify liq price is consistent with leverage (accounting for fees)
     if (t.leverage >= 1) {
+      // Structural minimum scales with leverage: we require the liq distance
+      // to be at least 40% of the natural distance (1/leverage). This
+      // tolerates pool-specific maintenance margin (up to ~60% of 1/lev),
+      // while still rejecting degenerate cases where liq ≈ entry. At 1x the
+      // floor is 40%, at 100x 0.4%, at 500x 0.08% (clamped to the absolute
+      // floor of 0.05% below that).
+      const naturalDistPct = (1 / t.leverage) * 100;
+      const minAllowedDistPct = Math.max(
+        MIN_LIQ_DISTANCE_FLOOR_PCT,
+        naturalDistPct * 0.4,
+      );
+
+      if (liqDistPct >= 0 && liqDistPct < minAllowedDistPct) {
+        errors.push(
+          `Liquidation distance ${liqDistPct.toFixed(3)}% is below minimum ${minAllowedDistPct.toFixed(3)}% for ${t.leverage}x — structurally unsound`,
+        );
+      }
+
+      // Warning if actual deviates more than 60% from natural distance in
+      // either direction (allows for MMR + fees to account for up to 60%).
       const feeRate = t.fee_rate ?? 0.0008;
-      const effectiveLeverage = t.leverage;
-      // Expected liq distance = 1/leverage - feeRate (approximate)
-      const expectedDistPct = (1 / effectiveLeverage - feeRate) * 100;
-      if (expectedDistPct > 0 && Math.abs(liqDistPct - expectedDistPct) > expectedDistPct * 0.5) {
+      const expectedDistPct = (1 / t.leverage - feeRate) * 100;
+      if (expectedDistPct > 0 && Math.abs(liqDistPct - expectedDistPct) > expectedDistPct * 0.6) {
         warnings.push(
-          `Liq distance ${liqDistPct.toFixed(1)}% differs from expected ~${expectedDistPct.toFixed(1)}% for ${effectiveLeverage}x`,
+          `Liq distance ${liqDistPct.toFixed(2)}% differs from expected ~${expectedDistPct.toFixed(2)}% for ${t.leverage}x`,
         );
       }
     }
@@ -280,7 +299,7 @@ export function validateClosePreview(raw: unknown): FirewallResult {
   const t = parsed.data;
   const errors: string[] = [];
 
-  if (!(t.market in MARKETS)) {
+  if (!hasMarket(t.market)) {
     errors.push(`Unknown market: ${t.market}`);
   }
 

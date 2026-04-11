@@ -5,7 +5,7 @@
 // Compiler + executor, not a chatbot.
 // Target: <300 tokens. Tool-first. Zero filler.
 
-import { MARKETS, MIN_COLLATERAL, MAX_LEVERAGE } from "@/lib/constants";
+import { MARKETS, MIN_COLLATERAL } from "@/lib/constants";
 
 const MARKET_LIST = Object.keys(MARKETS).join(",");
 
@@ -45,7 +45,14 @@ export function getSystemPrompt(context?: {
     `SAFETY:`,
     `- Warn on leverage >20x or large transfers (>$1000).`,
     `- Never mislead. Never fabricate prices, balances, positions.`,
-    `- Min collateral $${MIN_COLLATERAL}. Max leverage ${MAX_LEVERAGE}x.`,
+    `- Min collateral $${MIN_COLLATERAL}. Per-market leverage caps (from live flash.trade):`,
+    `  • SOL/BTC/ETH: 100x normal, 500x degen (degen toggle unlocks the higher tier)`,
+    `  • FX (EUR/GBP/USDJPY/USDCNH): 500x flat — no degen gating, 500x always`,
+    `  • Metals (XAU/XAG/XAUt): 100x  • Commodities: NATGAS 10x, CRUDEOIL 5x`,
+    `  • BNB/JUP/PYTH/RAY/KMNO: 50x  • HYPE: 20x  • JTO/MET/ZEC: 10x`,
+    `  • Memes (BONK/PENGU/PUMP/WIF/FARTCOIN): 25x  • ORE: 5x`,
+    `  • Equities (SPY/NVDA/TSLA/AAPL/AMD/AMZN/PLTR): 20x`,
+    `- DEGEN MODE is a tier selector. Pass degen:true to unlock 500x on SOL/BTC/ETH only — on every other market it is a harmless no-op (cap is unchanged). Trigger on: "degen", "max leverage", "ape", "send it", "full send". Never reject degen:true on non-SOL/BTC/ETH markets; it just doesn't elevate the cap.`,
     ``,
     `DOMAIN:`,
     `- Trading: long/short, leverage, liquidation, PnL, collateral, fees.`,

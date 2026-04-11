@@ -9,10 +9,8 @@
 
 import { logInfo, logError } from "@/lib/logger";
 import { isReplay } from "@/lib/tool-dedup";
-import {
-  MARKETS,
-  MARKET_ALIASES,
-} from "@/lib/constants";
+import { MARKET_ALIASES } from "@/lib/constants";
+import { resolveSymbol, refreshIfStale } from "@/lib/markets-registry";
 
 // ---- Tool Response (strict, no `any`) ----
 
@@ -29,11 +27,20 @@ export interface ToolResponse<T> {
 // ---- Market Resolution ----
 
 export function resolveMarket(input: string): string | null {
-  const upper = input.toUpperCase().trim();
-  if (upper in MARKETS) return upper;
+  if (!input) return null;
+  refreshIfStale();
 
+  // 1. Direct symbol match against registry
+  const direct = resolveSymbol(input);
+  if (direct) return direct;
+
+  // 2. Natural-language alias (bitcoin → BTC, etc.)
   const lower = input.toLowerCase().trim();
-  if (lower in MARKET_ALIASES) return MARKET_ALIASES[lower];
+  const aliased = MARKET_ALIASES[lower];
+  if (aliased) {
+    const resolved = resolveSymbol(aliased);
+    if (resolved) return resolved;
+  }
 
   return null;
 }

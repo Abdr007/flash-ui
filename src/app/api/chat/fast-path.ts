@@ -118,6 +118,10 @@ function resolveMarket(token: string): string | null {
 // ---- PHASE 1: Parse (synchronous, <1ms) ----
 
 function parse(input: string): ParsedTrade | null {
+  // Degen-mode trades route through the AI path so build_trade sees
+  // degen=true. Fast-path intentionally doesn't parse degen.
+  if (/\bdegen\b/i.test(input)) return null;
+
   // Try format A: long SOL $25 5x
   let m = FAST_TRADE_RE.exec(input);
   let collateral: number;

@@ -435,6 +435,147 @@ html, body {
 .typing-dot:nth-child(2) { animation: typingBounce 1.2s ease-in-out infinite 150ms; }
 .typing-dot:nth-child(3) { animation: typingBounce 1.2s ease-in-out infinite 300ms; }
 
+/* ============================================
+   DEGEN MODE — Premium treatment
+   ============================================ */
+
+.degen-card {
+  border: 1px solid rgba(245, 194, 90, 0.35) !important;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(245, 194, 90, 0.08) 0%, transparent 60%),
+    rgba(14, 19, 28, 0.75);
+  box-shadow:
+    0 0 0 1px rgba(245, 194, 90, 0.12),
+    0 20px 60px -20px rgba(245, 194, 90, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  position: relative;
+}
+
+.degen-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(245, 194, 90, 0.6) 0%,
+    rgba(245, 194, 90, 0.15) 25%,
+    rgba(245, 194, 90, 0) 50%,
+    rgba(245, 194, 90, 0.15) 75%,
+    rgba(245, 194, 90, 0.6) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  animation: degenShimmer 3s linear infinite;
+  background-size: 200% 200%;
+}
+
+@keyframes degenShimmer {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 200% 200%; }
+}
+
+.degen-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(245, 194, 90, 0.22), rgba(245, 194, 90, 0.1));
+  border: 1px solid rgba(245, 194, 90, 0.45);
+  color: #F5C25A;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 0 12px rgba(245, 194, 90, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.degen-badge::before {
+  content: "⚡";
+  font-size: 11px;
+  filter: drop-shadow(0 0 4px rgba(245, 194, 90, 0.7));
+}
+
+/* ---- Degen toggle pill (chat input footer) ---- */
+
+.degen-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px 5px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
+  user-select: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.degen-toggle:hover {
+  color: rgba(245, 194, 90, 0.7);
+  border-color: rgba(245, 194, 90, 0.25);
+  background: rgba(245, 194, 90, 0.06);
+  transform: translateY(-1px);
+}
+.degen-toggle:active { transform: translateY(0) scale(0.96); }
+.degen-toggle__icon {
+  font-size: 12px;
+  line-height: 1;
+  filter: saturate(0.6);
+  transition: filter 200ms, transform 200ms;
+}
+.degen-toggle__label {
+  line-height: 1;
+  padding-top: 1px;
+}
+
+/* ON state — gold accent, halo, animated pulse */
+.degen-toggle--on {
+  background: linear-gradient(135deg, rgba(245, 194, 90, 0.22), rgba(245, 194, 90, 0.08));
+  border-color: rgba(245, 194, 90, 0.55);
+  color: #F5C25A;
+  box-shadow:
+    0 0 0 1px rgba(245, 194, 90, 0.2),
+    0 0 20px rgba(245, 194, 90, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: degenPulse 2.4s ease-in-out infinite;
+}
+.degen-toggle--on .degen-toggle__icon {
+  filter: drop-shadow(0 0 5px rgba(245, 194, 90, 0.8)) saturate(1.2);
+  transform: scale(1.05);
+}
+.degen-toggle--on:hover {
+  background: linear-gradient(135deg, rgba(245, 194, 90, 0.3), rgba(245, 194, 90, 0.12));
+  border-color: rgba(245, 194, 90, 0.7);
+  box-shadow:
+    0 0 0 1px rgba(245, 194, 90, 0.3),
+    0 0 28px rgba(245, 194, 90, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+@keyframes degenPulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(245, 194, 90, 0.2), 0 0 20px rgba(245, 194, 90, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.1); }
+  50%      { box-shadow: 0 0 0 1px rgba(245, 194, 90, 0.3), 0 0 28px rgba(245, 194, 90, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+}
+
+/* Input card gets a subtle gold sheen when degen is on */
+.degen-input {
+  border-color: rgba(245, 194, 90, 0.2) !important;
+  box-shadow:
+    0 0 0 1px rgba(245, 194, 90, 0.08),
+    0 20px 60px -30px rgba(245, 194, 90, 0.2) !important;
+}
+
 /* ---- Focus ---- */
 input:focus-visible { outline: none; }
 

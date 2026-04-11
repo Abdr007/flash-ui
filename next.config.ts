@@ -37,6 +37,11 @@ const nextConfig: NextConfig = {
   },
   // Turbopack equivalent
   turbopack: {
+    // Pin workspace root explicitly. Without this, Next walks up and finds
+    // an orphan package-lock.json in ~/ and treats home as the workspace
+    // root, breaking tailwindcss/postcss resolution. `process.cwd()` is
+    // the reliable way — `__dirname` is undefined in ESM TS config files.
+    root: process.cwd(),
     resolveAlias: {
       fs: { browser: "./src/lib/empty-module.ts" },
       path: { browser: "./src/lib/empty-module.ts" },

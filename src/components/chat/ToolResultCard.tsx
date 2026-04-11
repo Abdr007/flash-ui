@@ -376,6 +376,8 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
   const isLong = t.side === "LONG";
   const accent = isLong ? "var(--color-accent-long)" : "var(--color-accent-short)";
   const highLev = t.leverage >= HIGH_LEVERAGE_THRESHOLD;
+  const isDegen = (output.data as { degen?: boolean } | null)?.degen === true;
+  const degenGold = "#F5C25A";
 
   // ─── TP/SL draft parse + live validation (derived during render) ───
   const tpParsed = tpDraft.trim() === "" ? null : Number(tpDraft);
@@ -417,7 +419,7 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
 
   return (
     <div
-      className={`w-full max-w-[460px] glass-card overflow-hidden ${submitting ? "success-glow" : ""}`}
+      className={`w-full max-w-[460px] glass-card overflow-hidden ${submitting ? "success-glow" : ""} ${isDegen ? "degen-card" : ""}`}
       style={{ ...bounceStyle }}
     >
       {/* Header — bold, prominent */}
@@ -429,6 +431,7 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
             style={{ color: accent, background: isLong ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
             {t.side}
           </span>
+          {isDegen && <span className="degen-badge">Degen</span>}
         </div>
         <ConfidenceBadge confidence={confidence} />
       </div>
@@ -462,13 +465,37 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
       {/* Grid */}
       <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
         <Cell label="Size" value={formatUsd(t.position_size)} />
-        <Cell label="Leverage" value={formatLeverage(t.leverage)} color={highLev ? "var(--color-accent-warn)" : undefined} />
+        <Cell
+          label={isDegen ? "Leverage · DEGEN" : "Leverage"}
+          value={formatLeverage(t.leverage)}
+          color={isDegen ? degenGold : highLev ? "var(--color-accent-warn)" : undefined}
+        />
         <Cell label="Collateral" value={formatUsd(t.collateral_usd)} />
         <Cell label="Fees" value={t.fee_rate != null ? `${formatUsd(t.fees)} (${formatPercent(t.fee_rate)})` : formatUsd(t.fees)} />
       </div>
 
-      {/* Inline TP/SL inputs — bundled atomically into the open-position tx */}
-      {!submitting && (
+      {/* Degen warning — premium risk disclosure */}
+      {isDegen && (
+        <div
+          className="px-5 py-3 border-t text-[12px] leading-relaxed"
+          style={{
+            borderColor: "rgba(245,194,90,0.18)",
+            background: "rgba(245,194,90,0.04)",
+            color: degenGold,
+          }}
+        >
+          <div className="font-bold tracking-wider text-[10px] uppercase mb-1" style={{ letterSpacing: "0.1em" }}>
+            ⚡ Degen Mode Active
+          </div>
+          <div style={{ color: "rgba(245,194,90,0.8)" }}>
+            Unlocked via Flash&apos;s degen spec — SOL/BTC/ETH up to 500x. Limit orders and TP/SL are disabled in this mode. Liquidations happen fast.
+          </div>
+        </div>
+      )}
+
+      {/* Inline TP/SL inputs — bundled atomically into the open-position tx.
+          Hidden in degen mode: Flash's degen-mode spec disables TP/SL orders. */}
+      {!submitting && !isDegen && (
         <>
           <div className="grid grid-cols-2 gap-px border-t border-border-subtle"
             style={{ background: "var(--color-border-subtle)" }}>

@@ -6,21 +6,18 @@ import { tool } from "ai";
 import { z } from "zod";
 import { makeRequestId } from "@/lib/tool-dedup";
 import { logError } from "@/lib/logger";
-import { MARKETS, DEFAULT_LEVERAGE, MAX_LEVERAGE } from "@/lib/constants";
+import { DEFAULT_LEVERAGE } from "@/lib/constants";
+import { getMarket } from "@/lib/markets-registry";
+import { getMarketStatus } from "@/lib/market-hours";
 import type { ToolResponse } from "./shared";
 import { resolveMarket, runReadGuards, logToolCall } from "./shared";
 
-const MAX_LEV_BY_POOL: Record<string, number> = {
-  "Crypto.1": 100, "Virtual.1": 50, "Governance.1": 50,
-  "Community.1": 20, "Community.2": 20, "Trump.1": 20,
-  "Ore.1": 20, "Equity.1": 50,
-};
-
 export function createGetMarketInfoTool(wallet: string) {
   return tool({
-    description: "Get market metadata: supported pool, default/max leverage, market type",
+    description:
+      "Get market metadata: pool, category, leverage caps (normal + degen), live price, fee rate, utilization, and trading-hours status",
     inputSchema: z.object({
-      market: z.string().describe("Market symbol (e.g., SOL, BTC)"),
+      market: z.string().describe("Market symbol (e.g., SOL, BTC, MET, EUR)"),
     }),
     execute: async ({ market }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
@@ -30,20 +27,31 @@ export function createGetMarketInfoTool(wallet: string) {
         if (guardBlock) return guardBlock;
 
         const resolved = resolveMarket(market);
-        if (!resolved || !(resolved in MARKETS)) {
+        const meta = resolved ? getMarket(resolved) : null;
+        if (!resolved || !meta) {
           return { status: "error", data: null, error: `Unknown market: ${market}`, request_id: requestId, latency_ms: 0 };
         }
 
         logToolCall("get_market_info", requestId, wallet, { market: resolved });
 
-        const config = MARKETS[resolved];
+        const status = getMarketStatus(meta.category);
+
         return {
           status: "success",
           data: {
             market: resolved,
-            pool: config.pool,
-            default_leverage: DEFAULT_LEVERAGE[config.pool] ?? 3,
-            max_leverage: MAX_LEV_BY_POOL[config.pool] ?? MAX_LEVERAGE,
+            pool: meta.pool,
+            category: meta.category,
+            is_virtual: meta.isVirtual,
+            default_leverage: DEFAULT_LEVERAGE[meta.pool] ?? 3,
+            max_leverage: meta.maxLeverage,
+            max_degen_leverage: meta.maxDegenLeverage,
+            price_ui: meta.priceUi,
+            open_fee_bps: meta.openPositionFeeBps,
+            utilization: meta.utilization,
+            is_open: status.open,
+            status_reason: status.reason ?? null,
+            next_open_utc: status.nextOpenUtc ?? null,
           },
           request_id: requestId,
           latency_ms: 0,

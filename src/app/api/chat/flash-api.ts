@@ -219,26 +219,27 @@ export async function fetchTradePreview(
     const entry_price = priceData.price;
     const position_size = collateral_usd * leverage;
 
-    // Flash Trade fee structure:
-    // Base fee: 8 bps (0.08%) — applied to position size
-    // Maintenance margin: 0.5% of position size
-    // These match the on-chain program constants
+    // Flash Trade fee + liquidation model:
+    // - Base fee: 8 bps (0.08%) — shown in preview for transparency
+    // - Maintenance margin: 0.5% at normal leverage, scaled down at high
+    //   leverage (MMR must be < 1/lev or the position liquidates on open).
+    //   At 500x MMR caps at 0.1%, so liq distance = 0.2% - 0.1% = 0.1%.
+    //
+    // Note: fees are not subtracted from collateral in the liq formula —
+    // at high leverage a flat 8 bps fee would consume ~40% of collateral
+    // (500x × 8 bps = 4% of position size = 40% of collateral), distorting
+    // the liquidation distance. Flash charges fees as a separate accounting
+    // entry, not a pre-trade collateral reduction. This matches the fast-
+    // path and buildTrade fallback formulas.
     const BASE_FEE_BPS = 8;
-    const MAINTENANCE_MARGIN_RATE = 0.005; // 0.5%
+    const MAINTENANCE_MARGIN_RATE = Math.min(0.005, 0.5 / leverage);
 
     const fee_rate = BASE_FEE_BPS / 10000;
     const fees = position_size * fee_rate;
 
-    // Accurate liquidation formula matching Flash Trade on-chain:
-    // Liquidation occurs when collateral - losses - fees = maintenance_margin
-    // For LONG: liq_price = entry * (1 - (collateral - fees) / size + maintenance_margin_rate)
-    // For SHORT: liq_price = entry * (1 + (collateral - fees) / size - maintenance_margin_rate)
-    const collateralAfterFees = collateral_usd - fees;
-    const marginRatio = collateralAfterFees / position_size;
-
     const liquidation_price = side === "LONG"
-      ? entry_price * (1 - marginRatio + MAINTENANCE_MARGIN_RATE)
-      : entry_price * (1 + marginRatio - MAINTENANCE_MARGIN_RATE);
+      ? entry_price * (1 - 1 / leverage + MAINTENANCE_MARGIN_RATE)
+      : entry_price * (1 + 1 / leverage - MAINTENANCE_MARGIN_RATE);
 
     return {
       entry_price,

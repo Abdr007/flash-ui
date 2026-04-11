@@ -325,20 +325,21 @@ interface DirectToolMatch {
   params: Record<string, unknown>;
 }
 
-const MARKET_ALIASES: Record<string, string> = {
-  sol: "SOL", solana: "SOL", btc: "BTC", bitcoin: "BTC", eth: "ETH", ethereum: "ETH",
-  sui: "SUI", jup: "JUP", jupiter: "JUP", bonk: "BONK", wif: "WIF", pepe: "PEPE",
-  doge: "DOGE", dogecoin: "DOGE", avax: "AVAX", ada: "ADA", xrp: "XRP", link: "LINK",
-  matic: "MATIC", arb: "ARB", op: "OP", apt: "APT", near: "NEAR", atom: "ATOM",
-  dot: "DOT", ltc: "LTC", bnb: "BNB", trump: "TRUMP", render: "RENDER", ray: "RAY",
-  ondo: "ONDO", hnt: "HNT", pyth: "PYTH", jto: "JTO", wen: "WEN", w: "W",
-  tnsr: "TNSR", kmno: "KMNO", fartcoin: "FARTCOIN", pengu: "PENGU", me: "ME",
-  s: "S", aave: "AAVE", ena: "ENA", tia: "TIA", sei: "SEI", orca: "ORCA",
-};
+// Canonical alias map is defined in src/lib/constants.ts and hydrated from
+// the markets registry. Direct-tool matcher uses it for regex fast-paths.
+import { MARKET_ALIASES as DIRECT_MARKET_ALIASES } from "@/lib/constants";
+import { resolveSymbol, refreshIfStale } from "@/lib/markets-registry";
 
 function resolveMarket(input: string): string {
   const lower = input.toLowerCase().trim();
-  return MARKET_ALIASES[lower] ?? input.toUpperCase();
+  const aliased = DIRECT_MARKET_ALIASES[lower];
+  if (aliased) {
+    const canonical = resolveSymbol(aliased);
+    if (canonical) return canonical;
+  }
+  const direct = resolveSymbol(input);
+  if (direct) return direct;
+  return input.toUpperCase();
 }
 
 function matchDirectTool(input: string): DirectToolMatch | null {
@@ -355,7 +356,7 @@ function matchDirectTool(input: string): DirectToolMatch | null {
   if (m) return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
 
   m = /^(\w{2,10})\?$/i.exec(t);
-  if (m && MARKET_ALIASES[m[1].toLowerCase()]) return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
+  if (m && DIRECT_MARKET_ALIASES[m[1].toLowerCase()]) return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
 
   // ── All prices / markets ──
   if (/^(?:prices|all\s+prices|show\s+(?:all\s+)?prices|markets|all\s+markets|show\s+(?:all\s+)?markets)$/i.test(t)) {
@@ -463,6 +464,10 @@ function checkIpRateLimit(ip: string): boolean {
 const MAX_BODY_SIZE = 100_000;
 
 export async function POST(req: Request) {
+  // 0a. Trigger a non-blocking refresh of the markets registry (live
+  // maxLeverage / prices / fees from /pool-data).
+  refreshIfStale();
+
   // 0. [B3] Body size guard
   const contentLength = req.headers.get("content-length");
   if (contentLength && parseInt(contentLength) > MAX_BODY_SIZE) {

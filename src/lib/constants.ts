@@ -74,30 +74,48 @@ export const TOKEN_META: Record<string, { name: string; logo: string; color: str
   SPX:      { name: "SPX6900",           logo: "",                                                                             color: "#1E40AF" },
 };
 
-// Supported markets (from flash-x pool resolver)
-export const MARKETS: Record<string, { pool: string; dotColor: string }> = {
-  SOL:      { pool: "Crypto.1",     dotColor: "#9945FF" },
-  BTC:      { pool: "Crypto.1",     dotColor: "#F7931A" },
-  ETH:      { pool: "Crypto.1",     dotColor: "#627EEA" },
-  BNB:      { pool: "Crypto.1",     dotColor: "#F3BA2F" },
-  ZEC:      { pool: "Crypto.1",     dotColor: "#ECB244" },
-  JUP:      { pool: "Governance.1", dotColor: "#00D18C" },
-  PYTH:     { pool: "Governance.1", dotColor: "#7142CF" },
-  JTO:      { pool: "Governance.1", dotColor: "#4E7CFF" },
-  RAY:      { pool: "Governance.1", dotColor: "#4F46E5" },
-  BONK:     { pool: "Community.1",  dotColor: "#F59E0B" },
-  PENGU:    { pool: "Community.1",  dotColor: "#7DD3FC" },
-  WIF:      { pool: "Community.2",  dotColor: "#A855F7" },
-  FARTCOIN: { pool: "Trump.1",      dotColor: "#86EFAC" },
-  ORE:      { pool: "Ore.1",        dotColor: "#F97316" },
-  XAU:      { pool: "Virtual.1",    dotColor: "#FCD34D" },
-  SPY:      { pool: "Equity.1",     dotColor: "#3B82F6" },
-  NVDA:     { pool: "Equity.1",     dotColor: "#76B900" },
-  TSLA:     { pool: "Equity.1",     dotColor: "#CC0000" },
-};
+// ---- Supported markets ----
+//
+// Populated at module load from `flash-sdk/dist/PoolConfig.json` — the
+// authoritative list of every tradable perp on Flash. Live values
+// (maxLeverage, price, fees) come from the markets registry which refreshes
+// from /pool-data; this constant is only used for symbol membership checks
+// and UI dot colors.
+//
+// Stablecoins (USDC) and LSTs (JitoSOL) are filtered out. Devnet pools are
+// skipped.
+import PoolConfigStatic from "flash-sdk/dist/PoolConfig.json";
 
-// Aliases for natural language parsing
+const _POOL_SKIP = new Set(["USDC", "JitoSOL"]);
+const _POOL_DEVNET_PREFIX = "devnet";
+
+function _buildMarkets(): Record<string, { pool: string; dotColor: string }> {
+  const out: Record<string, { pool: string; dotColor: string }> = {};
+  const pools =
+    (PoolConfigStatic as { pools?: Array<{ poolName?: string; custodies?: Array<{ symbol?: string }> }> })
+      .pools || [];
+  for (const pool of pools) {
+    const poolName = pool.poolName || "";
+    if (poolName.startsWith(_POOL_DEVNET_PREFIX)) continue;
+    for (const c of pool.custodies || []) {
+      const symbol = c.symbol;
+      if (!symbol || _POOL_SKIP.has(symbol)) continue;
+      if (out[symbol]) continue; // first pool wins
+      const dotColor = TOKEN_META[symbol]?.color ?? "#555";
+      out[symbol] = { pool: poolName, dotColor };
+    }
+  }
+  return out;
+}
+
+export const MARKETS: Record<string, { pool: string; dotColor: string }> = _buildMarkets();
+
+// ---- Natural-language aliases ----
+//
+// Maps user-typed names to canonical symbols. The registry handles exact
+// symbol matches; this map is only for words like "bitcoin" → BTC.
 export const MARKET_ALIASES: Record<string, string> = {
+  // Crypto majors
   bitcoin: "BTC",
   btc: "BTC",
   solana: "SOL",
@@ -107,9 +125,19 @@ export const MARKET_ALIASES: Record<string, string> = {
   ether: "ETH",
   bnb: "BNB",
   binance: "BNB",
+  zcash: "ZEC",
+  zec: "ZEC",
+  // Memes / community
   bonk: "BONK",
   wif: "WIF",
   dogwifhat: "WIF",
+  pengu: "PENGU",
+  penguin: "PENGU",
+  pump: "PUMP",
+  pumpfun: "PUMP",
+  fartcoin: "FARTCOIN",
+  fart: "FARTCOIN",
+  // Governance
   jupiter: "JUP",
   jup: "JUP",
   pyth: "PYTH",
@@ -117,18 +145,53 @@ export const MARKET_ALIASES: Record<string, string> = {
   jto: "JTO",
   raydium: "RAY",
   ray: "RAY",
-  pengu: "PENGU",
-  penguin: "PENGU",
-  fartcoin: "FARTCOIN",
-  fart: "FARTCOIN",
+  kamino: "KMNO",
+  kmno: "KMNO",
+  met: "MET",
+  metaplex: "MET",
+  hype: "HYPE",
+  hyperliquid: "HYPE",
+  // Ore / other
   ore: "ORE",
+  // Commodities
   gold: "XAU",
   xau: "XAU",
+  silver: "XAG",
+  xag: "XAG",
+  xaut: "XAUt",
+  tethergold: "XAUt",
+  oil: "CRUDEOIL",
+  crude: "CRUDEOIL",
+  crudeoil: "CRUDEOIL",
+  wti: "CRUDEOIL",
+  natgas: "NATGAS",
+  gas: "NATGAS",
+  // Forex
+  eur: "EUR",
+  euro: "EUR",
+  gbp: "GBP",
+  pound: "GBP",
+  usdjpy: "USDJPY",
+  jpy: "USDJPY",
+  yen: "USDJPY",
+  usdcnh: "USDCNH",
+  cnh: "USDCNH",
+  yuan: "USDCNH",
+  // Equities
   spy: "SPY",
+  "s&p": "SPY",
+  sp500: "SPY",
   nvidia: "NVDA",
   nvda: "NVDA",
   tesla: "TSLA",
   tsla: "TSLA",
+  apple: "AAPL",
+  aapl: "AAPL",
+  amd: "AMD",
+  amazon: "AMZN",
+  amzn: "AMZN",
+  palantir: "PLTR",
+  pltr: "PLTR",
 };
 
 // Top markets for the ticker bar
@@ -148,7 +211,12 @@ export const DEFAULT_LEVERAGE: Record<string, number> = {
 
 // Risk thresholds
 export const HIGH_LEVERAGE_THRESHOLD = 20;
-export const MAX_LEVERAGE = 100;
+// Absolute ceiling for Zod input validation. Real per-market caps come
+// from the markets registry (FlashEdge-parity pool caps, see
+// markets-registry.ts POOL_CAPS). FlashEdge max cap is 500x (Crypto.1
+// degen); this ceiling is set just above that so the Zod schema never
+// preempts the per-market check.
+export const MAX_LEVERAGE = 500;
 export const MIN_COLLATERAL = 10;
 export const DEFAULT_SLIPPAGE_BPS = 80;
 

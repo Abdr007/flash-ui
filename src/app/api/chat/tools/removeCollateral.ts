@@ -10,6 +10,7 @@ import { fetchPositions, fetchPrice } from "../flash-api";
 import { makeRequestId } from "@/lib/tool-dedup";
 import { withLatency, logError } from "@/lib/logger";
 import { MAX_LEVERAGE, MIN_COLLATERAL } from "@/lib/constants";
+import { getMaxLeverage } from "@/lib/markets-registry";
 import type { ToolResponse } from "./shared";
 import { runTradeGuards, resolveMarket, logToolCall, logToolResult } from "./shared";
 
@@ -134,11 +135,12 @@ export function createRemoveCollateralTool(wallet: string) {
           };
         }
 
-        if (newLeverage > MAX_LEVERAGE) {
+        const marketMaxLev = getMaxLeverage(resolved, "normal") || MAX_LEVERAGE;
+        if (newLeverage > marketMaxLev) {
           return {
             status: "error",
             data: null,
-            error: `Resulting leverage (${newLeverage.toFixed(1)}x) exceeds maximum (${MAX_LEVERAGE}x)`,
+            error: `Resulting leverage (${newLeverage.toFixed(1)}x) exceeds ${resolved} max (${marketMaxLev}x)`,
             request_id: requestId,
             latency_ms,
           };

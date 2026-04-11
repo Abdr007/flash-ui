@@ -24,6 +24,8 @@ import { makeRequestId } from "@/lib/tool-dedup";
 import { withLatency, logError } from "@/lib/logger";
 import { enforceFirewall } from "@/lib/trade-firewall";
 import { MIN_COLLATERAL, MAX_LEVERAGE, DEFAULT_SLIPPAGE_BPS } from "@/lib/constants";
+import { getMarket, getMaxLeverage, isDegenSupported } from "@/lib/markets-registry";
+import { getMarketStatus } from "@/lib/market-hours";
 import type { ToolResponse } from "./shared";
 import { validatePrice, isVolatilitySpike } from "@/lib/price-validator";
 import {
@@ -40,10 +42,15 @@ export function createBuildTradeTool(wallet: string) {
     description:
       "Build a trade preview with entry price, liquidation price, fees, and size. " +
       "Does NOT execute the trade — returns a preview for the user to confirm. " +
-      "Supports take profit (tp) and stop loss (sl) prices. " +
-      "Example: 'long SOL 5x $100 tp 200 sl 50'",
+      "Supports take profit (tp), stop loss (sl), and an optional degen flag. " +
+      "Leverage caps are per-symbol (from live flash.trade): SOL/BTC/ETH 100x normal / 500x degen; " +
+      "EUR/GBP/USDJPY/USDCNH flat 500x (no degen gating); XAU/XAG 100x; BNB/JUP/PYTH/RAY/KMNO 50x; " +
+      "memes 25x; HYPE/equities 20x; JTO/MET/ZEC/NATGAS 10x; ORE/CRUDEOIL 5x. " +
+      "Set degen:true when the user says 'degen', 'max leverage', 'ape', or 'send it' — on SOL/BTC/ETH " +
+      "it unlocks the 500x tier; on every other market it is a harmless no-op. " +
+      "Example: 'long SOL 500x $100 degen' or 'long EUR 500x $100'.",
     inputSchema: z.object({
-      market: z.string().describe("Market symbol (e.g., SOL, BTC)"),
+      market: z.string().describe("Market symbol (e.g., SOL, BTC, MET, EUR)"),
       side: z.enum(["LONG", "SHORT"]).describe("Trade direction"),
       collateral_usd: z
         .number()
@@ -54,6 +61,12 @@ export function createBuildTradeTool(wallet: string) {
         .min(1)
         .max(MAX_LEVERAGE)
         .describe("Leverage multiplier"),
+      degen: z
+        .boolean()
+        .optional()
+        .describe(
+          "Enable degen mode for higher leverage. Only supported on Crypto.1, Virtual.1, and Governance.1 pools. Set to true when the user says 'degen', 'max leverage', or explicitly asks for degen mode.",
+        ),
       take_profit_price: z
         .number()
         .positive()
@@ -70,6 +83,7 @@ export function createBuildTradeTool(wallet: string) {
       side,
       collateral_usd,
       leverage,
+      degen,
       take_profit_price,
       stop_loss_price,
     }): Promise<ToolResponse<unknown>> => {
@@ -87,6 +101,41 @@ export function createBuildTradeTool(wallet: string) {
             status: "error",
             data: null,
             error: `Unknown market: ${market}`,
+            request_id: requestId,
+            latency_ms: 0,
+          };
+        }
+
+        // ---- STEP 4a: Trading hours gate ----
+        const marketMeta = getMarket(resolved);
+        if (marketMeta) {
+          const status = getMarketStatus(marketMeta.category);
+          if (!status.open) {
+            const next = status.nextOpenUtc ? ` — next open ${status.nextOpenUtc}` : "";
+            return {
+              status: "error",
+              data: null,
+              error: `${resolved} is closed (${status.reason ?? "session over"})${next}`,
+              request_id: requestId,
+              latency_ms: 0,
+            };
+          }
+        }
+
+        // ---- STEP 4b: Per-market leverage cap ----
+        // Degen is a no-op on flat-cap markets (e.g. EUR is 500x whether
+        // degen is true or false). It only unlocks higher leverage on the
+        // three Crypto.1 majors (SOL/BTC/ETH: 100x → 500x).
+        const isDegen = degen === true;
+        const marketMaxLev = getMaxLeverage(resolved, isDegen ? "degen" : "normal");
+        if (marketMaxLev > 0 && leverage > marketMaxLev) {
+          const hint = !isDegen && isDegenSupported(resolved)
+            ? ` — enable degen mode to go up to ${getMaxLeverage(resolved, "degen")}x`
+            : "";
+          return {
+            status: "error",
+            data: null,
+            error: `${resolved} max leverage is ${marketMaxLev}x (requested ${leverage}x)${hint}`,
             request_id: requestId,
             latency_ms: 0,
           };
@@ -159,10 +208,16 @@ export function createBuildTradeTool(wallet: string) {
         const fee_rate = preview?.fee_rate ?? 0.0008;
         const fees = preview?.fees ?? position_size * fee_rate;
         const slippage_bps = DEFAULT_SLIPPAGE_BPS;
+        // Fallback liquidation price when Flash API preview is unavailable.
+        // MMR must be smaller than 1/leverage or the position liquidates
+        // immediately on open — so we scale MMR to 50% of 1/lev at high
+        // leverage, capped at the Flash Trade base 0.5% MMR at normal lev.
+        // At 100x: MMR=0.005, dist=0.5%. At 500x: MMR=0.001, dist=0.1%.
+        const fallbackMmr = Math.min(0.005, 0.5 / leverage);
         const liquidation_price = preview?.liquidation_price ?? (
           side === "LONG"
-            ? entry_price * (1 - 1 / leverage + 0.005)
-            : entry_price * (1 + 1 / leverage - 0.005)
+            ? entry_price * (1 - 1 / leverage + fallbackMmr)
+            : entry_price * (1 + 1 / leverage - fallbackMmr)
         );
 
         // ---- STEP 6b: Validate TP/SL — dynamic range + direction ----
@@ -208,6 +263,7 @@ export function createBuildTradeTool(wallet: string) {
           fees,
           fee_rate,
           slippage_bps,
+          degen: isDegen,
           ...(take_profit_price != null && { take_profit_price }),
           ...(stop_loss_price != null && { stop_loss_price }),
         };

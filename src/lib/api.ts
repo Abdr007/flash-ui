@@ -395,6 +395,7 @@ export async function buildReversePosition(
 // ---- Trade Validation ----
 
 import { MIN_COLLATERAL, MAX_LEVERAGE, MARKETS } from "./constants";
+import { getMaxLeverage } from "./markets-registry";
 
 export function validateTradeObject(
   trade: TradeObject
@@ -408,8 +409,9 @@ export function validateTradeObject(
   if (!trade.leverage || !Number.isFinite(trade.leverage) || trade.leverage < 1) {
     return { valid: false, error: "Leverage must be at least 1x" };
   }
-  if (trade.leverage > MAX_LEVERAGE) {
-    return { valid: false, error: `Maximum leverage is ${MAX_LEVERAGE}x` };
+  const perMarketCap = getMaxLeverage(trade.market, "normal") || MAX_LEVERAGE;
+  if (trade.leverage > perMarketCap) {
+    return { valid: false, error: `${trade.market} max leverage is ${perMarketCap}x` };
   }
   if (!trade.position_size || !Number.isFinite(trade.position_size) || trade.position_size <= 0) {
     return { valid: false, error: "Invalid position size" };
