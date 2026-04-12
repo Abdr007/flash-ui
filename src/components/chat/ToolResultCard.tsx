@@ -417,7 +417,7 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
 
   return (
     <div
-      className={`w-full max-w-[460px] glass-card overflow-hidden ${submitting ? "success-glow" : ""}`}
+      className={`w-full max-w-[460px] glass-card overflow-hidden ${submitting ? "success-glow" : ""} ${isLong ? "trade-card-long" : "trade-card-short"}`}
       style={{ ...bounceStyle }}
     >
       {/* Header — bold, prominent */}
