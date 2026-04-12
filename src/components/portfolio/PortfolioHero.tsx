@@ -110,7 +110,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   const toggleAssets = useCallback(() => setAssetsExpanded((v) => !v), []);
 
   return (
-    <div className="flex flex-col items-center w-full max-w-[520px] mx-auto pt-4 pb-4 px-5 relative">
+    <div className="flex flex-col items-center w-full max-w-[520px] mx-auto pt-8 pb-4 px-5 relative">
 
       {/* Early version notice — always visible */}
       <div className="text-center mb-4 relative z-10">
@@ -228,10 +228,10 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
 
           {/* Token list — internal scroll */}
           <div className="no-scrollbar" style={{
-            maxHeight: assetsExpanded ? "320px" : "0",
+            maxHeight: assetsExpanded ? "400px" : "0",
             opacity: assetsExpanded ? 1 : 0,
             overflowY: assetsExpanded ? "auto" : "hidden",
-            transition: "max-height 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms",
+            transition: "max-height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 250ms",
           }}>
             {tokens.map((t) => (
               <div key={t.mint || t.symbol}
@@ -290,32 +290,32 @@ const ActionNode = memo(function ActionNode({ label, icon, onClick }: {
       <button onClick={onClick}
         className="flex items-center justify-center cursor-pointer"
         style={{
-          width: "62px", height: "62px", borderRadius: "50%",
-          background: "rgba(51, 201, 161, 0.04)",
-          border: "1.5px solid rgba(51, 201, 161, 0.12)",
-          boxShadow: "0 0 20px -6px rgba(51, 201, 161, 0.08), inset 0 0 12px -4px rgba(51, 201, 161, 0.05)",
+          width: "64px", height: "64px", borderRadius: "50%",
+          background: "rgba(51, 201, 161, 0.05)",
+          border: "1.5px solid rgba(51, 201, 161, 0.18)",
+          boxShadow: "0 0 24px -6px rgba(51, 201, 161, 0.12), inset 0 0 16px -4px rgba(51, 201, 161, 0.06)",
           transition: "all 200ms cubic-bezier(0.34, 1.56, 0.64, 1)",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "translateY(-3px) scale(1.06)";
-          e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.3)";
-          e.currentTarget.style.boxShadow = "0 0 30px -4px rgba(51, 201, 161, 0.2), 0 8px 24px rgba(0,0,0,0.3), inset 0 0 16px -4px rgba(51, 201, 161, 0.08)";
-          e.currentTarget.style.background = "rgba(51, 201, 161, 0.08)";
+          e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
+          e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.4)";
+          e.currentTarget.style.boxShadow = "0 0 40px -4px rgba(51, 201, 161, 0.25), 0 8px 24px rgba(0,0,0,0.3), inset 0 0 20px -4px rgba(51, 201, 161, 0.1)";
+          e.currentTarget.style.background = "rgba(51, 201, 161, 0.1)";
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = "none";
-          e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.12)";
-          e.currentTarget.style.boxShadow = "0 0 20px -6px rgba(51, 201, 161, 0.08), inset 0 0 12px -4px rgba(51, 201, 161, 0.05)";
-          e.currentTarget.style.background = "rgba(51, 201, 161, 0.04)";
+          e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.18)";
+          e.currentTarget.style.boxShadow = "0 0 24px -6px rgba(51, 201, 161, 0.12), inset 0 0 16px -4px rgba(51, 201, 161, 0.06)";
+          e.currentTarget.style.background = "rgba(51, 201, 161, 0.05)";
         }}
-        onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.93)"; }}
-        onMouseUp={(e) => { e.currentTarget.style.transform = "translateY(-3px) scale(1.06)"; }}>
+        onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.92)"; }}
+        onMouseUp={(e) => { e.currentTarget.style.transform = "translateY(-4px) scale(1.08)"; }}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-          stroke="rgba(51, 201, 161, 0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          stroke="rgba(58, 255, 225, 0.65)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           {icon}
         </svg>
       </button>
-      <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</span>
+      <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.45)" }}>{label}</span>
     </div>
   );
 });
