@@ -107,17 +107,21 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   const totalWithPnl = totalWalletUsd + totalPnl;
   const springBalance = useNumberSpring(totalWithPnl, { stiffness: 60, damping: 28 });
   const springPnl = useNumberSpring(totalPnl, { stiffness: 160, damping: 20 });
-  const toggleAssets = useCallback(() => setAssetsExpanded((v) => !v), []);
+  const actionRowRef = useRef<HTMLDivElement>(null);
+  const toggleAssets = useCallback(() => {
+    setAssetsExpanded((v) => {
+      if (!v) {
+        // Expanding — scroll to action row after animation
+        setTimeout(() => {
+          actionRowRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 380);
+      }
+      return !v;
+    });
+  }, []);
 
   return (
     <div className="flex flex-col items-center w-full max-w-[520px] mx-auto pt-8 pb-4 px-5 relative">
-
-      {/* Early version notice — always visible */}
-      <div className="text-center mb-4 relative z-10">
-        <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.25)" }}>
-          You are using an <span className="font-semibold" style={{ color: "var(--color-brand-cyan)" }}>early</span> version of Flash Terminal. Always verify before signing.
-        </span>
-      </div>
 
       {/* Ambient brand glow — brighter, more alive */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] pointer-events-none" style={{ opacity: 0.7 }}>
@@ -263,7 +267,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
       )}
 
       {/* ═══ ACTION ROW ═══ */}
-      <div className="flex items-end justify-center gap-7 mb-6 relative z-10">
+      <div ref={actionRowRef} className="flex items-end justify-center gap-7 mb-6 relative z-10">
         <ActionNode label="Trade" onClick={() => onAction("I want to trade")}
           icon={<><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></>} />
         <ActionNode label="Earn" onClick={() => onAction("I want to earn yield")}
