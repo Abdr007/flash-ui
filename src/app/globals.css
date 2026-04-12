@@ -436,119 +436,58 @@ html, body {
 .typing-dot:nth-child(3) { animation: typingBounce 1.2s ease-in-out infinite 300ms; }
 
 /* ============================================
-   TRADE CARD — Elite gold luxury treatment
+   TRADE CARD — Premium glass with gold edge glow
    ============================================ */
 
 .trade-card-long,
 .trade-card-short {
-  border: 1px solid rgba(212, 175, 55, 0.40) !important;
-  background:
-    radial-gradient(ellipse 140% 90% at 50% -15%, rgba(212, 175, 55, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse 60% 50% at 0% 100%, rgba(175, 135, 25, 0.05) 0%, transparent 50%),
-    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(245, 194, 90, 0.04) 0%, transparent 50%),
-    linear-gradient(180deg, rgba(18, 22, 32, 0.95) 0%, rgba(10, 13, 20, 0.98) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.25) !important;
+  background: rgba(14, 19, 28, 0.82);
   box-shadow:
-    0 0 0 1px rgba(212, 175, 55, 0.15),
-    0 0 40px -10px rgba(212, 175, 55, 0.12),
-    0 30px 100px -25px rgba(212, 175, 55, 0.20),
-    0 10px 40px -10px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 245, 200, 0.08),
-    inset 0 -1px 0 rgba(212, 175, 55, 0.04);
+    0 0 0 1px rgba(212, 175, 55, 0.08),
+    0 16px 48px -12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   position: relative;
-  overflow: hidden;
-  backdrop-filter: blur(24px) saturate(1.2);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
-/* Animated gradient border */
+/* Gold gradient moving along the border edges */
 .trade-card-long::before,
 .trade-card-short::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -1px;
   border-radius: inherit;
-  padding: 1px;
   background: conic-gradient(
-    from 0deg,
-    rgba(212, 175, 55, 0.65) 0%,
-    rgba(245, 215, 120, 0.3) 12%,
-    rgba(212, 175, 55, 0.05) 25%,
-    rgba(175, 135, 25, 0.0) 37%,
-    rgba(212, 175, 55, 0.05) 50%,
-    rgba(245, 215, 120, 0.3) 62%,
-    rgba(212, 175, 55, 0.65) 75%,
-    rgba(245, 215, 120, 0.3) 87%,
-    rgba(212, 175, 55, 0.65) 100%
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  pointer-events: none;
-  animation: eliteBorderSpin 6s linear infinite;
-}
-
-/* Light sweep — diagonal luxury flash */
-.trade-card-long::after,
-.trade-card-short::after {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -150%;
-  width: 80%;
-  height: 200%;
-  background: linear-gradient(
-    75deg,
+    from var(--border-angle, 0deg),
     transparent 0%,
-    rgba(255, 245, 200, 0.02) 35%,
-    rgba(255, 245, 200, 0.06) 45%,
-    rgba(255, 255, 255, 0.08) 50%,
-    rgba(255, 245, 200, 0.06) 55%,
-    rgba(255, 245, 200, 0.02) 65%,
+    transparent 25%,
+    rgba(212, 175, 55, 0.6) 30%,
+    rgba(245, 215, 120, 0.8) 35%,
+    rgba(212, 175, 55, 0.6) 40%,
+    transparent 45%,
     transparent 100%
   );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  padding: 1px;
   pointer-events: none;
-  animation: eliteSweep 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  animation-delay: 1s;
+  animation: goldEdgeSpin 4s linear infinite;
 }
 
-@keyframes eliteBorderSpin {
-  0%   { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+@keyframes goldEdgeSpin {
+  0%   { --border-angle: 0deg; }
+  100% { --border-angle: 360deg; }
 }
 
-@keyframes eliteSweep {
-  0%   { left: -150%; opacity: 0; }
-  5%   { opacity: 1; }
-  50%  { left: 250%; opacity: 1; }
-  55%  { opacity: 0; }
-  100% { left: 250%; opacity: 0; }
-}
-
-/* Subtle breathing glow */
-.trade-card-long,
-.trade-card-short {
-  animation: eliteBreath 4s ease-in-out infinite;
-}
-
-@keyframes eliteBreath {
-  0%, 100% {
-    box-shadow:
-      0 0 0 1px rgba(212, 175, 55, 0.15),
-      0 0 40px -10px rgba(212, 175, 55, 0.10),
-      0 30px 100px -25px rgba(212, 175, 55, 0.18),
-      0 10px 40px -10px rgba(0, 0, 0, 0.6),
-      inset 0 1px 0 rgba(255, 245, 200, 0.08),
-      inset 0 -1px 0 rgba(212, 175, 55, 0.04);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(212, 175, 55, 0.22),
-      0 0 50px -10px rgba(212, 175, 55, 0.18),
-      0 30px 100px -25px rgba(212, 175, 55, 0.28),
-      0 10px 40px -10px rgba(0, 0, 0, 0.6),
-      inset 0 1px 0 rgba(255, 245, 200, 0.12),
-      inset 0 -1px 0 rgba(212, 175, 55, 0.06);
-  }
+@property --border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
 }
 
 /* ---- Focus ---- */
