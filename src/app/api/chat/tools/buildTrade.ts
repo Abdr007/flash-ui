@@ -127,15 +127,12 @@ export function createBuildTradeTool(wallet: string) {
         // degen is true or false). It only unlocks higher leverage on the
         // three Crypto.1 majors (SOL/BTC/ETH: 100x → 500x).
         const isDegen = degen === true;
-        const marketMaxLev = getMaxLeverage(resolved, isDegen ? "degen" : "normal");
+        const marketMaxLev = getMaxLeverage(resolved);
         if (marketMaxLev > 0 && leverage > marketMaxLev) {
-          const hint = !isDegen && isDegenSupported(resolved)
-            ? ` — enable degen mode to go up to ${getMaxLeverage(resolved, "degen")}x`
-            : "";
           return {
             status: "error",
             data: null,
-            error: `${resolved} max leverage is ${marketMaxLev}x (requested ${leverage}x)${hint}`,
+            error: `${resolved} max leverage is ${marketMaxLev}x (requested ${leverage}x)`,
             request_id: requestId,
             latency_ms: 0,
           };

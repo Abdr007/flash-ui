@@ -22,10 +22,9 @@ import type { Position } from "./types";
 // doesn't know the market yet.
 export function getMaxLeverageForMarket(
   market: string,
-  degen = false,
+  _degen = false,
 ): number {
-  const mode = degen ? "degen" : "normal";
-  const fromRegistry = getMaxLeverage(market, mode);
+  const fromRegistry = getMaxLeverage(market);
   return fromRegistry > 0 ? fromRegistry : MAX_LEVERAGE;
 }
 

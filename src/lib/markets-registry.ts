@@ -49,7 +49,7 @@ const DEVNET_PREFIX = "devnet";
 
 // Per Flash's market-hours doc: metals share the FX session window,
 // while crude oil + natgas use the commodity window.
-const FOREX_SYMBOLS = new Set(["EUR", "GBP", "USDJPY", "USDCNH", "AUD"]);
+const FOREX_SYMBOLS = new Set(["EUR", "GBP", "USDJPY", "USDCNH"]);
 const METALS_SYMBOLS = new Set(["XAU", "XAG", "XAUt"]);
 const COMMODITY_SYMBOLS = new Set(["CRUDEOIL", "NATGAS"]);
 
@@ -347,11 +347,14 @@ export function hasMarket(symbol: string): boolean {
 
 export function getMaxLeverage(
   symbol: string,
-  mode: "normal" | "degen" = "normal",
+  _mode?: "normal" | "degen",
 ): number {
   const m = getMarket(symbol);
   if (!m) return 0;
-  return mode === "degen" ? m.maxDegenLeverage : m.maxLeverage;
+  // Always return the highest available leverage for the market.
+  // Users can type any leverage up to the max (e.g. 500x on SOL)
+  // without needing to enable degen mode.
+  return m.maxDegenLeverage;
 }
 
 export function getPythPriceId(symbol: string): string | null {

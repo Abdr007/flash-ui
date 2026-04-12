@@ -1,22 +1,18 @@
 // ============================================
 // Flash UI — Market Hours
 // ============================================
-// Source: https://docs.flash.trade/.../perpetuals-specifications/market-hours
+// Source: https://docs.flash.trade — perpetuals-specifications/market-hours
 //
 // Official Flash hours (all times in US Eastern Time):
 //   - Crypto:      24/7, no close
-//   - US Equities: Mon–Fri 9:30AM–4:00PM ET
-//   - FX:          Sun 5:00PM ET → Fri 5:00PM ET, 60-min daily break at 5PM ET
-//   - Metals:      Sun 5:00PM ET → Fri 5:00PM ET, 60-min daily break at 5PM ET
-//   - Commodities: Sun 6:00PM ET → Fri 5:00PM ET, 60-min daily break at 5PM ET
+//   - US Equities: Mon–Fri 9:30 AM – 4:00 PM ET
+//   - FX:          Sun 5:00 PM ET → Fri 5:00 PM ET, 60-min daily break at 5:00 PM ET
+//   - Metals:      Sun 5:00 PM ET → Fri 5:00 PM ET, 60-min daily break at 5:00 PM ET
+//   - Commodities: Sun 6:00 PM ET → Fri 5:00 PM ET, 60-min daily break at 5:00 PM ET
 //
 // Implementation uses Intl.DateTimeFormat with timeZone "America/New_York"
-// so US DST (EDT vs EST) is handled automatically. Without this, a fixed
-// UTC offset would misclassify ~8 months of the year (during DST, real ET
-// is UTC-4, not UTC-5 — equity 09:30 ET would be reported as "pre-market"
-// for the first hour of the real session). Holiday calendars are NOT
-// modeled (forex trades through most US holidays; equities close); the
-// on-chain oracle remains the authoritative backstop.
+// so US DST (EDT vs EST) is handled automatically. Holiday calendars are
+// NOT modeled; the on-chain oracle remains the authoritative backstop.
 
 import type { MarketCategory } from "./markets-registry";
 
@@ -66,7 +62,7 @@ function formatEt(day: number, hour: number, minute: number): string {
 // ---- Per-category session logic ----
 
 /**
- * US equities regular trading hours: Mon–Fri 9:30AM–4:00PM ET.
+ * US Equities: Mon–Fri 9:30 AM – 4:00 PM ET.
  */
 function equityStatus(now: Date): MarketStatus {
   const { day, totalMinutes } = getEtParts(now);
@@ -76,14 +72,14 @@ function equityStatus(now: Date): MarketStatus {
   if (day === 0 || day === 6) {
     return {
       open: false,
-      reason: "US equities closed on weekends",
+      reason: "Equity market closed on weekends",
       nextOpenUtc: formatEt(1, 9, 30),
     };
   }
   if (totalMinutes < openMin) {
     return {
       open: false,
-      reason: "Pre-market",
+      reason: "Pre-market — opens 9:30 AM ET",
       nextOpenUtc: formatEt(day, 9, 30),
     };
   }
@@ -91,7 +87,7 @@ function equityStatus(now: Date): MarketStatus {
     const nextDay = day === 5 ? 1 : day + 1;
     return {
       open: false,
-      reason: "After-hours",
+      reason: "After-hours — closed until 9:30 AM ET",
       nextOpenUtc: formatEt(nextDay, 9, 30),
     };
   }
@@ -99,13 +95,13 @@ function equityStatus(now: Date): MarketStatus {
 }
 
 /**
- * FX + Metals session: Sun 5:00PM ET → Fri 5:00PM ET, with a 60-minute
- * daily break at 5:00PM ET. Same window applies to both categories.
+ * FX + Metals: Sun 5:00 PM ET → Fri 5:00 PM ET,
+ * with a 60-minute daily break at 5:00–6:00 PM ET (Mon–Thu).
  */
 function fxOrMetalsStatus(now: Date, label: string): MarketStatus {
   const { day, totalMinutes } = getEtParts(now);
-  const openMin = 17 * 60;   // 17:00 ET
-  const closeMin = 18 * 60;  // 18:00 ET (end of daily break)
+  const sessionOpen = 17 * 60;  // 17:00 ET (5:00 PM)
+  const breakEnd = 18 * 60;     // 18:00 ET (6:00 PM)
 
   // Saturday — fully closed
   if (day === 6) {
@@ -115,27 +111,27 @@ function fxOrMetalsStatus(now: Date, label: string): MarketStatus {
       nextOpenUtc: formatEt(0, 17, 0),
     };
   }
-  // Sunday before 17:00 ET — weekend not over
-  if (day === 0 && totalMinutes < openMin) {
+  // Sunday before 5:00 PM ET — weekend not over
+  if (day === 0 && totalMinutes < sessionOpen) {
     return {
       open: false,
-      reason: `${label} session not yet open`,
+      reason: `${label} closed — reopens Sun 5:00 PM ET`,
       nextOpenUtc: formatEt(0, 17, 0),
     };
   }
-  // Friday at/after 17:00 ET — weekend close
-  if (day === 5 && totalMinutes >= openMin) {
+  // Friday at/after 5:00 PM ET — weekend close
+  if (day === 5 && totalMinutes >= sessionOpen) {
     return {
       open: false,
       reason: `${label} closed for the weekend`,
       nextOpenUtc: formatEt(0, 17, 0),
     };
   }
-  // Daily 60-minute break Mon–Thu at 17:00 ET
-  if (day >= 1 && day <= 4 && totalMinutes >= openMin && totalMinutes < closeMin) {
+  // Daily 60-minute break Mon–Thu 5:00–6:00 PM ET
+  if (day >= 1 && day <= 4 && totalMinutes >= sessionOpen && totalMinutes < breakEnd) {
     return {
       open: false,
-      reason: "Daily maintenance break",
+      reason: "Daily maintenance break (5:00–6:00 PM ET)",
       nextOpenUtc: formatEt(day, 18, 0),
     };
   }
@@ -143,29 +139,32 @@ function fxOrMetalsStatus(now: Date, label: string): MarketStatus {
 }
 
 /**
- * Commodities session: Sun 6:00PM ET → Fri 5:00PM ET with 60-min daily
- * break at 5:00PM ET.
+ * Commodities: Sun 6:00 PM ET → Fri 5:00 PM ET,
+ * with a 60-minute daily break at 5:00–6:00 PM ET (Mon–Thu).
  */
 function commodityStatus(now: Date): MarketStatus {
   const { day, totalMinutes } = getEtParts(now);
-  const sundayOpen = 18 * 60;     // 18:00 ET Sun
-  const dailyBreakStart = 17 * 60; // 17:00 ET
-  const dailyBreakEnd = 18 * 60;   // 18:00 ET
+  const sundayOpen = 18 * 60;      // 18:00 ET (6:00 PM)
+  const dailyBreakStart = 17 * 60; // 17:00 ET (5:00 PM)
+  const dailyBreakEnd = 18 * 60;   // 18:00 ET (6:00 PM)
 
+  // Saturday — fully closed
   if (day === 6) {
     return {
       open: false,
-      reason: "Commodity market closed for the weekend",
+      reason: "Commodity closed for the weekend",
       nextOpenUtc: formatEt(0, 18, 0),
     };
   }
+  // Sunday before 6:00 PM ET — weekend not over
   if (day === 0 && totalMinutes < sundayOpen) {
     return {
       open: false,
-      reason: "Commodity session not yet open",
+      reason: "Commodity closed — reopens Sun 6:00 PM ET",
       nextOpenUtc: formatEt(0, 18, 0),
     };
   }
+  // Friday at/after 5:00 PM ET — weekend close
   if (day === 5 && totalMinutes >= dailyBreakStart) {
     return {
       open: false,
@@ -173,11 +172,11 @@ function commodityStatus(now: Date): MarketStatus {
       nextOpenUtc: formatEt(0, 18, 0),
     };
   }
-  // Daily 60-minute break Mon–Thu at 17:00 ET
+  // Daily 60-minute break Mon–Thu 5:00–6:00 PM ET
   if (day >= 1 && day <= 4 && totalMinutes >= dailyBreakStart && totalMinutes < dailyBreakEnd) {
     return {
       open: false,
-      reason: "Daily maintenance break",
+      reason: "Daily maintenance break (5:00–6:00 PM ET)",
       nextOpenUtc: formatEt(day, 18, 0),
     };
   }

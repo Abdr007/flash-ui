@@ -32,24 +32,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const [input, setInput] = useState("");
   const [autocomplete, setAutocomplete] = useState<string[]>([]);
   const [selectedAC, setSelectedAC] = useState(-1);
-  // Persistent degen toggle — only affects trade prompts (routes build_trade
-  // through the degen spec). Per Flash docs, degen is SOL/BTC/ETH only;
-  // attempting it on any other market will be hard-rejected server-side.
-  const [degenMode, setDegenMode] = useState(false);
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("flash_degen_mode");
-      if (stored === "1") setDegenMode(true);
-    } catch {}
-  }, []);
-  const toggleDegen = useCallback(() => {
-    setDegenMode((prev) => {
-      const next = !prev;
-      try { localStorage.setItem("flash_degen_mode", next ? "1" : "0"); } catch {}
-      try { navigator?.vibrate?.(15); } catch {}
-      return next;
-    });
-  }, []);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScroll = useRef(true);
@@ -166,14 +148,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     const raw = (text ?? input).trim();
     if (!raw || isStreaming || getIsExecuting()) return;
 
-    // Degen mode: if the toggle is on, prepend "degen" to trade prompts so
-    // the AI passes degen:true to build_trade. Detected by direction keyword
-    // — "long" or "short" in the message. Doesn't touch price/info queries.
-    const looksLikeTrade = /\b(long|short|buy|sell)\b/i.test(raw);
-    const alreadyDegen = /\bdegen\b/i.test(raw);
-    const msg = degenMode && looksLikeTrade && !alreadyDegen
-      ? `degen ${raw}`
-      : raw;
+    const msg = raw;
 
     // Optimistic: show typing indicator BEFORE server responds
     setOptimisticPending(true);
@@ -186,7 +161,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     setInput("");
     setAutocomplete([]);
     setSelectedAC(-1);
-  }, [input, isStreaming, getIsExecuting, sendMessage, degenMode]);
+  }, [input, isStreaming, getIsExecuting, sendMessage]);
 
   // Clear optimistic state once real streaming starts
   useEffect(() => {
@@ -342,7 +317,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
           )}
 
           {/* Input box (Galileo-style glass card) */}
-          <div className={`relative overflow-hidden glass-card input-glow ${degenMode ? "degen-input" : ""}`}
+          <div className="relative overflow-hidden glass-card input-glow"
             style={{ borderRadius: "16px" }}>
             <textarea
               ref={inputRef}
@@ -360,20 +335,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
             <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3">
               <div className="flex items-center gap-2">
                 {isStreaming && <StreamingDot inline />}
-                <button
-                  type="button"
-                  onClick={toggleDegen}
-                  aria-pressed={degenMode}
-                  title={
-                    degenMode
-                      ? "Degen mode ON — SOL/BTC/ETH unlock up to 500x. Click to disable."
-                      : "Enable degen mode — unlocks 500x on SOL, BTC, ETH (per Flash degen spec)."
-                  }
-                  className={`degen-toggle ${degenMode ? "degen-toggle--on" : ""}`}
-                >
-                  <span className="degen-toggle__icon">⚡</span>
-                  <span className="degen-toggle__label">DEGEN</span>
-                </button>
               </div>
               <div className="flex items-center gap-3">
                 <button
