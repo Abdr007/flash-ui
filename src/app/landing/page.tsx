@@ -59,77 +59,83 @@ export default function LandingPage() {
             No dashboards. No complexity. Just type what you want.
           </p>
 
-          {/* ═══ Terminal Mockup ═══ */}
-          <div className="w-full max-w-2xl px-4"
+          {/* ═══ Terminal Mockup — wide, balanced, premium ═══ */}
+          <div className="w-full max-w-3xl"
             style={{ animation: "heroReveal 800ms cubic-bezier(0.2, 0, 0, 1) 300ms both" }}>
             <div className="relative rounded-2xl overflow-hidden"
               style={{
-                background: "rgba(12, 16, 24, 0.9)",
-                border: "1px solid rgba(51, 201, 161, 0.12)",
+                background: "rgba(10, 14, 20, 0.95)",
+                border: "1px solid rgba(51, 201, 161, 0.1)",
                 boxShadow: `
-                  0 0 0 1px rgba(51,201,161,0.05),
-                  0 24px 80px -12px rgba(0,0,0,0.6),
-                  0 0 60px -20px rgba(51,201,161,0.1)
+                  0 0 0 1px rgba(51,201,161,0.04),
+                  0 32px 100px -16px rgba(0,0,0,0.7),
+                  0 0 80px -20px rgba(51,201,161,0.08)
                 `,
               }}>
 
               {/* Window chrome */}
-              <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                <div className="flex gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+              <div className="flex items-center px-6 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <div className="flex gap-2">
+                  <span className="w-3 h-3 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }} />
+                  <span className="w-3 h-3 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }} />
+                  <span className="w-3 h-3 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }} />
                 </div>
-                <span className="text-[11px] text-text-tertiary ml-3 font-mono">Flash Terminal</span>
-                <div className="ml-auto flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-brand-teal)", boxShadow: "0 0 6px rgba(51,201,161,0.5)" }} />
-                  <span className="text-[10px] text-text-tertiary">Connected</span>
+                <span className="text-[12px] text-text-tertiary ml-4 font-mono tracking-wide">Flash Terminal</span>
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-brand-teal)", boxShadow: "0 0 8px rgba(51,201,161,0.6)" }} />
+                  <span className="text-[11px] text-text-tertiary">Dxv3...f4kL</span>
                 </div>
               </div>
 
-              {/* Chat area */}
-              <div className="px-6 py-5 space-y-4 min-h-[200px]">
+              {/* Chat area — generous padding */}
+              <div className="px-8 py-8 space-y-5">
                 {/* User message */}
                 <div className="flex justify-end">
-                  <div className="px-4 py-2.5 rounded-xl max-w-[280px]"
-                    style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.12)" }}>
-                    <span className="text-[14px]">long SOL 5x $100</span>
+                  <div className="px-5 py-3 rounded-2xl rounded-br-md"
+                    style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.1)" }}>
+                    <span className="text-[15px] font-mono">long SOL 5x $100</span>
                   </div>
                 </div>
 
                 {/* AI response — trade card */}
-                <div className="flex items-start gap-3">
-                  <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center mt-0.5"
-                    style={{ background: "rgba(51,201,161,0.1)", border: "1px solid rgba(51,201,161,0.15)" }}>
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 13L8 3L13 13H3Z" fill="var(--color-brand-teal)" /></svg>
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center mt-0.5"
+                    style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.12)" }}>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 13L8 3L13 13H3Z" fill="var(--color-brand-teal)" /></svg>
                   </div>
-                  <div className="flex-1 rounded-xl overflow-hidden" style={{ background: "rgba(14,19,28,0.8)", border: "1px solid rgba(51,201,161,0.1)" }}>
+                  <div className="flex-1 rounded-2xl overflow-hidden"
+                    style={{ background: "rgba(14,19,28,0.7)", border: "1px solid rgba(51,201,161,0.08)" }}>
                     {/* Trade header */}
-                    <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-accent-long)" }} />
-                      <span className="text-[14px] font-bold">SOL-PERP</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                        style={{ color: "var(--color-accent-long)", background: "rgba(0,210,106,0.12)" }}>LONG</span>
-                      <span className="text-[10px] ml-auto" style={{ color: "var(--color-brand-teal)" }}>✓ Ready</span>
+                    <div className="flex items-center gap-3 px-5 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <span className="w-3 h-3 rounded-full" style={{ background: "var(--color-accent-long)", boxShadow: "0 0 8px rgba(0,210,106,0.4)" }} />
+                      <span className="text-[15px] font-bold tracking-tight">SOL-PERP</span>
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider"
+                        style={{ color: "var(--color-accent-long)", background: "rgba(0,210,106,0.1)" }}>LONG</span>
+                      <span className="text-[11px] font-medium ml-auto" style={{ color: "var(--color-brand-teal)" }}>✓ Ready</span>
                     </div>
-                    {/* Trade grid */}
-                    <div className="grid grid-cols-4 text-[12px]">
-                      {[
-                        { label: "Entry", value: "$148.32", color: "" },
-                        { label: "Size", value: "$500", color: "" },
-                        { label: "Leverage", value: "5x", color: "" },
-                        { label: "Liq", value: "$118.66", color: "var(--color-accent-warn)" },
-                      ].map((cell, i) => (
-                        <div key={i} className="px-3 py-2.5 text-center" style={{ borderRight: i < 3 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                          <div className="text-[9px] text-text-tertiary uppercase tracking-wider mb-0.5">{cell.label}</div>
-                          <div className="num font-semibold" style={{ color: cell.color || "var(--color-text-primary)" }}>{cell.value}</div>
-                        </div>
-                      ))}
+                    {/* Trade grid — 2x2 for better proportions */}
+                    <div className="grid grid-cols-2">
+                      <div className="px-5 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", borderRight: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div className="text-[10px] text-text-tertiary uppercase tracking-widest mb-1">Entry Price</div>
+                        <div className="num font-bold text-[18px] text-text-primary">$148.32</div>
+                      </div>
+                      <div className="px-5 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div className="text-[10px] text-text-tertiary uppercase tracking-widest mb-1">Liquidation</div>
+                        <div className="num font-bold text-[18px]" style={{ color: "var(--color-accent-warn)" }}>$118.66</div>
+                      </div>
+                      <div className="px-5 py-3" style={{ borderRight: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div className="text-[10px] text-text-tertiary uppercase tracking-widest mb-1">Size</div>
+                        <div className="num font-semibold text-[15px]">$500.00</div>
+                      </div>
+                      <div className="px-5 py-3">
+                        <div className="text-[10px] text-text-tertiary uppercase tracking-widest mb-1">Leverage</div>
+                        <div className="num font-semibold text-[15px]">5.0x</div>
+                      </div>
                     </div>
                     {/* Confirm button */}
                     <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                      <div className="py-2.5 text-center text-[12px] font-bold"
-                        style={{ background: "var(--color-accent-long)", color: "#000", borderRadius: "0 0 12px 12px" }}>
+                      <div className="py-3.5 text-center text-[13px] font-bold tracking-wide"
+                        style={{ background: "var(--color-accent-long)", color: "#000" }}>
                         Confirm Trade
                       </div>
                     </div>
@@ -137,17 +143,14 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Input bar at bottom */}
-              <div className="px-5 pb-5 pt-2">
-                <div className="flex items-center rounded-xl px-4 py-3"
-                  style={{
-                    background: "rgba(14,19,28,0.6)",
-                    border: "1px solid rgba(51,201,161,0.1)",
-                  }}>
-                  <span className="text-[14px] text-text-tertiary font-mono flex-1">Type a command...</span>
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ background: "rgba(255,255,255,0.04)" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round">
+              {/* Input bar */}
+              <div className="px-8 pb-6 pt-1">
+                <div className="flex items-center rounded-xl px-5 py-3.5"
+                  style={{ background: "rgba(14,19,28,0.5)", border: "1px solid rgba(51,201,161,0.08)" }}>
+                  <span className="text-[14px] text-text-tertiary font-mono flex-1 tracking-wide">Type a command...</span>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round">
                       <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
                     </svg>
                   </div>
