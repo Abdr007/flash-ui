@@ -16,11 +16,11 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'wasm-unsafe-eval'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https: data: blob:",
               "font-src 'self' https: data:",
-              "connect-src 'self' https://*.helius-rpc.com https://api.mainnet-beta.solana.com https://flashapi.trade https://api.prod.flash.trade https://fstats.io https://hermes.pyth.network https://lite-api.jup.ag https://api.coingecko.com wss://hermes.pyth.network wss://*.helius-rpc.com",
+              "connect-src 'self' https: wss:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
