@@ -212,13 +212,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
           </div>
         ) : (
           /* ---- Chat messages ---- */
-          <div className="max-w-3xl mx-auto w-full px-4 pb-36 pt-2">
-            {/* Early version notice — persists in chat */}
-            <div className="text-center py-2 mb-3">
-              <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.2)" }}>
-                You are using an <span className="font-semibold" style={{ color: "var(--color-brand-cyan)", opacity: 0.6 }}>early</span> version. Always verify before signing.
-              </span>
-            </div>
+          <div className="max-w-3xl mx-auto w-full px-4 pb-36 pt-4">
             {messages.map((message, idx) => {
               const prev = idx > 0 ? messages[idx - 1] : null;
               const sameRole = prev?.role === message.role;
