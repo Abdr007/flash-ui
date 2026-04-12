@@ -324,11 +324,38 @@ const ActionNode = memo(function ActionNode({ label, icon, onClick }: {
   );
 });
 
-// ═══ FAF NODE — Same style as others, star icon ═══
+// ═══ FAF NODE — special premium style with gradient border ═══
 const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
   return (
-    <ActionNode label="FAF" onClick={onClick}
-      icon={<><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></>} />
+    <div className="flex flex-col items-center gap-2.5">
+      <button onClick={onClick}
+        className="flex items-center justify-center cursor-pointer"
+        style={{
+          width: "64px", height: "64px", borderRadius: "50%",
+          background: "linear-gradient(135deg, rgba(51,201,161,0.08), rgba(200,245,71,0.04))",
+          border: "1.5px solid rgba(200,245,71,0.2)",
+          boxShadow: "0 0 24px -6px rgba(200,245,71,0.12), inset 0 0 16px -4px rgba(200,245,71,0.06)",
+          transition: "all 200ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
+          e.currentTarget.style.borderColor = "rgba(200,245,71,0.35)";
+          e.currentTarget.style.boxShadow = "0 0 40px -4px rgba(200,245,71,0.2), 0 8px 24px rgba(0,0,0,0.3), inset 0 0 20px -4px rgba(200,245,71,0.1)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "none";
+          e.currentTarget.style.borderColor = "rgba(200,245,71,0.2)";
+          e.currentTarget.style.boxShadow = "0 0 24px -6px rgba(200,245,71,0.12), inset 0 0 16px -4px rgba(200,245,71,0.06)";
+        }}
+        onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.92)"; }}
+        onMouseUp={(e) => { e.currentTarget.style.transform = "translateY(-4px) scale(1.08)"; }}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(200,245,71,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
+      </button>
+      <span className="text-[11px] font-semibold" style={{ color: "rgba(200,245,71,0.5)" }}>FAF</span>
+    </div>
   );
 });
 

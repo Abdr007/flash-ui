@@ -3270,62 +3270,70 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
       : 100;
 
     return (
-      <div className="glass-card-solid overflow-hidden">
+      <div className="glass-card overflow-hidden" style={{ maxWidth: "480px" }}>
         {/* Header with tier badge */}
-        <div className="px-5 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.1)" }}>
-              <span className="text-[16px] font-bold" style={{ color: "var(--color-accent-lime)" }}>F</span>
+        <div className="px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{ background: "linear-gradient(135deg, rgba(51,201,161,0.15), rgba(58,255,225,0.08))", border: "1.5px solid rgba(51,201,161,0.2)" }}>
+              <span className="text-[18px] font-bold" style={{ color: "var(--color-brand-cyan)" }}>F</span>
             </span>
             <div>
-              <div className="text-[15px] font-semibold text-text-primary">{staked.toLocaleString()} FAF</div>
-              <div className="text-[12px] text-text-tertiary">staked</div>
+              <div className="text-[20px] font-bold text-text-primary num">{staked.toLocaleString()} <span className="text-[13px] font-medium text-text-tertiary">FAF</span></div>
+              <div className="text-[12px] text-text-tertiary">staked balance</div>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[12px] font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: level > 0 ? "rgba(51,201,161,0.1)" : "rgba(255,255,255,0.04)", color: level > 0 ? "var(--color-accent-lime)" : "var(--color-text-tertiary)" }}>
+            <div className="text-[12px] font-bold px-3 py-1.5 rounded-full"
+              style={{
+                background: level > 0 ? "linear-gradient(135deg, rgba(51,201,161,0.12), rgba(58,255,225,0.06))" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${level > 0 ? "rgba(51,201,161,0.2)" : "rgba(255,255,255,0.06)"}`,
+                color: level > 0 ? "var(--color-brand-cyan)" : "var(--color-text-tertiary)",
+              }}>
               VIP {tier}
             </div>
-            <div className="text-[10px] num text-text-tertiary mt-1">{discount}% fee discount</div>
+            <div className="text-[11px] num text-text-tertiary mt-1.5">{discount}% fee discount</div>
           </div>
         </div>
 
         {/* Tier progress bar */}
         {nextTier && toNext > 0 && (
-          <div className="px-5 pb-4">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] text-text-tertiary uppercase tracking-wider">Progress to {String(nextTier.name)}</span>
-              <span className="text-[11px] num font-medium" style={{ color: "var(--color-accent-lime)" }}>{Math.round(tierProgress)}%</span>
+          <div className="px-6 pb-5" style={{ borderTop: "1px solid rgba(51,201,161,0.04)" }}>
+            <div className="flex items-center justify-between mb-2 mt-4">
+              <span className="text-[10px] text-text-tertiary uppercase tracking-widest font-medium">Progress to {String(nextTier.name)}</span>
+              <span className="text-[12px] num font-bold" style={{ color: "var(--color-brand-teal)" }}>{Math.round(tierProgress)}%</span>
             </div>
-            <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
               <div className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${tierProgress}%`, background: "linear-gradient(90deg, var(--color-accent-lime), rgba(200,245,71,0.6))" }} />
+                style={{
+                  width: `${tierProgress}%`,
+                  background: "linear-gradient(90deg, var(--color-brand-teal), var(--color-brand-cyan))",
+                  boxShadow: "0 0 8px rgba(51,201,161,0.3)",
+                }} />
             </div>
-            <div className="flex items-center justify-between mt-1.5 text-[10px] text-text-tertiary">
+            <div className="flex items-center justify-between mt-2 text-[10px] text-text-tertiary">
               <span>Stake {toNext.toLocaleString()} more</span>
-              <span>+{safe((nextTier as Record<string, unknown>).feeDiscount as number) - discount}% fee discount</span>
+              <span className="num">+{safe((nextTier as Record<string, unknown>).feeDiscount as number) - discount}% fee discount</span>
             </div>
           </div>
         )}
 
         {/* Rewards section */}
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-          <div className="px-5 py-3">
-            <div className="text-[10px] uppercase tracking-wider text-text-tertiary mb-2">Earnings</div>
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <div className="text-[18px] font-bold num" style={{ color: fafR > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}>
-                  {fafR.toFixed(2)} <span className="text-[11px] font-normal text-text-tertiary">FAF</span>
+        <div style={{ borderTop: "1px solid rgba(51,201,161,0.04)" }}>
+          <div className="px-6 py-4">
+            <div className="text-[10px] uppercase tracking-widest text-text-tertiary mb-3 font-medium">Earnings</div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl px-4 py-3" style={{ background: "rgba(51,201,161,0.03)", border: "1px solid rgba(51,201,161,0.06)" }}>
+                <div className="text-[20px] font-bold num" style={{ color: fafR > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}>
+                  {fafR.toFixed(2)}
                 </div>
-                <div className="text-[10px] text-text-tertiary mt-0.5">staking rewards</div>
+                <div className="text-[11px] text-text-tertiary mt-1">FAF rewards</div>
               </div>
-              <div className="w-px h-8" style={{ background: "rgba(255,255,255,0.06)" }} />
-              <div className="flex-1">
-                <div className="text-[18px] font-bold num" style={{ color: usdcR > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}>
-                  ${usdcR.toFixed(2)} <span className="text-[11px] font-normal text-text-tertiary">USDC</span>
+              <div className="rounded-xl px-4 py-3" style={{ background: "rgba(51,201,161,0.03)", border: "1px solid rgba(51,201,161,0.06)" }}>
+                <div className="text-[20px] font-bold num" style={{ color: usdcR > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}>
+                  ${usdcR.toFixed(2)}
                 </div>
-                <div className="text-[10px] text-text-tertiary mt-0.5">revenue share</div>
+                <div className="text-[11px] text-text-tertiary mt-1">USDC revenue</div>
               </div>
             </div>
           </div>
@@ -3333,36 +3341,39 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
 
         {/* Action triggers */}
         {hasRewards && (
-          <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "rgba(0,210,106,0.03)" }}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-long)", animation: "pulseDot 2s infinite" }} />
-            <span className="text-[12px] text-accent-long">You have rewards waiting to be claimed</span>
+          <div className="mx-6 mb-4 px-4 py-3 flex items-center gap-2.5 rounded-xl"
+            style={{ background: "rgba(0,210,106,0.04)", border: "1px solid rgba(0,210,106,0.1)" }}>
+            <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-accent-long)", animation: "pulseDot 2s infinite", boxShadow: "0 0 6px rgba(0,210,106,0.4)" }} />
+            <span className="text-[12px] font-medium" style={{ color: "var(--color-accent-long)" }}>Rewards waiting to be claimed</span>
           </div>
         )}
 
         {nextTier && toNext > 0 && toNext < staked * 0.2 && !hasRewards && (
-          <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "rgba(200,245,71,0.02)" }}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-lime)" }} />
-            <span className="text-[12px]" style={{ color: "var(--color-accent-lime)" }}>You&apos;re close to {String(nextTier.name)}!</span>
+          <div className="mx-6 mb-4 px-4 py-3 flex items-center gap-2.5 rounded-xl"
+            style={{ background: "rgba(51,201,161,0.03)", border: "1px solid rgba(51,201,161,0.08)" }}>
+            <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-brand-teal)", boxShadow: "0 0 6px rgba(51,201,161,0.4)" }} />
+            <span className="text-[12px] font-medium" style={{ color: "var(--color-brand-teal)" }}>You&apos;re close to {String(nextTier.name)}!</span>
           </div>
         )}
 
-        {/* Action options (Galileo-style) */}
+        {/* Action buttons — premium pill style */}
         {onAction && (
-          <div className="flex flex-wrap gap-2 px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <div className="flex flex-wrap gap-2 px-6 py-4" style={{ borderTop: "1px solid rgba(51,201,161,0.04)" }}>
             {[
-              { label: "Stake FAF", intent: "I want to stake FAF tokens" },
-              { label: "Claim Rewards", intent: "claim my faf rewards" },
-              { label: "VIP Tiers", intent: "show me the vip tiers" },
-              { label: "Unstake", intent: "I want to unstake FAF" },
-              { label: "Requests", intent: "show my unstake requests" },
+              { label: "Stake FAF", intent: "I want to stake FAF tokens", primary: true },
+              { label: "Claim Rewards", intent: "claim my faf rewards", primary: hasRewards },
+              { label: "VIP Tiers", intent: "show me the vip tiers", primary: false },
+              { label: "Unstake", intent: "I want to unstake FAF", primary: false },
+              { label: "Requests", intent: "show my unstake requests", primary: false },
             ].map((opt) => (
               <button key={opt.label} onClick={() => onAction(opt.intent)}
-                className="px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer
-                  transition-all duration-100 hover:scale-[1.02] active:scale-[0.98]"
+                className="px-4 py-2 rounded-xl text-[12px] font-medium cursor-pointer
+                  transition-all duration-150 hover:scale-[1.03] hover:-translate-y-[1px] active:scale-[0.97]"
                 style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  color: "var(--color-text-secondary)",
+                  background: opt.primary ? "rgba(51,201,161,0.08)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${opt.primary ? "rgba(51,201,161,0.2)" : "rgba(255,255,255,0.06)"}`,
+                  color: opt.primary ? "var(--color-brand-cyan)" : "var(--color-text-secondary)",
+                  boxShadow: opt.primary ? "0 0 12px -4px rgba(51,201,161,0.1)" : "none",
                 }}>
                 {opt.label}
               </button>
