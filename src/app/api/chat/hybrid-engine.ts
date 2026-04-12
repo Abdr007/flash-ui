@@ -10,7 +10,7 @@
 // 3. If parser fails → let AI handle with full tool calling
 
 import { parseCommand } from "@/lib/parser";
-import type { ParsedIntent, Side } from "@/lib/types";
+import type { ParsedIntent } from "@/lib/types";
 import { logInfo } from "@/lib/logger";
 
 export interface HybridResult {
@@ -88,7 +88,7 @@ export function formatParserResponse(
 ): string | null {
   if (!result.intent) return null;
 
-  const { type, market, side, collateral_usd, leverage } = result.intent;
+  const { market, side, collateral_usd, leverage } = result.intent;
 
   switch (result.type) {
     case "trade": {

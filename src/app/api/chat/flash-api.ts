@@ -155,7 +155,7 @@ export async function fetchPositions(
   if (!Array.isArray(raw)) return [];
 
   // Fetch current prices to fill mark_price (API doesn't return it)
-  let priceMap: Record<string, number> = {};
+  const priceMap: Record<string, number> = {};
   try {
     const allPrices = await fetchAllPrices();
     for (const [sym, p] of Object.entries(allPrices)) {

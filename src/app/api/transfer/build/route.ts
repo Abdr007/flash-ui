@@ -93,7 +93,7 @@ interface TransferBuildRequest {
 export async function POST(req: NextRequest) {
   try {
     const body: TransferBuildRequest = await req.json();
-    const { sender, recipient, token, amount, mint, decimals, is_native_sol, is_token2022, request_id } = body;
+    const { sender, recipient, token, amount, mint, decimals, is_native_sol, request_id } = body;
 
     // ---- Kill switch ----
     if (!TRANSFERS_ENABLED) {

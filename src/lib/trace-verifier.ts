@@ -22,8 +22,9 @@ export interface TraceAnomaly {
   detail: string;
 }
 
-// Expected stage order for a complete trade lifecycle
-const STAGE_ORDER: TraceStage[] = [
+// Expected stage order for a complete trade lifecycle (used for documentation)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _STAGE_ORDER: TraceStage[] = [
   "trade_confirm",
   "trade_execute",
   // terminal: one of trade_success or trade_error
@@ -76,7 +77,8 @@ export function verifyTraces(
     const confirmIdx = stages.indexOf("trade_confirm");
     const executeIdx = stages.indexOf("trade_execute");
     const successIdx = stages.indexOf("trade_success");
-    const errorIdx = stages.indexOf("trade_error");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _errorIdx = stages.indexOf("trade_error");
 
     if (confirmIdx >= 0 && executeIdx >= 0 && executeIdx < confirmIdx) {
       anomalies.push({

@@ -6,7 +6,7 @@
 // Beat Galileo: bigger balance, more spacing, unified cards,
 // cleaner icons, premium glass, brand identity throughout.
 
-import { memo, useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { memo, useEffect, useRef, useState, useCallback } from "react";
 import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS, TOKEN_META } from "@/lib/constants";
 import { formatUsd, formatPnl, safe } from "@/lib/format";
@@ -38,7 +38,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   const [change24h, setChange24h] = useState<number | null>(null);
 
   const refreshRef = useRef(refreshPositions);
-  refreshRef.current = refreshPositions;
+  useEffect(() => { refreshRef.current = refreshPositions; });
 
   useEffect(() => {
     if (!walletConnected) return;
@@ -50,8 +50,10 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   useEffect(() => {
     if (!walletConnected || !walletAddress) return;
     let cancelled = false;
-    setWalletDataLoading(true);
     async function load() {
+      await Promise.resolve(); // yield to avoid synchronous setState in effect
+      if (cancelled) return;
+      setWalletDataLoading(true);
       try {
         const resp = await fetch("/api/token-prices", {
           method: "POST", headers: { "Content-Type": "application/json" },

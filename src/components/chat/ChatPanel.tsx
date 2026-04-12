@@ -15,11 +15,9 @@ import QuickReply from "./QuickReply";
 import PortfolioHero from "@/components/portfolio/PortfolioHero";
 import { SectionBoundary } from "@/components/ErrorBoundary";
 import {
-  getSuggestedActions,
   getSuggestedActionGroups,
   getAutocompleteSuggestions,
   type SuggestedAction,
-  type ActionGroup,
 } from "@/lib/predictive-actions";
 import { feedPrices } from "@/lib/market-awareness";
 
@@ -36,7 +34,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScroll = useRef(true);
 
-  const walletAddress = useFlashStore((s) => s.walletAddress);
   const walletConnected = useFlashStore((s) => s.walletConnected);
   const positions = useFlashStore((s) => s.positions);
   const prices = useFlashStore((s) => s.prices);
@@ -54,7 +51,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const isExecuting = getIsExecuting();
   const setStreaming = useFlashStore((s) => s.setStreaming);
 
-  const transportRef = useRef(new DefaultChatTransport({
+  const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/chat",
     fetch: async (url, init) => {
       try {
@@ -74,9 +71,9 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
         return fetch(url, init);
       }
     },
-  }));
+  }), []);
 
-  const { messages, sendMessage, status } = useChat({ transport: transportRef.current });
+  const { messages, sendMessage, status } = useChat({ transport });
   const isStreaming = status === "streaming";
   const isError = status === "error";
   const hasMessages = messages.length > 0;
@@ -115,7 +112,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   }), [positions, lastTradeDraft, recentMarkets, prices, walletConnected, getActiveTrade, getIsExecuting]);
 
   const actionGroups = useMemo(() => getSuggestedActionGroups(predictionState), [predictionState]);
-  const flatSuggestions = useMemo(() => getSuggestedActions(predictionState), [predictionState]);
 
   // Input handlers
   const handleInputChange = useCallback((value: string) => {
@@ -165,6 +161,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
 
   // Clear optimistic state once real streaming starts
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isStreaming) setOptimisticPending(false);
   }, [isStreaming]);
 
@@ -187,7 +184,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      selectedAC >= 0 && autocomplete.length > 0 ? handleSubmit(autocomplete[selectedAC]) : handleSubmit();
+      if (selectedAC >= 0 && autocomplete.length > 0) { handleSubmit(autocomplete[selectedAC]); } else { handleSubmit(); }
     }
     if (e.key === "Escape") { setAutocomplete([]); setSelectedAC(-1); }
   }, [autocomplete, selectedAC, handleSubmit]);
@@ -214,7 +211,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
           <div className="max-w-3xl mx-auto w-full px-4 pb-36 pt-4">
             {messages.map((message, idx) => {
               const prev = idx > 0 ? messages[idx - 1] : null;
-              const next = idx < messages.length - 1 ? messages[idx + 1] : null;
               const sameRole = prev?.role === message.role;
               const mt = idx === 0 ? "" : sameRole ? "mt-2" : "mt-6";
               const userText = message.role === "user"
@@ -500,30 +496,27 @@ const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { p
     : rawParts;
 
   // Detect fast-path response and extract trade summary for intelligence signal
-  let fastPathSummary = "";
-  const isFastPath = safeParts.some((p) => {
-    try {
-      const toolInput = p?.input as Record<string, unknown> | undefined;
-      const toolOutput = p?.output as Record<string, unknown> | undefined;
-      const reqId = toolOutput?.request_id ?? (toolOutput?.output as Record<string, unknown> | undefined)?.request_id;
-      if (typeof reqId === "string" && reqId.startsWith("fast_")) {
-        // Build summary from tool input
-        if (toolInput) {
-          const parts: string[] = [];
-          if (toolInput.side) parts.push(String(toolInput.side));
-          if (toolInput.market) parts.push(String(toolInput.market));
-          if (toolInput.leverage) parts.push(`${toolInput.leverage}x`);
-          if (toolInput.collateral_usd) parts.push(`$${toolInput.collateral_usd}`);
-          fastPathSummary = parts.join(" · ");
-        }
-        return true;
-      }
-    } catch {}
-    return false;
-  });
+  const { isFastPath, fastPathSummary } = useMemo(() => {
+    const fastPart = safeParts.find((p) => {
+      try {
+        const toolOutput = p?.output as Record<string, unknown> | undefined;
+        const reqId = toolOutput?.request_id ?? (toolOutput?.output as Record<string, unknown> | undefined)?.request_id;
+        return typeof reqId === "string" && reqId.startsWith("fast_");
+      } catch { return false; }
+    });
+    if (!fastPart) return { isFastPath: false, fastPathSummary: "" };
+    const toolInput = fastPart?.input as Record<string, unknown> | undefined;
+    const parts: string[] = [];
+    if (toolInput?.side) parts.push(String(toolInput.side));
+    if (toolInput?.market) parts.push(String(toolInput.market));
+    if (toolInput?.leverage) parts.push(`${toolInput.leverage}x`);
+    if (toolInput?.collateral_usd) parts.push(`$${toolInput.collateral_usd}`);
+    return { isFastPath: true, fastPathSummary: parts.join(" · ") };
+  }, [safeParts]);
 
   return (
     <div className="flex items-start gap-3">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/ft-logo.svg"
         alt="Flash Trade"

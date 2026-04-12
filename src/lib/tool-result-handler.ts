@@ -12,7 +12,7 @@
 //
 // This is the ONLY path from AI tool output to store state.
 
-import { validateTrade, type TradePreview, type FirewallResult } from "./trade-firewall";
+import { validateTrade, type FirewallResult } from "./trade-firewall";
 import { logInfo, logError } from "./logger";
 import type { Position, Side } from "./types";
 

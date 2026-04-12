@@ -51,7 +51,8 @@ const DEPOSIT_SET = new Set(["deposit", "add", "supply"]);
 const WITHDRAW_SET = new Set(["withdraw", "remove", "redeem"]);
 const POOL_SET = new Set(["crypto", "defi", "gold", "meme", "wif", "fart", "ore", "stable"]);
 const FILLER_SET = new Set(["into", "from", "in", "to", "the", "pool", "earn", "of", "my", "and"]);
-const TOKEN_UNITS = new Set(["usdc", "usd", "dollars", "dollar"]);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _TOKEN_UNITS = new Set(["usdc", "usd", "dollars", "dollar"]);
 
 function lex(input: string): Token[] {
   const lower = input.toLowerCase().trim();
@@ -136,7 +137,8 @@ type EarnAST = DepositAST | WithdrawAST;
 // Phase 2 — Parser (Tokens → AST)
 // ============================================
 
-interface ParseError { errors: string[] }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface _ParseError { errors: string[] }
 type ParseResult = { ok: true; ast: EarnAST } | { ok: false; errors: string[] };
 
 function parse(tokens: Token[]): ParseResult {

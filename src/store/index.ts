@@ -28,11 +28,11 @@ import {
   validateTradeObject,
 } from "@/lib/api";
 import { computePositionPnl } from "@/lib/pnl";
-import { logExecution, logTrace, logSystemEvent, genExecutionId, withLatency } from "@/lib/execution-log";
+import { logTrace, logSystemEvent, genExecutionId, withLatency } from "@/lib/execution-log";
 import { checkCircuit, recordSuccess, recordFailure, getCircuitState } from "@/lib/circuit-breaker";
 import { evaluateCertification } from "@/lib/certification";
 import { checkWalletExecLimit } from "@/lib/rate-limiter";
-import { validateTrade, type TradePreview } from "@/lib/trade-firewall";
+import { validateTrade } from "@/lib/trade-firewall";
 import { logInfo, logError } from "@/lib/logger";
 import {
   resolveTradeModification,

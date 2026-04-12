@@ -11,7 +11,8 @@ export default function BadgePanel() {
   const patterns = getUserPatterns();
   const allBadges = useMemo(() => computeBadges(patterns), [patterns]);
   const earned = allBadges.filter((b) => b.earned);
-  const next = useMemo(() => getNextBadge(), [patterns]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const next = useMemo(() => getNextBadge(), [allBadges]);
 
   if (patterns.totalTrades === 0) return null;
 

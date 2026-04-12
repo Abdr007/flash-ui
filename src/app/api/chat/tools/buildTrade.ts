@@ -24,10 +24,10 @@ import { makeRequestId } from "@/lib/tool-dedup";
 import { withLatency, logError } from "@/lib/logger";
 import { enforceFirewall } from "@/lib/trade-firewall";
 import { MIN_COLLATERAL, MAX_LEVERAGE, DEFAULT_SLIPPAGE_BPS } from "@/lib/constants";
-import { getMarket, getMaxLeverage, isDegenSupported } from "@/lib/markets-registry";
+import { getMarket, getMaxLeverage } from "@/lib/markets-registry";
 import { getMarketStatus } from "@/lib/market-hours";
 import type { ToolResponse } from "./shared";
-import { validatePrice, isVolatilitySpike } from "@/lib/price-validator";
+import { isVolatilitySpike } from "@/lib/price-validator";
 import {
   resolveMarket,
   runTradeGuards,

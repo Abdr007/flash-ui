@@ -22,7 +22,8 @@ import type { Position } from "./types";
 // doesn't know the market yet.
 export function getMaxLeverageForMarket(
   market: string,
-  _degen = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _degen?: boolean,
 ): number {
   const fromRegistry = getMaxLeverage(market);
   return fromRegistry > 0 ? fromRegistry : MAX_LEVERAGE;

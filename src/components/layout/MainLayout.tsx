@@ -8,7 +8,6 @@
 
 import { useState, useCallback, Component, type ReactNode } from "react";
 import ChatPanel from "@/components/chat/ChatPanel";
-import PortfolioPanel from "@/components/portfolio/PortfolioPanel";
 import SystemStatus from "@/components/layout/SystemStatus";
 import { SectionBoundary } from "@/components/ErrorBoundary";
 import DataStatusBanner from "@/components/layout/DataStatusBanner";

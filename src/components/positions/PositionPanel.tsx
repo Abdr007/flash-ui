@@ -13,7 +13,7 @@ export default function PositionPanel() {
   const walletConnected = useFlashStore((s) => s.walletConnected);
 
   const refreshRef = useRef(refreshPositions);
-  refreshRef.current = refreshPositions;
+  useEffect(() => { refreshRef.current = refreshPositions; });
 
   useEffect(() => {
     if (!walletConnected) return;
@@ -70,9 +70,9 @@ function PositionRow({ position }: { position: Position }) {
   useEffect(() => {
     if (prevProfitRef.current !== isProfit) {
       prevProfitRef.current = isProfit;
-      setFlash(true);
+      const raf = requestAnimationFrame(() => setFlash(true));
       const t = setTimeout(() => setFlash(false), 400);
-      return () => clearTimeout(t);
+      return () => { cancelAnimationFrame(raf); clearTimeout(t); };
     }
   }, [isProfit]);
 

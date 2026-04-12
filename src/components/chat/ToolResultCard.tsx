@@ -4,7 +4,7 @@
 // Flash AI — Tool Result Card (Galileo-Style)
 // ============================================
 
-import { memo, useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { memo, useState, useEffect, useCallback, useRef } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { validateTrade, type TradePreview } from "@/lib/trade-firewall";
 import { getTradeConfidence, type TradeConfidence } from "@/lib/predictive-actions";
@@ -14,7 +14,7 @@ import {
   formatPrice, formatUsd, formatLeverage, formatPnl, formatPnlPct, formatPercent, liqDistancePct, safe,
 } from "@/lib/format";
 import { HIGH_LEVERAGE_THRESHOLD, MARKETS } from "@/lib/constants";
-import { getPreferredSlDistance, getPreferredTpDistance, getRiskProfile, getPostTradeInsight, getUserPatterns, getCrossFeatureHint, getGuidanceLevel, shouldBoostSlSuggestion, getOutcomeInsight, recordSuggestionShown, recordSuggestionAccepted, type TradeInsight } from "@/lib/user-patterns";
+import { getPreferredSlDistance, getPreferredTpDistance, getRiskProfile, getCrossFeatureHint, getGuidanceLevel, shouldBoostSlSuggestion, recordSuggestionShown, recordSuggestionAccepted } from "@/lib/user-patterns";
 
 // ---- Types ----
 
@@ -39,43 +39,6 @@ interface ToolOutput {
 // ---- Main ----
 
 // ---- Tool Status Dot (Neur pattern) ----
-function ToolStatusDot({ state, status }: { state: string; status?: string }) {
-  if (state === "output-available" && status === "error")
-    return <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-accent-short)", boxShadow: "0 0 0 3px rgba(239,68,68,0.2)" }} />;
-  if (state === "output-available")
-    return <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-accent-long)", boxShadow: "0 0 0 3px rgba(16,185,129,0.2)" }} />;
-  return <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-accent-warn)", boxShadow: "0 0 0 3px rgba(245,158,11,0.2)", animation: "pulseDot 1s infinite" }} />;
-}
-
-const TOOL_DISPLAY_NAMES: Record<string, string> = {
-  build_trade: "Trade Preview",
-  transfer_preview: "Transfer Preview",
-  transfer_history: "Transfer History",
-  faf_dashboard: "FAF Dashboard",
-  faf_stake: "Stake FAF",
-  faf_unstake: "Unstake FAF",
-  faf_claim: "Claim Rewards",
-  faf_requests: "Unstake Requests",
-  faf_cancel_unstake: "Cancel Unstake",
-  faf_tier: "VIP Tiers",
-  close_position_preview: "Close Preview",
-  get_positions: "Positions",
-  get_portfolio: "Portfolio",
-  get_price: "Price",
-  get_all_prices: "Markets",
-  get_market_info: "Market Info",
-  add_collateral: "Add Collateral",
-  remove_collateral: "Remove Collateral",
-  reverse_position_preview: "Reverse Position",
-  earn_deposit: "Earn Deposit",
-  earn_pools: "Earn Pools",
-  earn_positions: "Earn Positions",
-  earn_withdraw: "Withdraw",
-  action_options: "",
-  transfer_picker: "",
-  wizard: "",
-};
-
 const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: ToolPart; onAction?: (cmd: string) => void }) {
   const output = part.output;
 
@@ -83,16 +46,6 @@ const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: 
   if (part.state === "input-available") return <StreamingSteps toolName={part.toolName} step={2} input={part.input} />;
   if (!output) return <StreamingSteps toolName={part.toolName} step={2} input={part.input} />;
   if (output.status === "error" && !output.data) return <ToolError toolName={part.toolName} error={output.error} />;
-
-  // Tool status header (Neur pattern: dot + name + ID)
-  const displayName = TOOL_DISPLAY_NAMES[part.toolName] ?? part.toolName;
-  const statusHeader = (
-    <div className="flex items-center gap-2 mb-2">
-      <ToolStatusDot state={part.state} status={output.status} />
-      <span className="text-[12px] font-medium text-text-secondary truncate">{displayName}</span>
-      <span className="text-[10px] font-mono text-text-tertiary">{part.toolCallId.slice(0, 9)}</span>
-    </div>
-  );
 
   let card: React.ReactNode;
   switch (part.toolName) {
@@ -158,7 +111,6 @@ const TOOL_STEPS: Record<string, string[]> = {
 
 const StreamingSteps = memo(function StreamingSteps({ toolName, step, input }: { toolName: string; step: 1 | 2; input?: Record<string, unknown> }) {
   const steps = TOOL_STEPS[toolName] ?? ["Processing"];
-  const displayName = TOOL_DISPLAY_NAMES[toolName] ?? toolName;
 
   // Simple single-line loader for most tools
   if (steps.length <= 2 && toolName !== "build_trade") {
@@ -282,33 +234,40 @@ const TradePreviewCard = memo(function TradePreviewCard({ output, onAction }: { 
   // Non-hook derivations (safe before hooks that depend on them)
   const tradeStatus = activeTrade?.status;
 
-  // Outcome tracking — refs updated during render. Distinguishes SUCCESS
-  // from CANCEL (both end with activeTrade=null). Without this, cancelling
-  // at the overlay would show "Trade executed" — a VERY bad UX lie.
-  const outcomeRef = useRef<"pending" | "success" | "error">("pending");
+  // Outcome tracking — distinguishes SUCCESS from CANCEL (both end with
+  // activeTrade=null). Without this, cancelling at the overlay would show
+  // "Trade executed" — a VERY bad UX lie.
+  const [outcome, setOutcome] = useState<"pending" | "success" | "error">("pending");
   // Capture tx_signature the moment we first see it. The store clears
   // activeTrade 8s after completion to avoid blocking the next trade;
-  // without this ref, the success card loses its Solscan link mid-view.
-  const capturedSigRef = useRef<string | null>(null);
-  if (activeTrade?.tx_signature) {
-    outcomeRef.current = "success";
-    capturedSigRef.current = activeTrade.tx_signature;
-  } else if (activeTrade?.status === "ERROR") {
-    outcomeRef.current = "error";
-  }
+  // without this state, the success card loses its Solscan link mid-view.
+  const [capturedSig, setCapturedSig] = useState<string | null>(null);
+
+  // Sync outcome from activeTrade state
+  useEffect(() => {
+    if (activeTrade?.tx_signature) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOutcome("success");
+       
+      setCapturedSig(activeTrade.tx_signature);
+    } else if (activeTrade?.status === "ERROR") {
+       
+      setOutcome("error");
+    }
+  }, [activeTrade]);
 
   // If the trade was cancelled (activeTrade cleared without resolution),
-  // reset submitting so the user can try again. Can't call setState during
-  // render — use an effect.
+  // reset submitting so the user can try again.
   useEffect(() => {
-    if (submitting && !activeTrade && outcomeRef.current === "pending") {
+    if (submitting && !activeTrade && outcome === "pending") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSubmitting(false);
     }
-  }, [submitting, activeTrade]);
+  }, [submitting, activeTrade, outcome]);
 
   const tradeCompleted = submitting
     && !isExecuting
-    && (outcomeRef.current === "success" || outcomeRef.current === "error");
+    && (outcome === "success" || outcome === "error");
 
   // Firewall runs during render — synchronous, not a hook
   const firewall = validateTrade(output.data, walletAddress ?? "", positions);
@@ -325,30 +284,13 @@ const TradePreviewCard = memo(function TradePreviewCard({ output, onAction }: { 
   const hookFees = t?.fees ?? 0;
   const liqDist = t ? liqDistancePct(hookEntry, hookLiqPrice, hookSide) : 0;
 
-  const postTradeInsight = useMemo<TradeInsight | null>(() => {
-    if (!tradeCompleted) return null;
-    try {
-      const raw = output.data as Record<string, unknown> | null;
-      if (!raw) return null;
-      return getPostTradeInsight({
-        market: String(raw.market ?? ""),
-        side: String(raw.side ?? "LONG") as "LONG" | "SHORT",
-        leverage: Number(raw.leverage ?? 0),
-        collateral: Number(raw.collateral_usd ?? 0),
-        timestamp: Date.now(),
-        hasTp: !!raw.take_profit_price,
-        hasSl: !!raw.stop_loss_price,
-      });
-    } catch { return null; }
-  }, [tradeCompleted, output.data]);
-
   const springLiqDist = useNumberSpring(liqDist);
   const bounceStyle = useBounceIn();
 
-  const confidence = useMemo(() => getTradeConfidence({
+  const confidence = getTradeConfidence({
     leverage: hookLeverage, collateral_usd: hookCollateral, position_size: hookPositionSize,
     fees: hookFees, entry_price: hookEntry, liquidation_price: hookLiqPrice, side: hookSide,
-  }), [hookLeverage, hookCollateral, hookPositionSize, hookFees, hookEntry, hookLiqPrice, hookSide]);
+  });
 
   // ─── END HOOKS — early returns and conditional rendering below this line ───
 
@@ -356,7 +298,7 @@ const TradePreviewCard = memo(function TradePreviewCard({ output, onAction }: { 
 
   // Trade was submitted and completed successfully — unified success card.
   if (tradeCompleted && (tradeStatus === "SUCCESS" || !activeTrade)) {
-    const sig = activeTrade?.tx_signature ?? capturedSigRef.current;
+    const sig = activeTrade?.tx_signature ?? capturedSig;
     return <TxSuccessCard label="Trade executed" signature={sig} variant="long" />;
   }
 
@@ -810,8 +752,6 @@ const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOu
   const newLevHigher = Number(d.new_leverage ?? 0) > Number(d.current_leverage ?? 0);
   const positionKey = String(d.pubkey ?? "");
   const amountUsd = Number(d.amount_usd ?? 0);
-  const tokenAmount = Number(d.token_amount ?? 0);
-  const collateralToken = "USDC";
 
   async function handleExecute() {
     if (status !== "preview" || !walletAddress || !positionKey || !connected || !signTransaction) return;
@@ -1335,8 +1275,6 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
   const storePrices = useFlashStore((s) => s.prices);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const [walletUsd, setWalletUsd] = useState(0);
-  const [solBal, setSolBal] = useState(0);
-  const [usdcBal, setUsdcBal] = useState(0);
   const [expanded, setExpanded] = useState(false);
 
   const [allTokens, setAllTokens] = useState<{ symbol: string; amount: number; usdValue: number; logoUri?: string }[]>([]);
@@ -1366,7 +1304,6 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
           amount: data.solBalance ?? 0,
           usdValue: data.solUsd ?? 0,
         });
-        if (!cancelled) setSolBal(data.solBalance ?? 0);
 
         // All SPL tokens — forward Helius metadata logoUri
         for (const t of data.tokens ?? []) {
@@ -1376,7 +1313,6 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
             usdValue: t.usdValue,
             logoUri: t.logoUri,
           });
-          if (t.symbol === "USDC" && !cancelled) setUsdcBal(t.amount);
         }
 
         // Filter dust, sort by value
@@ -1608,6 +1544,7 @@ function TokenIcon({ symbol, size = 28, src }: { symbol: string; size?: number; 
   }
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={url}
       alt={symbol}
@@ -1885,12 +1822,6 @@ const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { output: 
 // ═══ EARN WITHDRAW PREVIEW ═══
 const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: ToolOutput }) {
   const data = output.data as Record<string, unknown> | null;
-  if (!data) return <ToolError toolName="earn_withdraw" error={output.error} />;
-
-  const poolName = String(data.pool_name ?? "");
-  const percent = Number(data.percent ?? 100);
-  const flpPrice = Number(data.flp_price ?? 0);
-  const apy = Number(data.apy ?? 0);
 
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const { signTransaction, connected } = useWallet();
@@ -1898,6 +1829,13 @@ const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: To
   const [txSig, setTxSig] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelled, setCancelled] = useState(false);
+
+  if (!data) return <ToolError toolName="earn_withdraw" error={output.error} />;
+
+  const poolName = String(data.pool_name ?? "");
+  const percent = Number(data.percent ?? 100);
+  const flpPrice = Number(data.flp_price ?? 0);
+  const apy = Number(data.apy ?? 0);
 
   if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Withdrawal cancelled.</div>;
 
@@ -2245,11 +2183,7 @@ function saveTransferHistory(record: TransferRecord) {
   } catch {}
 }
 
-function getTransferHistory(): TransferRecord[] {
-  try {
-    return JSON.parse(localStorage.getItem("flash_transfer_history") ?? "[]");
-  } catch { return []; }
-}
+
 
 function ConfirmStep({ done, label }: { done: boolean; label: string }) {
   return (
@@ -2293,6 +2227,10 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
   const [copied, setCopied] = useState<"addr" | "tx" | null>(null);
   const [confirmInput, setConfirmInput] = useState("");
   const walletAddress = useFlashStore((s) => s.walletAddress);
+  // Execution lock — prevents double-click across renders
+  const executionLockRef = useRef(false);
+  // Attempt counter — ensures each retry gets a fresh blockhash (not stale cache)
+  const attemptRef = useRef(0);
 
   const data = output.data as {
     token: string;
@@ -2328,9 +2266,6 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
   const balanceImpactPct = data.sender_balance && data.sender_balance > 0
     ? Math.round((data.amount / data.sender_balance) * 100)
     : null;
-  const isLargeTransfer = (balanceImpactPct !== null && balanceImpactPct >= 50) ||
-    (data.is_native_sol && data.amount >= 10) ||
-    (!data.is_native_sol && data.amount >= 1000);
   const requiresTypeConfirm = balanceImpactPct !== null && balanceImpactPct >= 80;
 
   // Risk signals
@@ -2358,11 +2293,6 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
   }
-
-  // Execution lock — prevents double-click across renders
-  const executionLockRef = useRef(false);
-  // Attempt counter — ensures each retry gets a fresh blockhash (not stale cache)
-  const attemptRef = useRef(0);
 
   async function handleConfirm() {
     // Triple guard: state + wallet + lock
@@ -2938,14 +2868,14 @@ function FafAmountPicker({ data, onAction }: { data: Record<string, unknown>; on
 
 const TransferPickerCard = memo(function TransferPickerCard({ output, onAction }: { output: ToolOutput; onAction?: (cmd: string) => void }) {
   const data = output.data as Record<string, unknown> | null;
-  if (!data) return null;
-
-  const tokens = (data.tokens ?? ["SOL", "USDC"]) as string[];
+  const tokens = ((data?.tokens ?? ["SOL", "USDC"]) as string[]);
   const [token, setToken] = useState(tokens[0] ?? "SOL");
   const [customToken, setCustomToken] = useState("");
   const [showCustom, setShowCustom] = useState(false);
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
+
+  if (!data) return null;
 
   const activeToken = showCustom ? customToken : token;
   const canSend = amount && Number(amount) > 0 && address.length >= 32 && activeToken.length > 0;
@@ -3052,11 +2982,7 @@ import WizardCard from "./WizardCard";
 
 const WizardToolCard = memo(function WizardToolCard({ output, onAction }: { output: ToolOutput; onAction?: (cmd: string) => void }) {
   const data = output.data as Record<string, unknown> | null;
-  if (!data) return null;
-
-  const intro = String(data.intro ?? "");
-  const steps = (data.steps ?? []) as { question: string; options: string[]; allowCustom?: boolean; customPlaceholder?: string }[];
-  const commandTemplate = String(data.commandTemplate ?? "");
+  const commandTemplate = String(data?.commandTemplate ?? "");
 
   const handleComplete = useCallback((answers: string[]) => {
     if (!onAction) return;
@@ -3065,6 +2991,11 @@ const WizardToolCard = memo(function WizardToolCard({ output, onAction }: { outp
     answers.forEach((a, i) => { cmd = cmd.replace(`{${i}}`, a); });
     onAction(cmd);
   }, [onAction, commandTemplate]);
+
+  if (!data) return null;
+
+  const intro = String(data.intro ?? "");
+  const steps = (data.steps ?? []) as { question: string; options: string[]; allowCustom?: boolean; customPlaceholder?: string }[];
 
   if (steps.length === 0) return null;
 
@@ -3128,15 +3059,16 @@ const ActionOptionsCard = memo(function ActionOptionsCard({ output, onAction }: 
 
 const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName: string; output: ToolOutput; onAction?: (cmd: string) => void }) {
   const data = output.data as Record<string, unknown> | null;
-  if (!data) return <ToolError toolName={toolName} error={output.error} />;
-
-  const type = String(data.type ?? "");
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const { signTransaction, connected } = useWallet();
   const [status, setStatus] = useState<"idle" | "executing" | "signing" | "confirming" | "success" | "error">("idle");
   const [txSig, setTxSig] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const lockRef = useRef(false);
+
+  if (!data) return <ToolError toolName={toolName} error={output.error} />;
+
+  const type = String(data.type ?? "");
 
   async function executeFafAction(action: string, params: Record<string, unknown> = {}) {
     if (lockRef.current || !walletAddress || !connected || !signTransaction) return;
@@ -3412,7 +3344,7 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
         {nextTier && toNext > 0 && toNext < staked * 0.2 && !hasRewards && (
           <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "rgba(200,245,71,0.02)" }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-lime)" }} />
-            <span className="text-[12px]" style={{ color: "var(--color-accent-lime)" }}>You're close to {String(nextTier.name)}!</span>
+            <span className="text-[12px]" style={{ color: "var(--color-accent-lime)" }}>You&apos;re close to {String(nextTier.name)}!</span>
           </div>
         )}
 
@@ -3462,7 +3394,7 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
           <Cell label="New Tier" value={newTier} color={tierChanged ? "var(--color-accent-lime)" : undefined} />
           <Cell label="Fee Discount" value={`${newDiscount}%`} />
         </div>
-        {tierChanged && <div className="px-5 py-3 text-[12px] text-accent-lime" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>Tier upgrade! You'll reach {newTier} with this stake.</div>}
+        {tierChanged && <div className="px-5 py-3 text-[12px] text-accent-lime" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>Tier upgrade! You&apos;ll reach {newTier} with this stake.</div>}
         <div className="flex" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
           <button onClick={() => executeFafAction("stake", { amount })} disabled={!walletAddress}
             className="btn-primary flex-1 py-3.5 text-[14px] font-bold cursor-pointer disabled:opacity-25"
@@ -3655,6 +3587,14 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
 // Transfer History + Insights Card
 // ============================================
 
+function timeAgo(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
 const TransferHistoryCard = memo(function TransferHistoryCard({ output }: { output: ToolOutput }) {
   const data = output.data as {
     total_transfers: number;
@@ -3677,14 +3617,6 @@ const TransferHistoryCard = memo(function TransferHistoryCard({ output }: { outp
         <div className="text-[14px] text-text-secondary">No transfer history yet. Send your first transfer to start tracking.</div>
       </div>
     );
-  }
-
-  function timeAgo(ts: number): string {
-    const s = Math.floor((Date.now() - ts) / 1000);
-    if (s < 60) return "just now";
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-    return `${Math.floor(s / 86400)}d ago`;
   }
 
   return (

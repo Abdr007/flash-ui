@@ -36,7 +36,7 @@ export default function PortfolioPanel() {
   const closePosition = useFlashStore((s) => s.closePosition);
 
   const refreshRef = useRef(refreshPositions);
-  refreshRef.current = refreshPositions;
+  useEffect(() => { refreshRef.current = refreshPositions; });
 
   useEffect(() => {
     if (!walletConnected) return;

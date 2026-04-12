@@ -347,6 +347,7 @@ export function hasMarket(symbol: string): boolean {
 
 export function getMaxLeverage(
   symbol: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _mode?: "normal" | "degen",
 ): number {
   const m = getMarket(symbol);

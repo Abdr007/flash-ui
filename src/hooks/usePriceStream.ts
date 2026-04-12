@@ -20,9 +20,11 @@ export function usePriceStream() {
   const handleRef = useRef(handleStreamPrices);
   const statusRef = useRef(setStreamStatus);
   const refreshRef = useRef(refreshPrices);
-  handleRef.current = handleStreamPrices;
-  statusRef.current = setStreamStatus;
-  refreshRef.current = refreshPrices;
+  useEffect(() => {
+    handleRef.current = handleStreamPrices;
+    statusRef.current = setStreamStatus;
+    refreshRef.current = refreshPrices;
+  });
 
   useEffect(() => {
     // Initial load via REST

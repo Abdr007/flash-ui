@@ -32,8 +32,6 @@ export async function cleanFlashTransaction(
 ): Promise<VersionedTransaction> {
   const rawTx = VersionedTransaction.deserialize(Buffer.from(txBase64, "base64"));
   const message = rawTx.message as MessageV0;
-  const staticKeys = message.staticAccountKeys;
-
   // Resolve ALTs
   const altAccounts: AddressLookupTableAccount[] = [];
   for (const lookup of message.addressTableLookups) {

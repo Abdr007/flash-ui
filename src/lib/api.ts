@@ -481,8 +481,8 @@ export async function enrichTradeWithQuote(
     }
 
     // ---- TP/SL Validation: numeric safety + dynamic range + direction ----
-    let tpPrice = trade.take_profit_price ?? null;
-    let slPrice = trade.stop_loss_price ?? null;
+    const tpPrice = trade.take_profit_price ?? null;
+    const slPrice = trade.stop_loss_price ?? null;
 
     if (tpPrice != null) {
       if (!Number.isFinite(tpPrice) || tpPrice <= 0) {
