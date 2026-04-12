@@ -1,19 +1,34 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* Premium dark palette — deeper, richer contrast */
+  /* ============================================
+     FLASH TRADE — Premium Design System
+     Colors extracted from ft-logo.svg brand gradient
+     ============================================ */
+
+  /* Backgrounds — deep navy layered system */
   --color-bg-root: #080C12;
   --color-bg-surface: #0C1018;
   --color-bg-card: rgba(14, 19, 28, 0.75);
   --color-bg-card-solid: #0E131C;
-  --color-bg-card-hover: #141B28;
+  --color-bg-card-hover: rgba(20, 27, 40, 0.85);
   --color-bg-input: #0E131C;
   --color-bg-elevated: #141B28;
+
+  /* Borders */
   --color-border-subtle: rgba(255, 255, 255, 0.06);
   --color-border-focus: rgba(255, 255, 255, 0.12);
+
+  /* Text */
   --color-text-primary: #E8ECF3;
   --color-text-secondary: #7B8DA3;
   --color-text-tertiary: #3E5068;
+
+  /* Flash Trade Brand (from ft-logo.svg gradient) */
+  --color-brand-teal: #33C9A1;
+  --color-brand-cyan: #3AFFE1;
+  --color-brand-yellow: #FFEB00;
+
   /* Trading accents */
   --color-accent-long: #00D26A;
   --color-accent-short: #FF4D4D;
@@ -21,10 +36,15 @@
   --color-accent-warn: #F5A623;
   --color-accent-purple: #8B5CF6;
   --color-accent-lime: #C8F547;
+
+  /* Typography */
   --font-mono: var(--font-geist-mono), 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Radii */
   --radius-card: 16px;
   --radius-lg: 20px;
   --radius-pill: 9999px;
+  --radius-button: 14px;
 }
 
 * { box-sizing: border-box; }
@@ -44,7 +64,6 @@ html, body {
 
 /* ============================================
    PREMIUM DOTTED GRID BACKGROUND
-   Galileo-style subtle dot pattern
    ============================================ */
 
 .dot-grid-full {
@@ -59,13 +78,13 @@ html, body {
   -webkit-mask-image: radial-gradient(ellipse 85% 80% at 50% 45%, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 65%, transparent 100%);
 }
 
-/* Subtle ambient glow behind balance — creates depth */
+/* Ambient glow — teal/cyan dual orb */
 .hero-glow {
   position: absolute;
-  width: 500px;
-  height: 500px;
+  width: 600px;
+  height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(200, 245, 71, 0.02) 0%, rgba(200, 245, 71, 0.005) 40%, transparent 70%);
+  background: radial-gradient(circle, rgba(51, 201, 161, 0.04) 0%, rgba(58, 255, 225, 0.015) 40%, transparent 70%);
   pointer-events: none;
   top: 50%;
   left: 50%;
@@ -80,10 +99,10 @@ html, body {
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(51, 201, 161, 0.1);
   border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.14); }
+::-webkit-scrollbar-thumb:hover { background: rgba(51, 201, 161, 0.2); }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -98,47 +117,52 @@ html, body {
 }
 
 /* ============================================
-   GLASS CARD (Premium frosted glass)
+   GLASS CARD — Premium frosted glass with depth
    ============================================ */
 
 .glass-card {
   background: rgba(14, 19, 28, 0.65);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(32px) saturate(1.6);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
+  border: 1px solid rgba(51, 201, 161, 0.06);
   border-radius: var(--radius-card);
+  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .glass-card-solid {
   background: var(--color-bg-card-solid);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(51, 201, 161, 0.05);
   border-radius: var(--radius-card);
+  box-shadow: 0 4px 24px -6px rgba(0, 0, 0, 0.3);
 }
 
 /* ============================================
-   ACTION CIRCLES (Premium)
+   ACTION CIRCLES — Premium with teal glow
    ============================================ */
 
 .action-circle {
   border-radius: 50%;
   background: rgba(14, 19, 28, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(255, 255, 255, 0.07);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 180ms cubic-bezier(0.2, 0, 0, 1);
+  transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .action-circle:hover {
-  transform: translateY(-2px);
-  background: rgba(20, 27, 40, 0.9);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transform: translateY(-3px) scale(1.05);
+  background: rgba(20, 27, 40, 0.95);
+  border-color: rgba(51, 201, 161, 0.25);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.35),
+    0 0 24px -4px rgba(51, 201, 161, 0.15),
+    0 0 0 1px rgba(51, 201, 161, 0.08);
 }
 .action-circle:active {
-  transform: scale(0.95);
+  transform: scale(0.93);
   transition-duration: 60ms;
 }
 
@@ -176,6 +200,15 @@ html, body {
 .gradient-long { background: linear-gradient(135deg, #10B981, #059669); }
 .gradient-short { background: linear-gradient(135deg, #EF4444, #DC2626); }
 .gradient-blue { background: linear-gradient(135deg, #3B82F6, #2563EB); }
+.gradient-brand { background: linear-gradient(135deg, #33C9A1, #3AFFE1); }
+
+/* Brand gradient text effect */
+.text-gradient-brand {
+  background: linear-gradient(135deg, #3AFFE1, #C8F547);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 
 /* ============================================
    ANIMATION SYSTEM (GPU-accelerated)
@@ -218,8 +251,8 @@ html, body {
   to { transform: rotate(360deg); }
 }
 @keyframes livePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(51, 201, 161, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(51, 201, 161, 0); }
 }
 @keyframes shimmer {
   0% { background-position: -200% 0; }
@@ -243,9 +276,9 @@ html, body {
   50% { transform: scale(1.008); }
 }
 @keyframes successGlow {
-  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.3); }
-  50% { box-shadow: 0 0 16px 4px rgba(16, 185, 129, 0.15); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(51, 201, 161, 0.3); }
+  50% { box-shadow: 0 0 20px 6px rgba(51, 201, 161, 0.18); }
+  100% { box-shadow: 0 0 0 0 rgba(51, 201, 161, 0); }
 }
 @keyframes anticipateIn {
   0% { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.98); }
@@ -266,6 +299,28 @@ html, body {
   to { opacity: 1; transform: translateX(0); }
 }
 
+/* ---- New Premium Animations ---- */
+@keyframes shineSwipe {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px 0 rgba(51, 201, 161, 0.08); }
+  50% { box-shadow: 0 0 40px 8px rgba(51, 201, 161, 0.18); }
+}
+@keyframes heroReveal {
+  0% { opacity: 0; transform: translate3d(0, 24px, 0) scale(0.97); filter: blur(6px); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes borderGlow {
+  0% { --border-angle: 0deg; }
+  100% { --border-angle: 360deg; }
+}
+
 /* ============================================
    INTERACTION SYSTEM
    ============================================ */
@@ -279,7 +334,7 @@ html, body {
 
 .chip {
   will-change: transform, opacity;
-  transition: transform 120ms cubic-bezier(0.2, 0, 0, 1),
+  transition: transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1),
               border-color 150ms ease-out,
               color 150ms ease-out,
               background-color 150ms ease-out,
@@ -289,29 +344,133 @@ html, body {
   border-radius: var(--radius-pill);
 }
 .chip:hover {
-  transform: translate3d(0, -1px, 0) scale(1.03);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: translate3d(0, -2px, 0) scale(1.04);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 0 12px -4px rgba(51, 201, 161, 0.1);
 }
 .chip:active {
-  transform: translate3d(0, 0, 0) scale(0.97);
+  transform: translate3d(0, 0, 0) scale(0.96);
   transition-duration: 50ms;
 }
 
+/* ============================================
+   BUTTON SYSTEM — Premium with physics + glow
+   ============================================ */
+
+/* Primary CTA — lime with shine sweep + teal glow halo */
+.btn-cta {
+  position: relative;
+  background: var(--color-accent-lime);
+  color: #070A0F;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-button);
+  overflow: hidden;
+  cursor: pointer;
+  will-change: transform, box-shadow;
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 200ms ease-out,
+              filter 150ms ease-out;
+}
+.btn-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%);
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity 300ms;
+  pointer-events: none;
+}
+.btn-cta:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow:
+    0 0 0 1px rgba(200,245,71,0.2),
+    0 8px 30px -4px rgba(200,245,71,0.3),
+    0 0 60px -8px rgba(51,201,161,0.15),
+    0 2px 8px rgba(0,0,0,0.3);
+  filter: brightness(1.08);
+}
+.btn-cta:hover::before {
+  opacity: 1;
+  animation: shineSwipe 0.7s ease-out forwards;
+}
+.btn-cta:active {
+  transform: translateY(0) scale(0.96);
+  box-shadow: 0 0 0 1px rgba(200,245,71,0.15), 0 2px 8px rgba(200,245,71,0.1);
+  transition-duration: 60ms;
+}
+.btn-cta:focus-visible {
+  outline: 2px solid var(--color-brand-cyan);
+  outline-offset: 2px;
+}
+.btn-cta:disabled {
+  opacity: 0.3;
+  transform: none;
+  box-shadow: none;
+  filter: none;
+  cursor: default;
+}
+.btn-cta:disabled::before { display: none; }
+
+/* Ghost/Secondary — glass with teal border glow on hover */
+.btn-ghost {
+  position: relative;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-button);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  will-change: transform;
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              border-color 200ms ease-out,
+              box-shadow 200ms ease-out,
+              color 150ms ease-out,
+              background 150ms ease-out;
+}
+.btn-ghost:hover {
+  transform: translateY(-2px) scale(1.02);
+  border-color: rgba(51, 201, 161, 0.3);
+  background: rgba(51, 201, 161, 0.06);
+  color: var(--color-text-primary);
+  box-shadow:
+    0 0 24px -6px rgba(51, 201, 161, 0.15),
+    0 8px 24px rgba(0,0,0,0.2);
+}
+.btn-ghost:active {
+  transform: translateY(0) scale(0.96);
+  transition-duration: 60ms;
+}
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--color-brand-cyan);
+  outline-offset: 2px;
+}
+.btn-ghost:disabled {
+  opacity: 0.3;
+  transform: none;
+  box-shadow: none;
+  cursor: default;
+}
+
+/* Legacy btn-primary — upgraded with teal glow */
 .btn-primary {
   will-change: transform, opacity;
-  transition: transform 100ms cubic-bezier(0.2, 0, 0, 1), filter 100ms ease-out;
+  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 100ms ease-out, box-shadow 200ms ease-out;
   backface-visibility: hidden;
   border-radius: var(--radius-card);
 }
-.btn-primary:hover { filter: brightness(1.1); }
-.btn-primary:active { transform: scale(0.97); transition-duration: 40ms; }
-.btn-primary:disabled { transform: none; filter: none; }
+.btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 20px -4px rgba(51, 201, 161, 0.12);
+}
+.btn-primary:active { transform: scale(0.96); transition-duration: 40ms; }
+.btn-primary:disabled { transform: none; filter: none; box-shadow: none; }
 
 .btn-secondary {
   will-change: transform;
-  transition: transform 100ms cubic-bezier(0.2, 0, 0, 1), color 120ms ease-out;
+  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1), color 120ms ease-out;
 }
-.btn-secondary:active { transform: scale(0.97); transition-duration: 40ms; }
+.btn-secondary:active { transform: scale(0.96); transition-duration: 40ms; }
 
 .card-anim {
   will-change: transform, opacity;
@@ -326,7 +485,7 @@ html, body {
 }
 .msg-anim-instant { opacity: 1; }
 
-/* ---- Quick Reply Options (Galileo-style) ---- */
+/* ---- Quick Reply Options (Galileo-style, teal accent) ---- */
 .quick-option {
   will-change: transform, opacity;
   animation: quickOptIn 180ms cubic-bezier(0.2, 0, 0, 1) both;
@@ -334,8 +493,9 @@ html, body {
 }
 .quick-option:hover:not(:disabled) {
   background: var(--color-bg-card-solid) !important;
-  border-color: rgba(200, 245, 71, 0.15) !important;
+  border-color: rgba(51, 201, 161, 0.2) !important;
   transform: translateX(4px);
+  box-shadow: 0 0 16px -4px rgba(51, 201, 161, 0.08);
 }
 .quick-option:active:not(:disabled) {
   transform: translateX(2px) scale(0.99);
@@ -359,6 +519,7 @@ html, body {
 .num-flash-down { animation: numFlashDown 600ms ease-out; }
 .breathe { animation: breathe 4s ease-in-out infinite; }
 .success-glow { animation: successGlow 1s ease-out; }
+.glow-pulse { animation: glowPulse 3s ease-in-out infinite; }
 
 .anticipate-in {
   will-change: transform, opacity;
@@ -395,10 +556,10 @@ html, body {
   will-change: width;
 }
 
-/* ---- Input glow on focus ---- */
+/* ---- Input glow — teal focus ring ---- */
 .input-glow:focus-within {
-  border-color: rgba(200, 245, 71, 0.2) !important;
-  box-shadow: 0 0 0 1px rgba(200, 245, 71, 0.08), 0 2px 12px rgba(200, 245, 71, 0.04);
+  border-color: rgba(51, 201, 161, 0.25) !important;
+  box-shadow: 0 0 0 1px rgba(51, 201, 161, 0.1), 0 2px 16px rgba(51, 201, 161, 0.06);
 }
 
 /* ---- Send button pulse ---- */
@@ -409,17 +570,17 @@ html, body {
 }
 .send-pulse { animation: sendPulse 200ms cubic-bezier(0.2, 0, 0, 1); }
 
-/* ---- Typing indicator ---- */
+/* ---- Typing indicator — teal dots ---- */
 @keyframes typingBounce {
   0%, 60%, 100% { transform: translate3d(0, 0, 0); }
   30% { transform: translate3d(0, -4px, 0); }
 }
-/* FAF breathing glow — slow, alive, premium */
+/* FAF breathing glow */
 @keyframes fafBreathe {
   0%, 100% { opacity: 0.3; transform: scale(1); }
   50% { opacity: 0.7; transform: scale(1.08); }
 }
-/* Floating orb behind balance — ambient depth */
+/* Floating orb — ambient depth */
 @keyframes orbFloat {
   0%, 100% { transform: translate(0, 0) scale(1); }
   33% { transform: translate(15px, -8px) scale(1.05); }
@@ -428,7 +589,7 @@ html, body {
 .typing-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: var(--color-accent-blue);
+  background: var(--color-brand-teal);
   display: inline-block;
 }
 .typing-dot:nth-child(1) { animation: typingBounce 1.2s ease-in-out infinite 0ms; }
@@ -436,23 +597,24 @@ html, body {
 .typing-dot:nth-child(3) { animation: typingBounce 1.2s ease-in-out infinite 300ms; }
 
 /* ============================================
-   TRADE CARD — Premium glass with gold edge glow
+   TRADE CARD — Premium glass with teal/cyan edge glow
+   (Upgraded from gold to brand colors)
    ============================================ */
 
 .trade-card-long,
 .trade-card-short {
-  border: 1px solid rgba(212, 175, 55, 0.25) !important;
-  background: rgba(14, 19, 28, 0.82);
+  border: 1px solid rgba(51, 201, 161, 0.2) !important;
+  background: rgba(14, 19, 28, 0.85);
   box-shadow:
-    0 0 0 1px rgba(212, 175, 55, 0.08),
-    0 16px 48px -12px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 0 0 1px rgba(51, 201, 161, 0.06),
+    0 20px 60px -12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   position: relative;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
 }
 
-/* Gold gradient moving along the border edges */
+/* Teal/cyan gradient spinning along border edges */
 .trade-card-long::before,
 .trade-card-short::before {
   content: "";
@@ -463,9 +625,9 @@ html, body {
     from var(--border-angle, 0deg),
     transparent 0%,
     transparent 25%,
-    rgba(212, 175, 55, 0.6) 30%,
-    rgba(245, 215, 120, 0.8) 35%,
-    rgba(212, 175, 55, 0.6) 40%,
+    rgba(51, 201, 161, 0.6) 30%,
+    rgba(58, 255, 225, 0.8) 35%,
+    rgba(51, 201, 161, 0.6) 40%,
     transparent 45%,
     transparent 100%
   );
@@ -476,7 +638,7 @@ html, body {
           mask-composite: exclude;
   padding: 1px;
   pointer-events: none;
-  animation: goldEdgeSpin 4s linear infinite;
+  animation: borderGlow 4s linear infinite;
 }
 
 @keyframes goldEdgeSpin {
@@ -488,6 +650,21 @@ html, body {
   syntax: "<angle>";
   initial-value: 0deg;
   inherits: false;
+}
+
+/* ============================================
+   AMBIENT BACKGROUND GRADIENTS
+   ============================================ */
+
+.ambient-teal {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 40% 30% at 20% 15%, rgba(51, 201, 161, 0.03) 0%, transparent 70%),
+    radial-gradient(ellipse 35% 25% at 80% 85%, rgba(58, 255, 225, 0.02) 0%, transparent 70%);
+  animation: orbFloat 20s ease-in-out infinite;
 }
 
 /* ---- Focus ---- */
@@ -504,5 +681,9 @@ input:focus-visible { outline: none; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  .glass-card, .glass-card-solid {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 }

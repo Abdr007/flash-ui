@@ -48,6 +48,8 @@ export default function MainLayout() {
 
   return (
     <div className="flex flex-col bg-bg-root overflow-hidden relative" style={{ height: "100dvh" }}>
+      {/* ---- Ambient Teal Glow (brand depth) ---- */}
+      <div className="ambient-teal" />
       {/* ---- Dotted Grid Background (Galileo-style) ---- */}
       <div className="dot-grid-full" />
 

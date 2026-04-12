@@ -110,27 +110,34 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   return (
     <div className="flex flex-col items-center w-full max-w-[520px] mx-auto pt-20 pb-6 px-5 relative">
 
-      {/* Ambient brand glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] pointer-events-none" style={{ opacity: 0.4 }}>
+      {/* Ambient brand glow — triple orb system */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[500px] pointer-events-none" style={{ opacity: 0.5 }}>
         <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 50% 40% at 50% 25%, rgba(58,255,225,0.04) 0%, transparent 70%)",
-          animation: "orbFloat 12s ease-in-out infinite",
+          background: "radial-gradient(ellipse 50% 40% at 50% 25%, rgba(51,201,161,0.06) 0%, transparent 70%)",
+          animation: "orbFloat 14s ease-in-out infinite",
         }} />
         <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 40% 30% at 55% 30%, rgba(255,235,0,0.02) 0%, transparent 60%)",
-          animation: "orbFloat 12s ease-in-out infinite 4s",
+          background: "radial-gradient(ellipse 40% 30% at 60% 35%, rgba(58,255,225,0.03) 0%, transparent 60%)",
+          animation: "orbFloat 14s ease-in-out infinite 4s",
+        }} />
+        <div className="absolute inset-0" style={{
+          background: "radial-gradient(ellipse 30% 20% at 40% 30%, rgba(200,245,71,0.015) 0%, transparent 60%)",
+          animation: "orbFloat 14s ease-in-out infinite 8s",
         }} />
       </div>
 
       {/* ═══ BALANCE ═══ */}
       <div className="relative z-10 flex flex-col items-center mb-10">
-        <div className="text-[11px] font-semibold tracking-[0.25em] uppercase mb-5"
-          style={{ color: "rgba(58,255,225,0.4)" }}>
+        <div className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-5"
+          style={{ color: "rgba(51,201,161,0.5)" }}>
           TOTAL BALANCE
         </div>
 
         <div className="text-[68px] font-bold tracking-[-0.03em] leading-[1] num mb-4"
-          style={{ color: walletConnected && !walletDataError ? "#FFFFFF" : "rgba(255,255,255,0.2)" }}>
+          style={{
+            color: walletConnected && !walletDataError ? "#FFFFFF" : "rgba(255,255,255,0.2)",
+            textShadow: walletConnected && !walletDataError ? "0 0 80px rgba(51,201,161,0.12)" : "none",
+          }}>
           {!walletConnected ? "$0.00"
             : walletDataLoading && totalWalletUsd === 0 ? "···"
             : walletDataError && totalWalletUsd === 0 ? "—"

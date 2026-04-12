@@ -446,9 +446,9 @@ const SimpleMarkdown = memo(function SimpleMarkdown({ text, onAction }: { text: 
                 className="inline-flex px-2 py-1 rounded-md text-[12px] font-mono cursor-pointer
                   transition-all duration-100 hover:scale-[1.02] active:scale-[0.98]"
                 style={{
-                  background: "rgba(200,245,71,0.1)",
-                  border: "1px solid rgba(200,245,71,0.15)",
-                  color: "var(--color-accent-lime)",
+                  background: "rgba(51,201,161,0.08)",
+                  border: "1px solid rgba(51,201,161,0.15)",
+                  color: "var(--color-brand-cyan)",
                 }}
               >
                 {cmd}
@@ -469,7 +469,7 @@ const UserMessage = memo(function UserMessage({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
       <div className="max-w-[85%] rounded-lg px-3.5 py-2.5"
-        style={{ background: "rgba(200,245,71,0.12)", border: "1px solid rgba(200,245,71,0.15)" }}>
+        style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.12)" }}>
         <span className="text-[13px] text-text-primary leading-relaxed">{text}</span>
       </div>
     </div>
