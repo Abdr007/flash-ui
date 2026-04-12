@@ -57,10 +57,12 @@ html, body {
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   height: 100%;
-  overflow: hidden;
   letter-spacing: -0.015em;
   font-size: 14px;
 }
+/* Main app locks viewport, landing page scrolls */
+body { overflow: hidden; }
+body:has(.landing-scroll) { overflow: auto; }
 
 /* ============================================
    PREMIUM DOTTED GRID BACKGROUND

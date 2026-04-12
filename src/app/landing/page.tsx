@@ -15,7 +15,7 @@ export default function LandingPage() {
   const heroOpacity = Math.max(0, 1 - scrollY / 600);
 
   return (
-    <div className="bg-bg-root text-text-primary min-h-screen overflow-x-hidden" style={{ overflowY: "auto" }}>
+    <div className="landing-scroll bg-bg-root text-text-primary min-h-screen overflow-x-hidden">
 
       {/* ══════════ HERO ══════════ */}
       <section className="relative min-h-screen flex flex-col items-center justify-center px-6 py-20 overflow-hidden">
