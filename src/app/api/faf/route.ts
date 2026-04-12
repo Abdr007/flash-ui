@@ -23,7 +23,7 @@ import {
   ComputeBudgetProgram,
 } from "@solana/web3.js";
 import type { Wallet } from "@coral-xyz/anchor";
-import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, safeErrorResponse } from "@/lib/api-security";
+import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, safeErrorResponse, enforceWalletMatch } from "@/lib/api-security";
 
 const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 const COMPUTE_UNITS = 220_000;
@@ -58,6 +58,10 @@ export async function GET(req: NextRequest) {
   if (!walletStr || !action) {
     return NextResponse.json({ error: "Missing action or wallet" }, { status: 400 });
   }
+
+  // Wallet impersonation check
+  const walletCheck = enforceWalletMatch(req, walletStr);
+  if (walletCheck) return walletCheck;
 
   let userPubkey: PublicKey;
   try {
@@ -109,6 +113,10 @@ export async function POST(req: NextRequest) {
     if (!action || !wallet) {
       return NextResponse.json({ error: "Missing action or wallet" }, { status: 400 });
     }
+
+    // Wallet impersonation check
+    const walletCheck = enforceWalletMatch(req, wallet);
+    if (walletCheck) return walletCheck;
 
     let userPubkey: PublicKey;
     try {

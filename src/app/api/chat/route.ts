@@ -502,6 +502,23 @@ export async function POST(req: Request) {
   const messages: UIMessage[] = Array.isArray(body.messages) ? body.messages : [];
   const walletAddress: string = typeof body.wallet_address === "string" ? body.wallet_address : "";
   const context = (typeof body.context === "object" && body.context !== null) ? body.context : {};
+
+  // Wallet impersonation check — if auth token is present, wallet must match
+  if (walletAddress) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader) {
+      const { verifyAuthToken } = await import("@/lib/wallet-auth");
+      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+      const payload = verifyAuthToken(token);
+      if (payload && payload.wallet.toLowerCase() !== walletAddress.toLowerCase()) {
+        return new Response(
+          JSON.stringify({ error: "Wallet mismatch: authenticated wallet does not match request" }),
+          { status: 403, headers: { "Content-Type": "application/json" } },
+        );
+      }
+    }
+  }
+
   const traceId: string =
     typeof body.trace_id === "string"
       ? body.trace_id

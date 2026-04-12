@@ -19,6 +19,7 @@
 // - Priority fee: 1 microlamport (minimum)
 
 import { NextRequest, NextResponse } from "next/server";
+import { enforceWalletMatch } from "@/lib/api-security";
 import {
   Connection,
   PublicKey,
@@ -94,6 +95,12 @@ export async function POST(req: NextRequest) {
   try {
     const body: TransferBuildRequest = await req.json();
     const { sender, recipient, token, amount, mint, decimals, is_native_sol, request_id } = body;
+
+    // ---- Wallet impersonation check ----
+    if (sender) {
+      const walletCheck = enforceWalletMatch(req, sender);
+      if (walletCheck) return walletCheck;
+    }
 
     // ---- Kill switch ----
     if (!TRANSFERS_ENABLED) {

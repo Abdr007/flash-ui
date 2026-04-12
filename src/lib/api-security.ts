@@ -227,3 +227,35 @@ export const RPC_READ_METHODS = new Set([
 // sendTransaction is deliberately EXCLUDED from the default whitelist.
 // Transactions should be broadcast via /api/broadcast which has
 // additional validation and monitoring.
+
+// ============================================
+// 10. Wallet Auth Enforcement
+// ============================================
+// Verifies that the authenticated wallet matches the wallet in the request.
+// Prevents impersonation: user A cannot build transactions for user B.
+
+import { getAuthWallet } from "@/lib/wallet-auth";
+
+/**
+ * Verify that the request's auth token wallet matches the claimed wallet.
+ * Returns null if valid, or an error response if mismatched.
+ * If no auth token is present, returns null (allows unauthenticated for now).
+ * When auth IS present, the wallet MUST match.
+ */
+export function enforceWalletMatch(
+  req: NextRequest,
+  claimedWallet: string,
+): NextResponse | null {
+  const authWallet = getAuthWallet(req);
+  // If no auth token provided, allow (backwards compatible)
+  // Endpoints can use requireAuth() from wallet-auth.ts to enforce auth
+  if (!authWallet) return null;
+  // If auth IS provided, wallet must match
+  if (authWallet.toLowerCase() !== claimedWallet.toLowerCase()) {
+    return NextResponse.json(
+      { error: "Wallet mismatch: authenticated wallet does not match request" },
+      { status: 403 }
+    );
+  }
+  return null;
+}
