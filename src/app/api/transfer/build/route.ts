@@ -277,10 +277,17 @@ export async function POST(req: NextRequest) {
     const simulation = await connection.simulateTransaction(transaction, { sigVerify: false });
     if (simulation.value.err) {
       const errMsg = JSON.stringify(simulation.value.err);
-      return NextResponse.json({
-        error: `Simulation failed: ${errMsg}`,
-        logs: simulation.value.logs?.slice(-5),
-      }, { status: 400 });
+      // Log details server-side, never expose raw simulation logs to client
+      console.error("[transfer/sim]", errMsg, simulation.value.logs?.slice(-3));
+      // Humanize the error for the client
+      let userMsg = "Transaction simulation failed. Please try again.";
+      if (errMsg.includes("InsufficientFunds") || errMsg.includes("insufficient"))
+        userMsg = "Insufficient funds for this transfer.";
+      else if (errMsg.includes("AccountNotFound"))
+        userMsg = "Recipient account not found on-chain.";
+      else if (errMsg.includes("frozen"))
+        userMsg = "This token account is frozen by the token issuer.";
+      return NextResponse.json({ error: userMsg }, { status: 400 });
     }
 
     // ---- Return unsigned transaction ----

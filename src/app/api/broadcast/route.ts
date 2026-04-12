@@ -1,11 +1,12 @@
 // Server-side multi-endpoint broadcast — replicates FlashEdge CLI broadcast behavior.
 //
-// Accepts a signed transaction (base64), fans out to all RPC endpoints in parallel,
-// and returns the signature. Keeps Helius API key server-side.
-//
-// This is the UI equivalent of ultra-tx-engine.broadcastToAll().
+// Accepts a signed transaction (base64), validates it's a real Solana transaction,
+// fans out to all RPC endpoints in parallel, and returns the signature.
+// Keeps Helius API key server-side.
 
 import { NextRequest, NextResponse } from "next/server";
+import { VersionedTransaction } from "@solana/web3.js";
+import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize } from "@/lib/api-security";
 
 const HELIUS_RPC =
   process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
@@ -13,39 +14,12 @@ const HELIUS_RPC =
 // Secondary RPCs for parallel broadcast (public endpoints, no key needed)
 const SECONDARY_RPCS = [
   "https://api.mainnet-beta.solana.com",
-].filter((url) => url !== HELIUS_RPC); // Avoid duplicate if Helius is down and fallback matches
+].filter((url) => url !== HELIUS_RPC);
 
-// Rate limit: 30 broadcasts/min per IP (trades are infrequent)
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 30;
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+// Rate limit: 20 broadcasts/min per IP (trades are infrequent)
+const limiter = new RateLimiter(20);
 
-function checkRateLimit(ip: string): boolean {
-  cleanupRateLimits();
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now >= entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT_MAX) return false;
-  entry.count++;
-  return true;
-}
-
-// Lazy cleanup — runs inside checkRateLimit, no setInterval needed on serverless
-function cleanupRateLimits() {
-  if (rateLimitMap.size < 50) return;
-  const now = Date.now();
-  for (const [ip, entry] of rateLimitMap) {
-    if (now >= entry.resetAt) rateLimitMap.delete(ip);
-  }
-  // Hard cap to prevent memory leak under attack
-  if (rateLimitMap.size > 1000) {
-    const oldest = rateLimitMap.keys().next().value;
-    if (oldest) rateLimitMap.delete(oldest);
-  }
-}
+const MAX_BODY_BYTES = 8_000; // ~3KB base64 tx + JSON overhead
 
 /**
  * Send a raw transaction to a single RPC endpoint.
@@ -90,18 +64,13 @@ async function sendToEndpoint(
 }
 
 export async function POST(req: NextRequest) {
-  // Use trusted IP headers — x-real-ip is set by Vercel/reverse proxy (not spoofable)
-  // Falls back to first x-forwarded-for entry
-  const ip =
-    req.headers.get("x-real-ip")?.trim() ??
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown";
-  if (!checkRateLimit(ip)) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded" },
-      { status: 429 }
-    );
-  }
+  // ---- Rate Limit (trusted IP) ----
+  const ip = getClientIp(req);
+  if (!limiter.check(ip)) return rateLimitResponse();
+
+  // ---- Body Size Limit ----
+  const sizeCheck = checkBodySize(req, MAX_BODY_BYTES);
+  if (sizeCheck) return sizeCheck;
 
   try {
     const body = await req.json();
@@ -114,7 +83,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate it's plausible base64 (not arbitrary data)
+    // Validate it's plausible base64 size
     if (txBase64.length > 3000 || txBase64.length < 100) {
       return NextResponse.json(
         { error: "Invalid transaction size" },
@@ -122,7 +91,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Parallel broadcast to all endpoints (same as CLI broadcastToAll) ──
+    // ---- Structure Validation: deserialize to verify it's a real Solana transaction ----
+    try {
+      const txBytes = Buffer.from(txBase64, "base64");
+      const tx = VersionedTransaction.deserialize(txBytes);
+      // Must have at least one signature (i.e., it's actually signed)
+      if (!tx.signatures || tx.signatures.length === 0) {
+        return NextResponse.json(
+          { error: "Transaction has no signatures" },
+          { status: 400 }
+        );
+      }
+      // Verify the first signature is not all zeros (unsigned placeholder)
+      const firstSig = tx.signatures[0];
+      if (firstSig.every((b: number) => b === 0)) {
+        return NextResponse.json(
+          { error: "Transaction is not signed" },
+          { status: 400 }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid transaction format" },
+        { status: 400 }
+      );
+    }
+
+    // ── Parallel broadcast to all endpoints ──
     const allEndpoints = [HELIUS_RPC, ...SECONDARY_RPCS];
 
     const results = await Promise.allSettled(

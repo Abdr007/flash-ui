@@ -23,10 +23,15 @@ import {
   ComputeBudgetProgram,
 } from "@solana/web3.js";
 import type { Wallet } from "@coral-xyz/anchor";
+import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, safeErrorResponse } from "@/lib/api-security";
 
 const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
-const COMPUTE_UNITS = 220_000; // Match CLI base CU (flash-client.ts)
-const PRIORITY_FEE = 50_000; // microlamports
+const COMPUTE_UNITS = 220_000;
+const PRIORITY_FEE = 50_000;
+const MAX_BODY_BYTES = 4_000;
+
+// Rate limit: 15 req/min per IP (staking is infrequent)
+const limiter = new RateLimiter(15);
 
 // Dummy wallet for read-only operations (SDK requires Wallet but we only read)
 function makeDummyWallet(pubkey: PublicKey): Wallet {
@@ -42,6 +47,10 @@ function makeDummyWallet(pubkey: PublicKey): Wallet {
 // ---- GET: Read state ----
 
 export async function GET(req: NextRequest) {
+  // ---- Rate Limit ----
+  const ip = getClientIp(req);
+  if (!limiter.check(ip)) return rateLimitResponse();
+
   const url = new URL(req.url);
   const action = url.searchParams.get("action");
   const walletStr = url.searchParams.get("wallet");
@@ -85,6 +94,14 @@ export async function GET(req: NextRequest) {
 // ---- POST: Build transactions ----
 
 export async function POST(req: NextRequest) {
+  // ---- Rate Limit ----
+  const ip = getClientIp(req);
+  if (!limiter.check(ip)) return rateLimitResponse();
+
+  // ---- Body Size Limit ----
+  const sizeCheck = checkBodySize(req, MAX_BODY_BYTES);
+  if (sizeCheck) return sizeCheck;
+
   try {
     const body = await req.json();
     const { action, wallet, amount, index } = body;
@@ -189,14 +206,18 @@ export async function POST(req: NextRequest) {
     const sim = await connection.simulateTransaction(transaction, { sigVerify: false });
     if (sim.value.err) {
       const errStr = JSON.stringify(sim.value.err);
-      // Humanize common errors
-      let msg = `Simulation failed: ${errStr}`;
+      // Humanize common errors — never expose raw simulation logs to client
+      let msg = "Transaction simulation failed. Please try again.";
       if (errStr.includes("AccountNotFound")) {
         msg = "You don't have FAF tokens in your wallet. Buy FAF first to start staking.";
       } else if (errStr.includes("InstructionError")) {
         msg = "Transaction would fail. Check your FAF balance and try again.";
+      } else if (errStr.includes("InsufficientFunds")) {
+        msg = "Insufficient funds for this operation.";
       }
-      return NextResponse.json({ error: msg, logs: sim.value.logs?.slice(-5) }, { status: 400 });
+      // Log details server-side for debugging, NOT in response
+      console.error("[faf/sim]", errStr, sim.value.logs?.slice(-3));
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
 
     const serialized = transaction.serialize();
@@ -208,8 +229,7 @@ export async function POST(req: NextRequest) {
       lastValidBlockHeight,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Failed to build FAF transaction";
-    console.error("[faf/POST]", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[faf/POST]", err instanceof Error ? err.message : err);
+    return safeErrorResponse(err, "Failed to build FAF transaction");
   }
 }

@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logInfo, logError } from "@/lib/logger";
+import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, isValidSolanaAddress } from "@/lib/api-security";
 
 const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 
-// Cache per wallet for 15s
+// Cache per wallet for 8s
 const cache = new Map<string, { data: WalletTokens; ts: number }>();
 const CACHE_TTL = 8_000;
+const MAX_BODY_BYTES = 2_000;
+
+// Rate limit: 30 req/min per IP
+const limiter = new RateLimiter(30);
 
 interface TokenBalance {
   symbol: string;
@@ -29,10 +34,20 @@ interface WalletTokens {
 const FAF_MINT = "FAFxVxnkzZHMCodkWyoccgUNgVScqMw2mhhQBYDFjFAF";
 
 export async function POST(req: NextRequest) {
+  // ---- Rate Limit ----
+  const ip = getClientIp(req);
+  if (!limiter.check(ip)) return rateLimitResponse();
+
+  // ---- Body Size Limit ----
+  const sizeCheck = checkBodySize(req, MAX_BODY_BYTES);
+  if (sizeCheck) return sizeCheck;
+
   const start = Date.now();
   try {
     const { wallet } = await req.json();
-    if (!wallet) return NextResponse.json({ error: "No wallet" }, { status: 400 });
+    if (!wallet || typeof wallet !== "string" || !isValidSolanaAddress(wallet)) {
+      return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
+    }
     logInfo("cache_miss", { wallet, data: { action: "fetch_start" } });
 
     // Check cache
@@ -199,6 +214,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed";
     logError("cache_miss", { error: msg, data: { latency_ms: Date.now() - start } });
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch token prices" }, { status: 500 });
   }
 }

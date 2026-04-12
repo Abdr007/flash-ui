@@ -47,7 +47,7 @@ export async function GET() {
     return Response.json(data, {
       headers: { "Cache-Control": "public, max-age=30, stale-while-revalidate=60" },
     });
-  } catch (err) {
+  } catch {
     // Return stale cache if available
     if (cached) {
       return Response.json(cached.data, {
@@ -56,7 +56,7 @@ export async function GET() {
     }
 
     return Response.json(
-      { error: err instanceof Error ? err.message : "Earn data unavailable" },
+      { error: "Earn data unavailable" },
       { status: 502 },
     );
   }

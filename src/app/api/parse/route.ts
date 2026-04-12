@@ -5,10 +5,12 @@
 // GROQ_API_KEY never exposed to client.
 
 import { NextRequest, NextResponse } from "next/server";
+import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, sanitizeLlmInput } from "@/lib/api-security";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 const TIMEOUT_MS = 8_000;
+const MAX_BODY_BYTES = 2_000;
 
 const SYSTEM_PROMPT = `You are a trading assistant embedded in a perpetual futures trading terminal (Flash.trade on Solana).
 
@@ -54,9 +56,8 @@ Examples:
 
 Output ONLY valid JSON. No markdown. No explanation outside JSON.`;
 
-// Simple IP rate limit for this endpoint
-const parseRateLimit = new Map<string, { count: number; resetAt: number }>();
-const PARSE_LIMIT_PER_MIN = 15;
+// Rate limit: 15 req/min per IP
+const limiter = new RateLimiter(15);
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GROQ_API_KEY;
@@ -64,24 +65,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "AI parser not configured" }, { status: 503 });
   }
 
-  // Rate limit
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const now = Date.now();
-  const entry = parseRateLimit.get(ip);
-  if (entry && now < entry.resetAt && entry.count >= PARSE_LIMIT_PER_MIN) {
-    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
-  }
-  if (!entry || now >= entry.resetAt) {
-    parseRateLimit.set(ip, { count: 1, resetAt: now + 60_000 });
-  } else {
-    entry.count++;
-  }
+  // ---- Rate Limit (trusted IP) ----
+  const ip = getClientIp(req);
+  if (!limiter.check(ip)) return rateLimitResponse();
+
+  // ---- Body Size Limit ----
+  const sizeCheck = checkBodySize(req, MAX_BODY_BYTES);
+  if (sizeCheck) return sizeCheck;
 
   try {
     const { input } = await req.json();
     if (!input || typeof input !== "string" || input.length > 500) {
       return NextResponse.json({ error: "invalid_input" }, { status: 400 });
     }
+
+    // Sanitize input before sending to LLM
+    const cleanInput = sanitizeLlmInput(input, 500);
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -96,7 +95,7 @@ export async function POST(req: NextRequest) {
         model: GROQ_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: input },
+          { role: "user", content: cleanInput },
         ],
         temperature: 0,
         max_tokens: 200,

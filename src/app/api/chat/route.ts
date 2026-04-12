@@ -477,9 +477,10 @@ export async function POST(req: Request) {
     );
   }
 
-  // 1. IP rate limit
+  // 1. IP rate limit (use trusted x-real-ip, fall back to x-forwarded-for)
   const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    req.headers.get("x-real-ip")?.trim() ??
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (!checkIpRateLimit(ip)) {
     return new Response(
       JSON.stringify({ error: "Rate limit exceeded" }),
