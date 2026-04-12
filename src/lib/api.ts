@@ -180,6 +180,8 @@ export async function getPositions(ownerPubkey: string): Promise<Position[]> {
     `/positions/owner/${encodeURIComponent(ownerPubkey)}?includePnlInLeverageDisplay=true`
   );
 
+  if (!Array.isArray(res)) return [];
+
   return res.map((raw: unknown) => {
     const p = raw as Record<string, unknown>;
     const sideRaw = String(p.sideUi ?? p.side ?? "Long").toLowerCase();

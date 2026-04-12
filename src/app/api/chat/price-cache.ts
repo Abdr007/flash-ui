@@ -70,17 +70,16 @@ export function updatePriceCache(allPrices: Record<string, { price: number }>): 
   const now = Date.now();
   for (const [symbol, data] of Object.entries(allPrices)) {
     if (data && Number.isFinite(data.price) && data.price > 0) {
-      // Drift detection: warn if cached price has moved significantly
+      // Atomic check-and-set (JS is single-threaded for sync code blocks)
       const existing = prices.get(symbol);
-      if (existing && existing.price > 0) {
+      const newEntry = { price: data.price, timestamp: now };
+      prices.set(symbol, newEntry); // Set first, then check drift
+      if (existing && existing.price > 0 && data.price > 0) {
         const drift = Math.abs(data.price - existing.price) / existing.price;
         if (drift > DRIFT_THRESHOLD) {
           metrics.drifts++;
-          // Price moved >5% — the stale cache was unreliable.
-          // This is informational; the new price replaces it immediately below.
         }
       }
-      prices.set(symbol, { price: data.price, timestamp: now });
     }
   }
 }

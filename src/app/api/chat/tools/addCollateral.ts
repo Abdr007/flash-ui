@@ -118,11 +118,12 @@ export function createAddCollateralTool(wallet: string) {
         const newLeverage = apiPreview
           ? parseFloat(apiPreview.newLeverage)
           : position.size_usd / (currentCollateral + amount_usd);
+        const mmr = Math.min(0.005, 0.5 / newLeverage);
         const newLiqPrice = apiPreview
           ? parseFloat(apiPreview.newLiquidationPrice)
           : (side === "LONG"
-            ? position.entry_price * (1 - 1 / newLeverage)
-            : position.entry_price * (1 + 1 / newLeverage));
+            ? position.entry_price * (1 - 1 / newLeverage + mmr)
+            : position.entry_price * (1 + 1 / newLeverage - mmr));
 
         const markPrice = result.priceData?.price ?? position.mark_price;
         const currentLiqDistance = markPrice > 0

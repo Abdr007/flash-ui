@@ -232,10 +232,11 @@ export function resolveTradeModification(
   }
 
   if (modification.collateral_usd || modification.leverage || modification.entry_price) {
+    const mmr = Math.min(0.005, 0.5 / merged.leverage);
     merged.liquidation_price =
       merged.side === "LONG"
-        ? merged.entry_price - merged.entry_price / merged.leverage
-        : merged.entry_price + merged.entry_price / merged.leverage;
+        ? merged.entry_price * (1 - 1 / merged.leverage + mmr)
+        : merged.entry_price * (1 + 1 / merged.leverage - mmr);
   }
 
   // Validate AFTER modification

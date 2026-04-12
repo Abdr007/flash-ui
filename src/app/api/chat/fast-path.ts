@@ -189,13 +189,13 @@ function validate(
 
   // TP/SL dynamic distance validation (freshness-aware)
   if (trade.tp != null) {
-    const dist = Math.abs(trade.tp - entryPrice) / entryPrice;
+    const dist = entryPrice > 0 ? Math.abs(trade.tp - entryPrice) / entryPrice : 0;
     if (dist > distMax || dist < distMin) return { valid: false };
     if (trade.side === "LONG" && trade.tp <= entryPrice) return { valid: false };
     if (trade.side === "SHORT" && trade.tp >= entryPrice) return { valid: false };
   }
   if (trade.sl != null) {
-    const dist = Math.abs(trade.sl - entryPrice) / entryPrice;
+    const dist = entryPrice > 0 ? Math.abs(trade.sl - entryPrice) / entryPrice : 0;
     if (dist > distMax || dist < distMin) return { valid: false };
     if (trade.side === "LONG" && trade.sl >= entryPrice) return { valid: false };
     if (trade.side === "SHORT" && trade.sl <= entryPrice) return { valid: false };
@@ -207,7 +207,7 @@ function validate(
   const fees = positionSize * feeRate;
   const MAINTENANCE_MARGIN_RATE = 0.005; // 0.5%
   const collateralAfterFees = trade.collateral - fees;
-  const marginRatio = collateralAfterFees / positionSize;
+  const marginRatio = positionSize > 0 ? collateralAfterFees / positionSize : 0;
   const liquidationPrice = trade.side === "LONG"
     ? entryPrice * (1 - marginRatio + MAINTENANCE_MARGIN_RATE)
     : entryPrice * (1 + marginRatio - MAINTENANCE_MARGIN_RATE);

@@ -127,8 +127,9 @@ export function checkWalletToolRate(
     };
   }
 
-  // Check burst
-  if (entry.timestamps.length >= RATE_BURST_MAX) {
+  // Push first, then check burst count (defensive against concurrent async entries)
+  entry.timestamps.push(now);
+  if (entry.timestamps.length > RATE_BURST_MAX) {
     logError("tool_call", {
       request_id: requestId,
       wallet,
@@ -137,13 +138,12 @@ export function checkWalletToolRate(
     return {
       status: "error",
       data: null,
-      error: "Rate limit exceeded — max 20 tool calls per 10 seconds",
+      error: "Too many operations. Wait a moment.",
       request_id: requestId,
       latency_ms: 0,
     };
   }
 
-  entry.timestamps.push(now);
   return null;
 }
 
