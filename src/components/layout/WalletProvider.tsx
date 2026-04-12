@@ -11,7 +11,7 @@ import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { useFlashStore } from "@/store";
 
-import "@/app/wallet-adapter.css";
+// wallet-adapter CSS is imported in app/layout.tsx (Turbopack requires CSS imports in route files)
 
 // Use proxy endpoint to keep Helius API key server-side.
 // Fallback to public RPC if no proxy configured.
