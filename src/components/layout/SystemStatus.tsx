@@ -16,7 +16,7 @@ export default function SystemStatus() {
   };
 
   return (
-    <div className="relative flex items-center px-5 h-10 shrink-0">
+    <div className="relative flex items-center px-5 h-12 shrink-0 pt-2">
       {/* Wallet — right aligned */}
       <div className="ml-auto relative z-10">
         {walletConnected ? (

@@ -110,10 +110,10 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   const toggleAssets = useCallback(() => setAssetsExpanded((v) => !v), []);
 
   return (
-    <div className="flex flex-col items-center w-full max-w-[520px] mx-auto pt-10 pb-4 px-5 relative">
+    <div className="flex flex-col items-center w-full max-w-[520px] mx-auto pt-4 pb-4 px-5 relative">
 
       {/* Early version notice — always visible */}
-      <div className="text-center mb-6 relative z-10">
+      <div className="text-center mb-4 relative z-10">
         <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.25)" }}>
           You are using an <span className="font-semibold" style={{ color: "var(--color-brand-cyan)" }}>early</span> version of Flash Terminal. Always verify before signing.
         </span>
