@@ -147,7 +147,8 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
               <div className="h-full rounded-full" style={{
                 width: `${Math.min(springLiqDist, 100)}%`,
                 background: liqDist < 10 ? "var(--color-accent-short)" : liqDist < 20 ? "var(--color-accent-warn)" : "var(--color-accent-long)",
-                transition: "background-color 300ms ease-out",
+                boxShadow: `0 0 8px ${liqDist < 10 ? "rgba(255,77,77,0.3)" : liqDist < 20 ? "rgba(245,166,35,0.3)" : "rgba(0,210,106,0.3)"}`,
+                transition: "background-color 300ms ease-out, box-shadow 300ms ease-out",
               }} />
             </div>
           </div>
@@ -177,21 +178,21 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
             <button
               onClick={confirmTrade}
               disabled={!isReady || !walletConnected}
-              className="flex-1 py-3 text-[13px] font-bold tracking-wide
-                cursor-pointer disabled:opacity-25 disabled:cursor-default
-                transition-all duration-150 hover:brightness-110 rounded-none rounded-bl-xl"
+              className="btn-cta flex-1 py-3.5 text-[13px] font-bold tracking-wide disabled:opacity-25"
               style={{
+                borderRadius: "0 0 0 16px",
+                background: isReady && walletConnected ? accent : "rgba(255,255,255,0.04)",
                 color: isReady && walletConnected ? "#000" : "var(--color-text-tertiary)",
-                background: isReady && walletConnected ? accent : "transparent",
+                boxShadow: isReady && walletConnected ? `0 0 20px -4px ${accent}40` : "none",
               }}
             >
               {walletConnected ? "Confirm Trade" : "Connect Wallet"}
             </button>
             <button
               onClick={cancelTrade}
-              className="px-6 py-3 text-[13px] text-text-tertiary
-                border-l border-border-subtle hover:text-text-secondary
-                cursor-pointer transition-colors duration-150 rounded-none rounded-br-xl"
+              className="btn-ghost px-6 py-3.5 text-[13px] text-text-tertiary
+                border-l border-border-subtle hover:text-text-secondary"
+              style={{ borderRadius: "0 0 16px 0", border: "none", borderLeft: "1px solid var(--color-border-subtle)" }}
             >
               Cancel
             </button>
@@ -202,7 +203,11 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
         {isExecuting && (
           <div className="px-5 py-4 border-t border-border-subtle flex items-center gap-3">
             <div className="w-4 h-4 border-2 border-t-transparent rounded-full"
-              style={{ borderColor: `${accent} transparent ${accent} ${accent}`, animation: "spin 0.7s linear infinite" }} />
+              style={{
+                borderColor: `${accent} transparent ${accent} ${accent}`,
+                animation: "spin 0.7s linear infinite",
+                filter: `drop-shadow(0 0 6px ${accent})`,
+              }} />
             <div className="flex flex-col">
               <span className="text-[13px] text-text-primary">
                 {trade.status === "SIGNING" ? "Waiting for wallet..." : "Building transaction..."}
