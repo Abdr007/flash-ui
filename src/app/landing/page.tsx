@@ -14,10 +14,26 @@ const DEMO_TRADES: Record<string, { side: string; market: string; lev: string; e
 
 function matchDemo(input: string) {
   const lower = input.toLowerCase().trim();
+  // Try exact matches first
   for (const [key, val] of Object.entries(DEMO_TRADES)) {
     if (lower.includes(key)) return val;
   }
-  return null;
+  // Flexible parse: extract side + market + optional leverage
+  const sideMatch = lower.match(/\b(long|short)\b/);
+  const marketMatch = lower.match(/\b(sol|btc|eth)\b/);
+  if (!sideMatch || !marketMatch) return null;
+  const side = sideMatch[1] === "long" ? "LONG" : "SHORT";
+  const market = marketMatch[1].toUpperCase();
+  // Parse leverage (e.g., "2x", "10x")
+  const levMatch = lower.match(/(\d+)\s*x/);
+  const lev = levMatch ? parseInt(levMatch[1]) : 5;
+  // Parse collateral (e.g., "$100", "100")
+  const colMatch = lower.match(/\$?\s*(\d+)/g);
+  const collateral = colMatch ? parseInt(colMatch[colMatch.length - 1].replace("$", "")) || 100 : 100;
+  const size = collateral * lev;
+  const base = DEMO_TRADES[`${sideMatch[1]} ${marketMatch[1]}`];
+  const entry = base?.entry ?? "$100.00";
+  return { side, market, lev: `${lev}x`, entry, liq: "—", size: `$${size.toLocaleString()}`, fees: `$${(size * 0.0008).toFixed(2)}` };
 }
 
 export default function LandingPage() {
