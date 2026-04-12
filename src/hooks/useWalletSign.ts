@@ -39,6 +39,16 @@ export function useWalletSign() {
         const transaction = VersionedTransaction.deserialize(txBytes);
 
         const signed = await signTransaction(transaction);
+
+        // POST-SIGN SAFETY: check if trade was cancelled while wallet was open.
+        // If user clicked Cancel in the UI during the wallet popup, activeTrade
+        // will have been cleared. Do NOT broadcast a signed tx for a cancelled trade.
+        const currentTrade = useFlashStore.getState().activeTrade;
+        if (!currentTrade || currentTrade.status !== "SIGNING") {
+          console.warn("[useWalletSign] Trade cancelled during signing — NOT broadcasting");
+          return;
+        }
+
         const signedBase64 = Buffer.from(signed.serialize()).toString("base64");
         const signature = await executeSignedTransaction(signedBase64, connection);
 
