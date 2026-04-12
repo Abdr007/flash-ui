@@ -96,7 +96,8 @@ export async function POST(req: NextRequest) {
 
     for (const item of result.items ?? []) {
       const info = item.token_info ?? {};
-      const symbol = String(info.symbol ?? "???");
+      const rawSymbol = info.symbol || item.content?.metadata?.symbol || item.content?.metadata?.name || "";
+      const symbol = rawSymbol ? String(rawSymbol) : (item.id ? String(item.id).slice(0, 6) + "…" : "???");
       const mint = String(item.id ?? "");
       const balance = Number(info.balance ?? 0);
       const decimals = Number(info.decimals ?? 0);

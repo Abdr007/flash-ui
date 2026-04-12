@@ -17,10 +17,11 @@ export default function SystemStatus() {
 
   return (
     <div className="relative flex items-center justify-between px-5 h-11 shrink-0">
-      {/* Early version — left/center */}
-      <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.25)" }}>
-        You are using an <span className="font-semibold" style={{ color: "var(--color-brand-cyan)" }}>early</span> version of Flash Terminal. Always verify before signing.
+      {/* Early version — subtle, left */}
+      <span className="text-[10px] hidden sm:inline" style={{ color: "rgba(255,255,255,0.18)" }}>
+        <span className="font-semibold" style={{ color: "rgba(58,255,225,0.4)" }}>early</span> version · always verify before signing
       </span>
+      <span className="sm:hidden" />
 
       {/* Wallet — right */}
       {walletConnected ? (
