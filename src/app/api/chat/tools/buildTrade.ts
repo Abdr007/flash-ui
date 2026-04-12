@@ -77,7 +77,7 @@ export function createBuildTradeTool(wallet: string) {
         .positive()
         .optional()
         .describe("Stop loss price — must be below entry for LONG, above for SHORT"),
-    }),
+    }).strict(),
     execute: async ({
       market,
       side,

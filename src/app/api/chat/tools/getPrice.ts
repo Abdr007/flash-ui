@@ -22,7 +22,7 @@ export function createGetPriceTool(wallet: string) {
       "Get the current price of a specific market (e.g., SOL, BTC, ETH)",
     inputSchema: z.object({
       market: z.string().describe("Market symbol (e.g., SOL, BTC, ETH)"),
-    }),
+    }).strict(),
     execute: async ({ market }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 

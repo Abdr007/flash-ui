@@ -299,7 +299,7 @@ export function createTransferPreviewTool(wallet: string) {
       token: z.string().describe("Token symbol (e.g. USDC, SOL) or mint address"),
       amount: z.number().positive().describe("Amount to transfer (human-readable, not raw)"),
       recipient: z.string().describe("Recipient wallet address (base58 public key)"),
-    }),
+    }).strict(),
     execute: async ({
       token,
       amount,

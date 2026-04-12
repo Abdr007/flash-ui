@@ -93,7 +93,7 @@ export function createFafStakeTool(wallet: string) {
       "Trigger: 'faf stake <amount>', 'stake 10 faf', 'i want to stake'.",
     inputSchema: z.object({
       amount: z.number().positive().describe("Amount of FAF to stake"),
-    }),
+    }).strict(),
     execute: async ({ amount }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId("faf_stake");
       const start = Date.now();
@@ -177,7 +177,7 @@ export function createFafUnstakeTool(wallet: string) {
       "Trigger: 'faf unstake <amount>', 'unstake 10 faf', 'i want to unstake', 'withdraw faf'.",
     inputSchema: z.object({
       amount: z.number().positive().describe("Amount of FAF to unstake"),
-    }),
+    }).strict(),
     execute: async ({ amount }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId("faf_unstake");
       const start = Date.now();
@@ -233,7 +233,7 @@ export function createFafClaimTool(wallet: string) {
       "Call when user says 'faf claim', 'claim rewards', 'claim revenue'.",
     inputSchema: z.object({
       claim_type: z.enum(["all", "rewards", "revenue"]).optional().describe("What to claim"),
-    }),
+    }).strict(),
     execute: async ({ claim_type }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId("faf_claim");
       const start = Date.now();
@@ -325,7 +325,7 @@ export function createFafCancelUnstakeTool(wallet: string) {
       "Call when user says 'faf cancel <index>'.",
     inputSchema: z.object({
       index: z.number().int().min(0).describe("Request index (0-based)"),
-    }),
+    }).strict(),
     execute: async ({ index }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId("faf_cancel");
       const start = Date.now();

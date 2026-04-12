@@ -25,7 +25,7 @@ export function createReversePositionTool(wallet: string) {
     inputSchema: z.object({
       market: z.string().describe("Market symbol (e.g. SOL, BTC, ETH)"),
       side: z.enum(["LONG", "SHORT"]).describe("Current position side to reverse"),
-    }),
+    }).strict(),
     execute: async ({ market, side }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 

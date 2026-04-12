@@ -48,7 +48,7 @@ export function createTransferHistoryTool(wallet: string) {
         "JSON string of transfer history from client localStorage. " +
         "If not provided, returns empty results."
       ),
-    }),
+    }).strict(),
     execute: async ({ history_json }): Promise<ToolResponse<TransferInsights>> => {
       const requestId = makeRequestId();
       const start = Date.now();

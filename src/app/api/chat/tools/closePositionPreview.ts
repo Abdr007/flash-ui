@@ -43,7 +43,7 @@ export function createClosePositionPreviewTool(wallet: string) {
         .max(100)
         .default(100)
         .describe("Percentage to close (1-100)"),
-    }),
+    }).strict(),
     execute: async ({
       market,
       side,

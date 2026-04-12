@@ -29,7 +29,7 @@ export function createEarnDepositTool(wallet: string) {
     inputSchema: z.object({
       pool: z.string().describe("Pool name (crypto, defi, gold, meme, wif, fart, ore, stable)"),
       amount_usdc: z.number().positive().describe("Amount in USDC to deposit"),
-    }),
+    }).strict(),
     execute: async ({ pool, amount_usdc }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 

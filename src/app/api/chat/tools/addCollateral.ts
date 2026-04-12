@@ -41,7 +41,7 @@ export function createAddCollateralTool(wallet: string) {
       market: z.string().describe("Market symbol (e.g., SOL, BTC, ETH)"),
       side: z.enum(["LONG", "SHORT"]).describe("Position side"),
       amount_usd: z.number().min(1).describe("Amount of collateral to add in USD"),
-    }),
+    }).strict(),
     execute: async ({
       market,
       side,

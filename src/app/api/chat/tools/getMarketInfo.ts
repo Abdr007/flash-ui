@@ -18,7 +18,7 @@ export function createGetMarketInfoTool(wallet: string) {
       "Get market metadata: pool, category, leverage caps (normal + degen), live price, fee rate, utilization, and trading-hours status",
     inputSchema: z.object({
       market: z.string().describe("Market symbol (e.g., SOL, BTC, MET, EUR)"),
-    }),
+    }).strict(),
     execute: async ({ market }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 

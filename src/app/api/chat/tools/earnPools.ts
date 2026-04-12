@@ -245,7 +245,7 @@ export function createEarnWithdrawTool(wallet: string) {
     inputSchema: z.object({
       pool: z.string().describe("Pool name"),
       percent: z.number().min(1).max(100).default(100).describe("Percentage to withdraw"),
-    }),
+    }).strict(),
     execute: async ({ pool, percent }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
       const start = Date.now();

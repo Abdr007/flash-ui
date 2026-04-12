@@ -713,7 +713,7 @@ export async function POST(req: Request) {
     system: systemPrompt,
     messages: modelMessages,
     tools,
-    stopWhen: stepCountIs(5),
+    stopWhen: stepCountIs(3), // Capped at 3 to limit LLM tool-call loops
     experimental_transform: smoothStream(),
     temperature: 0,
     maxOutputTokens: 320,

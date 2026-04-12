@@ -76,12 +76,27 @@ export function getSystemPrompt(context?: {
     `- Market: get_price / get_all_prices / get_positions / get_portfolio / get_market_info.`,
   ];
 
-  if (context?.lastTradeDraft) {
-    lines.push(``, `Last draft: ${JSON.stringify(context.lastTradeDraft)}.`);
+  // ── Context injection defense ──
+  // NEVER embed raw user-controlled data into system prompt.
+  // Extract only primitive, validated fields — no JSON.stringify of untrusted objects.
+  if (context?.lastTradeDraft && typeof context.lastTradeDraft === "object") {
+    const d = context.lastTradeDraft as Record<string, unknown>;
+    // Extract only known safe fields as primitives
+    const market = typeof d.market === "string" ? d.market.slice(0, 10).replace(/[^A-Za-z]/g, "") : "";
+    const side = d.side === "LONG" || d.side === "SHORT" ? d.side : "";
+    const lev = typeof d.leverage === "number" && Number.isFinite(d.leverage) ? Math.round(d.leverage) : 0;
+    const col = typeof d.collateral_usd === "number" && Number.isFinite(d.collateral_usd) ? Math.round(d.collateral_usd) : 0;
+    if (market && side) {
+      lines.push(``, `Last draft: ${side} ${market} ${lev}x $${col}.`);
+    }
   }
-  if (context?.portfolioSnapshot) {
+  if (context?.portfolioSnapshot && typeof context.portfolioSnapshot === "object") {
     const s = context.portfolioSnapshot;
-    lines.push(`Portfolio: ${s.positions.length} pos, $${s.balance.toFixed(0)} bal, $${s.totalExposure.toFixed(0)} exp.`);
+    // Validate each field is the expected type before using
+    const posCount = Array.isArray(s.positions) ? s.positions.length : 0;
+    const bal = typeof s.balance === "number" && Number.isFinite(s.balance) ? Math.round(s.balance) : 0;
+    const exp = typeof s.totalExposure === "number" && Number.isFinite(s.totalExposure) ? Math.round(s.totalExposure) : 0;
+    lines.push(`Portfolio: ${posCount} pos, $${bal} bal, $${exp} exp.`);
   }
 
   return lines.join("\n");
