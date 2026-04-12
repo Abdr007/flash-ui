@@ -641,11 +641,6 @@ html, body {
   animation: borderGlow 4s linear infinite;
 }
 
-@keyframes goldEdgeSpin {
-  0%   { --border-angle: 0deg; }
-  100% { --border-angle: 360deg; }
-}
-
 @property --border-angle {
   syntax: "<angle>";
   initial-value: 0deg;
