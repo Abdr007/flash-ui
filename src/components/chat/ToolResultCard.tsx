@@ -96,7 +96,7 @@ const ToolResultCard = memo(function ToolResultCard({ part, onAction }: { part: 
 
   let card: React.ReactNode;
   switch (part.toolName) {
-    case "build_trade": card = <TradePreviewCard output={output} />; break;
+    case "build_trade": card = <TradePreviewCard output={output} onAction={onAction} />; break;
     case "close_position_preview": card = <ClosePreviewCard output={output} />; break;
     case "get_positions": card = <PositionsCard output={output} />; break;
     case "get_portfolio": card = <PortfolioCard output={output} />; break;
@@ -261,7 +261,7 @@ function validateTpSlAgainstEntry(
 
 // ---- Trade Preview Card ----
 
-const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: ToolOutput }) {
+const TradePreviewCard = memo(function TradePreviewCard({ output, onAction }: { output: ToolOutput; onAction?: (cmd: string) => void }) {
   // ─── ALL HOOKS MUST BE CALLED UNCONDITIONALLY ───
   // Early returns below must not be moved above this block or React will
   // see a mismatched hook count between renders and crash with
@@ -637,6 +637,7 @@ const TradePreviewCard = memo(function TradePreviewCard({ output }: { output: To
           trade={t}
           onApplyTp={(v) => setTpDraft(String(v))}
           onApplySl={(v) => setSlDraft(String(v))}
+          onAction={onAction}
         />
       )}
     </div>
@@ -660,10 +661,12 @@ const TradeHints = memo(function TradeHints({
   trade,
   onApplyTp,
   onApplySl,
+  onAction,
 }: {
   trade: TradePreview;
   onApplyTp?: (value: number) => void;
   onApplySl?: (value: number) => void;
+  onAction?: (cmd: string) => void;
 }) {
   const [dismissed, setDismissed] = useState(false);
   // Per-chip applied state: applying TP must NOT remove the SL chip and
@@ -764,15 +767,9 @@ const TradeHints = memo(function TradeHints({
             }
 
             setDismissed(true);
-            try {
-              const input = document.querySelector<HTMLTextAreaElement>("textarea");
-              if (input) {
-                const nativeSet = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
-                nativeSet?.call(input, h.intent);
-                input.dispatchEvent(new Event("input", { bubbles: true }));
-                input.focus();
-              }
-            } catch {}
+            if (h.intent && onAction) {
+              onAction(h.intent);
+            }
           }}
           className="chip text-[11px] px-3 py-1.5 cursor-pointer"
           style={{ color: h.color, background: `${h.color}08`, border: `1px solid ${h.color}20` }}
