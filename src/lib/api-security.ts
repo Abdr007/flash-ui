@@ -209,7 +209,6 @@ export function isAllowedFstatsPath(path: string): boolean {
 export const RPC_READ_METHODS = new Set([
   "getAccountInfo",
   "getBalance",
-  "getBlock",
   "getBlockHeight",
   "getLatestBlockhash",
   "getSignatureStatuses",
@@ -218,10 +217,12 @@ export const RPC_READ_METHODS = new Set([
   "getTokenAccountsByOwner",
   "getTransaction",
   "getMultipleAccounts",
-  "getProgramAccounts",
   "getRecentBlockhash",
   "getMinimumBalanceForRentExemption",
-  "simulateTransaction",
+  // simulateTransaction EXCLUDED — allows probing protocol state
+  // sendTransaction EXCLUDED — use /api/broadcast with validation
+  // getBlock EXCLUDED — heavyweight, can be used for DoS
+  // getProgramAccounts EXCLUDED — heavyweight scan, can be used for DoS
 ]);
 
 // sendTransaction is deliberately EXCLUDED from the default whitelist.
@@ -239,17 +240,25 @@ import { getAuthWallet } from "@/lib/wallet-auth";
 /**
  * Verify that the request's auth token wallet matches the claimed wallet.
  * Returns null if valid, or an error response if mismatched.
- * If no auth token is present, returns null (allows unauthenticated for now).
- * When auth IS present, the wallet MUST match.
+ *
+ * STRICT MODE (default): Auth is REQUIRED. No token = 401.
+ * PERMISSIVE MODE (strict=false): No token = allowed (backwards compat for read-only).
  */
 export function enforceWalletMatch(
   req: NextRequest,
   claimedWallet: string,
+  strict = true,
 ): NextResponse | null {
   const authWallet = getAuthWallet(req);
-  // If no auth token provided, allow (backwards compatible)
-  // Endpoints can use requireAuth() from wallet-auth.ts to enforce auth
-  if (!authWallet) return null;
+  if (!authWallet) {
+    if (strict) {
+      return NextResponse.json(
+        { error: "Authentication required. Sign a message with your wallet first." },
+        { status: 401 }
+      );
+    }
+    return null; // Permissive mode for read-only endpoints
+  }
   // If auth IS provided, wallet must match
   if (authWallet.toLowerCase() !== claimedWallet.toLowerCase()) {
     return NextResponse.json(

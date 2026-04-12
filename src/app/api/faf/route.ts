@@ -59,8 +59,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing action or wallet" }, { status: 400 });
   }
 
-  // Wallet impersonation check
-  const walletCheck = enforceWalletMatch(req, walletStr);
+  // Wallet impersonation check (permissive for read-only GET)
+  const walletCheck = enforceWalletMatch(req, walletStr, false);
   if (walletCheck) return walletCheck;
 
   let userPubkey: PublicKey;
