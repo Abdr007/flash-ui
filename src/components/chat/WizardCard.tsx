@@ -183,13 +183,13 @@ const WizardCard = memo(function WizardCard({ intro, steps, onComplete }: Wizard
                   fontSize: 13,
                   fontWeight: 450,
                   border: isSelected
-                    ? "1px solid var(--color-accent-lime)"
+                    ? "1px solid rgba(51,201,161,0.3)"
                     : "1px solid rgba(255,255,255,0.06)",
                   background: isSelected
-                    ? "rgba(200,245,71,0.06)"
+                    ? "rgba(51,201,161,0.06)"
                     : "transparent",
                   color: isSelected
-                    ? "var(--color-accent-lime)"
+                    ? "var(--color-brand-cyan)"
                     : "var(--color-text-primary)",
                   transition: "all 140ms ease-out",
                 }}

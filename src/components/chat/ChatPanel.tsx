@@ -349,6 +349,10 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                     color: input.trim() && !isStreaming && !isExecuting
                       ? "#070A0F"
                       : "var(--color-text-tertiary)",
+                    boxShadow: input.trim() && !isStreaming && !isExecuting
+                      ? "0 0 16px rgba(200,245,71,0.3)"
+                      : "none",
+                    transition: "all 200ms cubic-bezier(0.34, 1.56, 0.64, 1)",
                   }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

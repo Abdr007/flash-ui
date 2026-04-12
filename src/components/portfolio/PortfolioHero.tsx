@@ -276,26 +276,20 @@ const ActionNode = memo(function ActionNode({ label, icon, onClick }: {
   label: string; icon: React.ReactNode; onClick: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex flex-col items-center gap-3 group">
       <button onClick={onClick}
-        className="flex items-center justify-center cursor-pointer
-          transition-all duration-200 hover:-translate-y-[2px]
-          active:scale-[0.92] active:translate-y-0"
-        style={{
-          width: "66px", height: "66px", borderRadius: "50%",
-          background: "rgba(255,255,255,0.03)",
-          border: "1.5px solid rgba(255,255,255,0.07)",
-          backdropFilter: "blur(16px)",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}>
+        className="action-circle"
+        style={{ width: "66px", height: "66px" }}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-          stroke="rgba(255,255,255,0.55)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          className="transition-colors duration-200"
+          stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ filter: "none" }}
+          onMouseEnter={() => {}}
+          onMouseLeave={() => {}}>
           {icon}
         </svg>
       </button>
-      <span className="text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</span>
+      <span className="text-[12px] font-medium transition-colors duration-200" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</span>
     </div>
   );
 });

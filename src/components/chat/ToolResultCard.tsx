@@ -377,7 +377,7 @@ const TradePreviewCard = memo(function TradePreviewCard({ output, onAction }: { 
 
       {/* Speed badge */}
       {output.latency_ms != null && (
-        <div className="px-5 py-1.5 flex items-center gap-2 border-b border-border-subtle" style={{ background: "rgba(200,245,71,0.03)" }}>
+        <div className="px-5 py-1.5 flex items-center gap-2 border-b border-border-subtle" style={{ background: "rgba(51,201,161,0.03)" }}>
           {output.latency_ms === 0 ? (
             <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent-lime)" }}>⚡ INSTANT</span>
           ) : (
@@ -2834,7 +2834,7 @@ function FafAmountPicker({ data, onAction }: { data: Record<string, unknown>; on
           </button>
         ) : (
           <div className="flex items-center gap-2 px-4 py-2 rounded-xl"
-            style={{ border: "1px solid rgba(200,245,71,0.2)", background: "rgba(200,245,71,0.04)" }}>
+            style={{ border: "1px solid rgba(51,201,161,0.15)", background: "rgba(51,201,161,0.04)" }}>
             <input
               type="number"
               value={customAmount}
@@ -2896,8 +2896,8 @@ const TransferPickerCard = memo(function TransferPickerCard({ output, onAction }
             <button key={t} onClick={() => { setToken(t); setShowCustom(false); }}
               className="px-4 py-2 rounded-lg text-[13px] font-medium cursor-pointer transition-all"
               style={{
-                background: !showCustom && token === t ? "rgba(200,245,71,0.12)" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${!showCustom && token === t ? "rgba(200,245,71,0.3)" : "rgba(255,255,255,0.08)"}`,
+                background: !showCustom && token === t ? "rgba(51,201,161,0.1)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${!showCustom && token === t ? "rgba(51,201,161,0.2)" : "rgba(255,255,255,0.08)"}`,
                 color: !showCustom && token === t ? "var(--color-accent-lime)" : "var(--color-text-secondary)",
               }}>
               {t}
@@ -2906,8 +2906,8 @@ const TransferPickerCard = memo(function TransferPickerCard({ output, onAction }
           <button onClick={() => setShowCustom(true)}
             className="px-4 py-2 rounded-lg text-[13px] font-medium cursor-pointer transition-all"
             style={{
-              background: showCustom ? "rgba(200,245,71,0.12)" : "rgba(255,255,255,0.04)",
-              border: `1px solid ${showCustom ? "rgba(200,245,71,0.3)" : "rgba(255,255,255,0.08)"}`,
+              background: showCustom ? "rgba(51,201,161,0.1)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${showCustom ? "rgba(51,201,161,0.2)" : "rgba(255,255,255,0.08)"}`,
               color: showCustom ? "var(--color-accent-lime)" : "var(--color-text-tertiary)",
             }}>
             Other
@@ -2966,7 +2966,7 @@ const TransferPickerCard = memo(function TransferPickerCard({ output, onAction }
         disabled={!canSend}
         className="w-full py-3.5 text-[14px] font-bold cursor-pointer transition-all disabled:opacity-30 disabled:cursor-default"
         style={{
-          background: canSend ? "var(--color-accent-lime)" : "rgba(200,245,71,0.1)",
+          background: canSend ? "var(--color-accent-lime)" : "rgba(51,201,161,0.1)",
           color: canSend ? "#0a0a0a" : "var(--color-text-tertiary)",
         }}>
         Send {amount || "0"} {activeToken}
@@ -3235,7 +3235,7 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
       <div className="glass-card-solid overflow-hidden">
         <div className="px-5 py-5">
           <div className="flex items-center gap-3 mb-3">
-            <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(200,245,71,0.08)", border: "1px solid rgba(200,245,71,0.12)" }}>
+            <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.1)" }}>
               <span className="text-[16px] font-bold" style={{ color: "var(--color-accent-lime)" }}>F</span>
             </span>
             <div>
@@ -3276,7 +3276,7 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
         {/* Header with tier badge */}
         <div className="px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(200,245,71,0.08)", border: "1px solid rgba(200,245,71,0.12)" }}>
+            <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.1)" }}>
               <span className="text-[16px] font-bold" style={{ color: "var(--color-accent-lime)" }}>F</span>
             </span>
             <div>
@@ -3286,7 +3286,7 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
           </div>
           <div className="text-right">
             <div className="text-[12px] font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: level > 0 ? "rgba(200,245,71,0.1)" : "rgba(255,255,255,0.04)", color: level > 0 ? "var(--color-accent-lime)" : "var(--color-text-tertiary)" }}>
+              style={{ background: level > 0 ? "rgba(51,201,161,0.1)" : "rgba(255,255,255,0.04)", color: level > 0 ? "var(--color-accent-lime)" : "var(--color-text-tertiary)" }}>
               VIP {tier}
             </div>
             <div className="text-[10px] num text-text-tertiary mt-1">{discount}% fee discount</div>
@@ -3562,7 +3562,7 @@ const FafCard = memo(function FafCard({ toolName, output, onAction }: { toolName
             <div key={i} className="flex items-center justify-between px-5 py-2.5"
               style={{
                 borderTop: "1px solid rgba(255,255,255,0.04)",
-                background: isActive ? "rgba(200,245,71,0.04)" : "transparent",
+                background: isActive ? "rgba(51,201,161,0.04)" : "transparent",
               }}>
               <div className="flex items-center gap-2">
                 {isActive && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-accent-lime)" }} />}

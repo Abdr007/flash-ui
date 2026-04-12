@@ -49,7 +49,7 @@ export default function BadgePanel() {
           <button
             onClick={handleShare}
             className="text-[11px] font-medium px-3 py-1 rounded-full cursor-pointer transition-all hover:brightness-110"
-            style={{ background: "rgba(200,245,71,0.1)", color: "var(--color-accent-lime)", border: "1px solid rgba(200,245,71,0.2)" }}
+            style={{ background: "rgba(51,201,161,0.08)", color: "var(--color-brand-teal)", border: "1px solid rgba(51,201,161,0.15)" }}
           >
             {copied ? "Copied!" : "Share"}
           </button>
