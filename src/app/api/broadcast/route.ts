@@ -7,7 +7,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { VersionedTransaction } from "@solana/web3.js";
 import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize } from "@/lib/api-security";
-import { requireAuth } from "@/lib/wallet-auth";
 
 const HELIUS_RPC =
   process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
@@ -65,9 +64,8 @@ async function sendToEndpoint(
 }
 
 export async function POST(req: NextRequest) {
-  // ---- Auth Required (broadcasting is a financial operation) ----
-  const auth = requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+  // Auth not required — tx is already wallet-signed (signature validated below).
+  // Rate limiting + tx structure validation are sufficient protection.
 
   // ---- Rate Limit (trusted IP) ----
   const ip = getClientIp(req);

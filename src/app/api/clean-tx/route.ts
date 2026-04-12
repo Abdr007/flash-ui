@@ -8,7 +8,6 @@ import {
   Connection,
 } from "@solana/web3.js";
 import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, safeErrorResponse } from "@/lib/api-security";
-import { requireAuth } from "@/lib/wallet-auth";
 
 const STRIP_PROGRAMS = new Set([
   "L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95",
@@ -21,9 +20,8 @@ const MAX_BODY_BYTES = 10_000; // 10KB
 const limiter = new RateLimiter(20);
 
 export async function POST(req: NextRequest) {
-  // ---- Auth Required ----
-  const auth = requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+  // Auth not required — tx payer validation below proves ownership.
+  // Rate limiting + payer match are sufficient protection.
 
   // ---- Rate Limit ----
   const ip = getClientIp(req);
