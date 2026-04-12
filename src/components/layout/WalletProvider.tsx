@@ -11,7 +11,7 @@ import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { useFlashStore } from "@/store";
 
-import "@solana/wallet-adapter-react-ui/styles.css";
+import "@/app/wallet-adapter.css";
 
 // Use proxy endpoint to keep Helius API key server-side.
 // Fallback to public RPC if no proxy configured.
