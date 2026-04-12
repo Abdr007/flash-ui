@@ -281,13 +281,25 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
           {/* Autocomplete */}
           {autocomplete.length > 0 && (
             <div className="absolute bottom-full left-4 right-4 mb-2 overflow-hidden rounded-xl"
-              style={{ background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 100ms ease-out" }}>
+              style={{
+                background: "rgba(14,19,28,0.9)",
+                backdropFilter: "blur(24px) saturate(1.4)",
+                border: "1px solid rgba(51,201,161,0.08)",
+                boxShadow: "0 8px 32px -8px rgba(0,0,0,0.5)",
+                animation: "slideDown 120ms cubic-bezier(0.2, 0, 0, 1) both",
+              }}>
               {autocomplete.map((s, i) => (
                 <button
                   key={i}
                   onClick={() => handleSubmit(s)}
-                  className={`autocomplete-item w-full text-left px-4 py-2.5 text-[14px] cursor-pointer
-                    ${i === selectedAC ? "bg-bg-card-hover text-text-primary" : "text-text-secondary hover:bg-bg-card-hover hover:text-text-primary"}`}
+                  className={`autocomplete-item w-full text-left px-4 py-2.5 text-[14px] cursor-pointer transition-all duration-100
+                    ${i === selectedAC
+                      ? "text-text-primary"
+                      : "text-text-secondary hover:text-text-primary"}`}
+                  style={{
+                    background: i === selectedAC ? "rgba(51,201,161,0.06)" : "transparent",
+                    borderLeft: i === selectedAC ? "2px solid var(--color-brand-teal)" : "2px solid transparent",
+                  }}
                 >
                   {s}
                 </button>
@@ -304,7 +316,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                   onClick={() => handleChipClick(action)}
                   className="chip chip-stagger text-[12px] px-3 py-1.5
                     text-text-secondary hover:text-text-primary cursor-pointer"
-                  style={{ background: "rgba(20,26,34,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "9999px" }}
+                  style={{ background: "rgba(14,19,28,0.7)", border: "1px solid rgba(51,201,161,0.06)", borderRadius: "9999px" }}
                 >
                   {action.label}
                 </button>

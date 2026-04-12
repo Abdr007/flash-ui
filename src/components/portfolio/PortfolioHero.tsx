@@ -150,7 +150,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             {positions.length > 0 ? (
               <>
                 <TrendArrow positive={totalPnl >= 0} />
-                <span className="num font-semibold" style={{ color: totalPnl >= 0 ? "#2CE800" : "#FF4D4D" }}>
+                <span className="num font-semibold" style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}>
                   {totalPnl >= 0 ? "+" : ""}{formatPnl(springPnl)}
                 </span>
                 <span style={{ color: "rgba(255,255,255,0.25)" }}>PnL</span>
@@ -158,7 +158,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
                   <>
                     <span style={{ color: "rgba(255,255,255,0.15)", margin: "0 4px" }}>·</span>
                     <TrendArrow positive={change24h >= 0} />
-                    <span className="num font-semibold" style={{ color: change24h >= 0 ? "#2CE800" : "#FF4D4D" }}>
+                    <span className="num font-semibold" style={{ color: change24h >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}>
                       {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}%
                     </span>
                     <span style={{ color: "rgba(255,255,255,0.25)" }}>24h</span>
@@ -168,7 +168,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             ) : change24h !== null && change24h !== 0 ? (
               <>
                 <TrendArrow positive={change24h >= 0} />
-                <span className="num font-semibold" style={{ color: change24h >= 0 ? "#2CE800" : "#FF4D4D" }}>
+                <span className="num font-semibold" style={{ color: change24h >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}>
                   {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}%
                 </span>
                 <span style={{ color: "rgba(255,255,255,0.25)" }}>24h</span>
@@ -188,9 +188,10 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
       {walletConnected && tokens.length > 0 && (
         <div className="w-full mb-10 relative z-10 rounded-[22px] overflow-hidden"
           style={{
-            background: "rgba(255,255,255,0.025)",
-            border: "1px solid rgba(255,255,255,0.05)",
-            backdropFilter: "blur(20px)",
+            background: "rgba(14,19,28,0.6)",
+            border: "1px solid rgba(51,201,161,0.06)",
+            backdropFilter: "blur(24px) saturate(1.4)",
+            boxShadow: "0 8px 32px -8px rgba(0,0,0,0.4)",
           }}>
           {/* Header */}
           <button onClick={toggleAssets}
@@ -306,7 +307,7 @@ const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
 function TrendArrow({ positive }: { positive: boolean }) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-      stroke={positive ? "#2CE800" : "#FF4D4D"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      stroke={positive ? "var(--color-accent-long)" : "#FF4D4D"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       {positive
         ? <><polyline points="7 13 12 8 17 13" /><line x1="12" y1="8" x2="12" y2="16" /></>
         : <><polyline points="7 11 12 16 17 11" /><line x1="12" y1="16" x2="12" y2="8" /></>}
@@ -391,12 +392,13 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
   return (
     <div className="flex items-center justify-center relative z-10 px-6 py-3 rounded-full"
       style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.04)",
+        background: "rgba(14,19,28,0.5)",
+        border: "1px solid rgba(51,201,161,0.06)",
+        backdropFilter: "blur(16px)",
         animation: "fadeIn 500ms ease 200ms both",
       }}>
-      <span className="text-[10px] font-bold tracking-[0.15em] uppercase flex items-center gap-1.5 mr-4"
-        style={{ color: "rgba(255,255,255,0.25)" }}>
+      <span className="text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-1.5 mr-4"
+        style={{ color: "rgba(51,201,161,0.4)" }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
           <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
           <polyline points="16 7 22 7 22 13" />
@@ -409,7 +411,7 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
           style={{ marginLeft: i > 0 ? "14px" : "0", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none", paddingLeft: i > 0 ? "14px" : "0" }}>
           <TokenIcon token={t} size={20} />
           <span className="text-[13px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>{t.symbol}</span>
-          <span className="text-[13px] num font-bold" style={{ color: t.change >= 0 ? "#2CE800" : "#FF4D4D" }}>
+          <span className="text-[13px] num font-bold" style={{ color: t.change >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}>
             {t.change >= 0 ? "+" : ""}{t.change.toFixed(2)}%
           </span>
         </button>
