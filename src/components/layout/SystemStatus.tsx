@@ -16,15 +16,7 @@ export default function SystemStatus() {
   };
 
   return (
-    <div className="relative flex items-center px-5 h-12 shrink-0"
-      style={{ borderBottom: "1px solid rgba(51, 201, 161, 0.06)" }}>
-      {/* Banner — absolute centered */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.3)" }}>
-          You are using an <span className="font-semibold" style={{ color: "var(--color-brand-cyan)" }}>early</span> version of Flash Terminal. Always verify before signing.
-        </span>
-      </div>
-
+    <div className="relative flex items-center px-5 h-10 shrink-0">
       {/* Wallet — right aligned */}
       <div className="ml-auto relative z-10">
         {walletConnected ? (

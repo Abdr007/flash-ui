@@ -81,11 +81,13 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
         }
         for (const t of data.tokens ?? []) {
           if (t.usdValue < 0.01) continue;
-          const sym = t.symbol?.toUpperCase?.() ?? t.symbol;
+          const rawSym = t.symbol || t.name || "???";
+          const sym = typeof rawSym === "string" && rawSym.toUpperCase ? rawSym.toUpperCase() : String(rawSym);
           const m = TOKEN_META[sym] ?? TOKEN_META[t.symbol];
           const dasLogo = t.logoUri || "";
           const primaryLogo = m?.logo || dasLogo;
-          toks.push({ mint: String(t.mint ?? ""), symbol: sym, name: m?.name ?? sym, amount: t.amount, usd: t.usdValue,
+          const displayName = m?.name ?? t.name ?? sym;
+          toks.push({ mint: String(t.mint ?? ""), symbol: sym || "???", name: displayName || sym || "Unknown", amount: t.amount, usd: t.usdValue,
             pricePerToken: t.pricePerToken ?? 0, logo: primaryLogo,
             logoFallback: primaryLogo !== dasLogo ? dasLogo : "", color: m?.color ?? "#3E5068", portfolioPct: 0 });
         }
@@ -108,26 +110,33 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   const toggleAssets = useCallback(() => setAssetsExpanded((v) => !v), []);
 
   return (
-    <div className="flex flex-col items-center w-full max-w-[520px] mx-auto pt-20 pb-6 px-5 relative">
+    <div className="flex flex-col items-center w-full max-w-[520px] mx-auto pt-10 pb-4 px-5 relative">
 
-      {/* Ambient brand glow — triple orb system */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[500px] pointer-events-none" style={{ opacity: 0.5 }}>
+      {/* Early version notice — always visible */}
+      <div className="text-center mb-6 relative z-10">
+        <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+          You are using an <span className="font-semibold" style={{ color: "var(--color-brand-cyan)" }}>early</span> version of Flash Terminal. Always verify before signing.
+        </span>
+      </div>
+
+      {/* Ambient brand glow — brighter, more alive */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] pointer-events-none" style={{ opacity: 0.7 }}>
         <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 50% 40% at 50% 25%, rgba(51,201,161,0.06) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse 55% 45% at 50% 30%, rgba(51,201,161,0.08) 0%, transparent 70%)",
           animation: "orbFloat 14s ease-in-out infinite",
         }} />
         <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 40% 30% at 60% 35%, rgba(58,255,225,0.03) 0%, transparent 60%)",
+          background: "radial-gradient(ellipse 45% 35% at 60% 40%, rgba(58,255,225,0.04) 0%, transparent 60%)",
           animation: "orbFloat 14s ease-in-out infinite 4s",
         }} />
         <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 30% 20% at 40% 30%, rgba(200,245,71,0.015) 0%, transparent 60%)",
+          background: "radial-gradient(ellipse 35% 25% at 40% 25%, rgba(200,245,71,0.02) 0%, transparent 60%)",
           animation: "orbFloat 14s ease-in-out infinite 8s",
         }} />
       </div>
 
       {/* ═══ BALANCE ═══ */}
-      <div className="relative z-10 flex flex-col items-center mb-10">
+      <div className="relative z-10 flex flex-col items-center mb-6">
         <div className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-5"
           style={{ color: "rgba(51,201,161,0.5)" }}>
           TOTAL BALANCE
@@ -186,7 +195,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
 
       {/* ═══ UNIFIED ASSET CARD ═══ */}
       {walletConnected && tokens.length > 0 && (
-        <div className="w-full mb-10 relative z-10 rounded-[22px] overflow-hidden"
+        <div className="w-full mb-6 relative z-10 rounded-[22px] overflow-hidden"
           style={{
             background: "rgba(14,19,28,0.6)",
             border: "1px solid rgba(51,201,161,0.06)",
@@ -254,7 +263,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
       )}
 
       {/* ═══ ACTION ROW ═══ */}
-      <div className="flex items-end justify-center gap-6 mb-10 relative z-10">
+      <div className="flex items-end justify-center gap-7 mb-6 relative z-10">
         <ActionNode label="Trade" onClick={() => onAction("I want to trade")}
           icon={<><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></>} />
         <ActionNode label="Earn" onClick={() => onAction("I want to earn yield")}
@@ -277,20 +286,36 @@ const ActionNode = memo(function ActionNode({ label, icon, onClick }: {
   label: string; icon: React.ReactNode; onClick: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 group">
+    <div className="flex flex-col items-center gap-2.5">
       <button onClick={onClick}
-        className="action-circle"
-        style={{ width: "66px", height: "66px" }}>
+        className="flex items-center justify-center cursor-pointer"
+        style={{
+          width: "62px", height: "62px", borderRadius: "50%",
+          background: "rgba(51, 201, 161, 0.04)",
+          border: "1.5px solid rgba(51, 201, 161, 0.12)",
+          boxShadow: "0 0 20px -6px rgba(51, 201, 161, 0.08), inset 0 0 12px -4px rgba(51, 201, 161, 0.05)",
+          transition: "all 200ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "translateY(-3px) scale(1.06)";
+          e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.3)";
+          e.currentTarget.style.boxShadow = "0 0 30px -4px rgba(51, 201, 161, 0.2), 0 8px 24px rgba(0,0,0,0.3), inset 0 0 16px -4px rgba(51, 201, 161, 0.08)";
+          e.currentTarget.style.background = "rgba(51, 201, 161, 0.08)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "none";
+          e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.12)";
+          e.currentTarget.style.boxShadow = "0 0 20px -6px rgba(51, 201, 161, 0.08), inset 0 0 12px -4px rgba(51, 201, 161, 0.05)";
+          e.currentTarget.style.background = "rgba(51, 201, 161, 0.04)";
+        }}
+        onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.93)"; }}
+        onMouseUp={(e) => { e.currentTarget.style.transform = "translateY(-3px) scale(1.06)"; }}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-          className="transition-colors duration-200"
-          stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ filter: "none" }}
-          onMouseEnter={() => {}}
-          onMouseLeave={() => {}}>
+          stroke="rgba(51, 201, 161, 0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           {icon}
         </svg>
       </button>
-      <span className="text-[12px] font-medium transition-colors duration-200" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</span>
+      <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</span>
     </div>
   );
 });

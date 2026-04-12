@@ -198,17 +198,27 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   }, [handleInputChange]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
+      {/* Chat area ambient glow */}
+      <div className="absolute inset-0 pointer-events-none z-0" style={{
+        background: "radial-gradient(ellipse 60% 40% at 50% 20%, rgba(51,201,161,0.04) 0%, transparent 70%)",
+      }} />
       {/* ---- Scrollable area ---- */}
-      <div ref={scrollRef} onScroll={handleScroll} className="no-scrollbar flex-1 overflow-y-auto scroll-smooth">
+      <div ref={scrollRef} onScroll={handleScroll} className="no-scrollbar flex-1 overflow-y-auto scroll-smooth relative z-10">
         {!hasMessages ? (
           /* ---- Hero: centers vertically in available space ---- */
           <div className="flex flex-col items-center justify-center dot-grid" style={{ minHeight: "100%" }}>
             <PortfolioHero onAction={handleSubmit} />
           </div>
         ) : (
-          /* ---- Chat messages (Neur-style spacing) ---- */
-          <div className="max-w-3xl mx-auto w-full px-4 pb-36 pt-4">
+          /* ---- Chat messages ---- */
+          <div className="max-w-3xl mx-auto w-full px-4 pb-36 pt-2">
+            {/* Early version notice — persists in chat */}
+            <div className="text-center py-2 mb-3">
+              <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.2)" }}>
+                You are using an <span className="font-semibold" style={{ color: "var(--color-brand-cyan)", opacity: 0.6 }}>early</span> version. Always verify before signing.
+              </span>
+            </div>
             {messages.map((message, idx) => {
               const prev = idx > 0 ? messages[idx - 1] : null;
               const sameRole = prev?.role === message.role;
