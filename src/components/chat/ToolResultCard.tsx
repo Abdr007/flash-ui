@@ -1234,11 +1234,9 @@ const PositionsCard = memo(function PositionsCard({ output }: { output: ToolOutp
           const size = Number(pos.size_usd ?? 0);
           const entry = Number(pos.entry_price ?? 0);
           const mark = Number(pos.mark_price ?? 0);
-          const dotColor = (MARKETS as Record<string, { dotColor: string }>)[market]?.dotColor ?? "#555";
           return (
             <div key={i} className="px-5 py-3.5 flex items-center gap-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                style={{ background: dotColor }}>{market.slice(0, 1)}</div>
+              <TokenIcon symbol={market} size={32} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-[14px] font-semibold text-text-primary">{market}</span>

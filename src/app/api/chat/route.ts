@@ -349,7 +349,7 @@ function matchDirectTool(input: string): DirectToolMatch | null {
   // "price of SOL", "SOL price", "what's SOL at", "how much is BTC", "price SOL", "btc?"
   let m: RegExpExecArray | null;
 
-  m = /^(?:price\s+(?:of\s+)?|what(?:'s| is)\s+(?:the\s+)?(?:price\s+(?:of\s+)?)?|how\s+much\s+is\s+)(\w+)(?:\s+(?:price|at|worth|trading|cost))?[?\s]*$/i.exec(t);
+  m = /^(?:price\s+(?:of\s+)?|what(?:'s| is)\s+(?:the\s+)?price\s+(?:of\s+)?|how\s+much\s+is\s+)(\w+)(?:\s+(?:price|at|worth|trading|cost))?[?\s]*$/i.exec(t);
   if (m) return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
 
   m = /^(\w+)\s+price[?\s]*$/i.exec(t);
