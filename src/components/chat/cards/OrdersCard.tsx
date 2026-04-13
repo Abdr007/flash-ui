@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Cell, ToolError } from "./shared";
+import { ToolError } from "./shared";
 import type { ToolOutput } from "./types";
 import { formatPrice } from "@/lib/format";
 
