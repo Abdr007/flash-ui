@@ -1092,6 +1092,60 @@ input:focus-visible {
     padding-bottom: calc(env(safe-area-inset-bottom) + 20px) !important;
   }
 }
+/* ============================================
+   THEME: Light / Dark Mode Support
+   ============================================ */
+
+/* Light mode — system preference (unless manually set to dark) */
+@media (prefers-color-scheme: light) {
+  :root:not(.dark-mode) {
+    --color-bg-root: #f5f7fa;
+    --color-bg-surface: #ffffff;
+    --color-bg-card: rgba(255, 255, 255, 0.85);
+    --color-bg-card-solid: #ffffff;
+    --color-bg-card-hover: rgba(240, 243, 248, 0.95);
+    --color-bg-input: #f0f3f8;
+    --color-bg-elevated: #ffffff;
+    --color-border-subtle: rgba(0, 0, 0, 0.08);
+    --color-border-focus: rgba(0, 0, 0, 0.15);
+    --color-text-primary: #1a1d23;
+    --color-text-secondary: #5a6577;
+    --color-text-tertiary: #9ca3b0;
+  }
+}
+
+/* Manual dark mode override */
+.dark-mode {
+  --color-bg-root: #080c12;
+  --color-bg-surface: #0c1018;
+  --color-bg-card: rgba(14, 19, 28, 0.75);
+  --color-bg-card-solid: #0e131c;
+  --color-bg-card-hover: rgba(20, 27, 40, 0.85);
+  --color-bg-input: #0e131c;
+  --color-bg-elevated: #141b28;
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-focus: rgba(255, 255, 255, 0.12);
+  --color-text-primary: #e8ecf3;
+  --color-text-secondary: #7b8da3;
+  --color-text-tertiary: #3e5068;
+}
+
+/* Manual light mode override */
+.light-mode {
+  --color-bg-root: #f5f7fa;
+  --color-bg-surface: #ffffff;
+  --color-bg-card: rgba(255, 255, 255, 0.85);
+  --color-bg-card-solid: #ffffff;
+  --color-bg-card-hover: rgba(240, 243, 248, 0.95);
+  --color-bg-input: #f0f3f8;
+  --color-bg-elevated: #ffffff;
+  --color-border-subtle: rgba(0, 0, 0, 0.08);
+  --color-border-focus: rgba(0, 0, 0, 0.15);
+  --color-text-primary: #1a1d23;
+  --color-text-secondary: #5a6577;
+  --color-text-tertiary: #9ca3b0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

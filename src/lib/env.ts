@@ -27,6 +27,9 @@ const envSchema = z.object({
   TRANSFERS_ENABLED: z.string().optional(),
   TRADING_ENABLED: z.string().optional(),
   NEXT_PUBLIC_FLASH_API_URL: z.string().optional(),
+
+  // Observability — Sentry error tracking (optional)
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url("NEXT_PUBLIC_SENTRY_DSN must be a valid URL").optional(),
 });
 
 type Env = z.infer<typeof envSchema>;
