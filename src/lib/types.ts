@@ -6,7 +6,7 @@ export type Side = "LONG" | "SHORT";
 
 export type TradeStatus = "INCOMPLETE" | "READY" | "CONFIRMING" | "EXECUTING" | "SIGNING" | "SUCCESS" | "ERROR";
 
-export type OrderType = "market" | "limit";
+export type OrderType = "market" | "limit" | "MARKET" | "LIMIT";
 
 export interface TradeObject {
   id: string;
