@@ -484,8 +484,8 @@ const TradePreviewCard = memo(function TradePreviewCard({
         </>
       )}
 
-      {/* TP/SL badges */}
-      {(t.take_profit_price || t.stop_loss_price) && (
+      {/* TP/SL badges — only show when submitting (inputs hidden) and values exist */}
+      {(t.take_profit_price || t.stop_loss_price) && submitting && (
         <div className="flex items-center gap-3 px-5 py-2.5 border-t border-border-subtle">
           {t.take_profit_price && (
             <div
