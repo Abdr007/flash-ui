@@ -14,15 +14,14 @@
 
 import { streamText, convertToModelMessages, stepCountIs, smoothStream, type UIMessage } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
-import { google } from "@ai-sdk/google";
 
-// ---- Model tiers (multi-model cost optimization) ----
-// Layer 2: light/fast — greetings + parser-resolved intents
-// Layer 3: main brain — ambiguous / multi-step reasoning
-// Fallback: Gemini if Anthropic key missing (zero-config degrade)
-const HAS_ANTHROPIC = !!process.env.ANTHROPIC_API_KEY;
-const LIGHT_MODEL = HAS_ANTHROPIC ? anthropic("claude-haiku-4-5") : google("gemini-2.5-flash");
-const HEAVY_MODEL = HAS_ANTHROPIC ? anthropic("claude-sonnet-4-6") : google("gemini-2.5-flash");
+// ---- Model tiers (Anthropic only) ----
+// Light: Haiku — greetings, parser-resolved intents (fast + cheap)
+// Heavy: Sonnet — ambiguous / multi-step reasoning (smart)
+// Fallback: Sonnet fails → retry with Haiku (same provider, lower tier)
+const LIGHT_MODEL = anthropic("claude-haiku-4-5");
+const HEAVY_MODEL = anthropic("claude-sonnet-4-6");
+const FALLBACK_MODEL = LIGHT_MODEL; // Haiku as runtime fallback for Sonnet
 
 // Context window control — never send more than last N messages to model.
 // Fast paths already captured structured state; model only needs recency.
@@ -983,18 +982,53 @@ export async function POST(req: Request) {
     }
 
     // ─── LAYER 3: Full reasoning (Sonnet 4.6, multi-step tool use) ───
-    const result = streamText({
-      model: HEAVY_MODEL,
-      system: systemPrompt,
-      messages: modelMessages,
-      tools,
-      stopWhen: stepCountIs(3), // Capped at 3 to limit LLM tool-call loops
-      experimental_transform: smoothStream(),
-      temperature: 0,
-      maxOutputTokens: 320,
-    });
+    // Runtime fallback: if Sonnet fails, retry with Haiku (same provider, lower tier)
 
-    return result.toUIMessageStreamResponse();
+    try {
+      const result = streamText({
+        model: HEAVY_MODEL,
+        system: systemPrompt,
+        messages: modelMessages,
+        tools,
+        stopWhen: stepCountIs(3),
+        experimental_transform: smoothStream(),
+        temperature: 0,
+        maxOutputTokens: 320,
+      });
+      return result.toUIMessageStreamResponse();
+    } catch (primaryErr) {
+      // Primary model failed — try fallback
+      logError("ai_request", {
+        wallet: walletAddress,
+        error: `Primary model failed: ${primaryErr instanceof Error ? primaryErr.message : "unknown"}. Retrying with fallback.`,
+      });
+      try {
+        const fallbackResult = streamText({
+          model: FALLBACK_MODEL,
+          system: systemPrompt,
+          messages: modelMessages,
+          tools,
+          stopWhen: stepCountIs(3),
+          experimental_transform: smoothStream(),
+          temperature: 0,
+          maxOutputTokens: 320,
+        });
+        return fallbackResult.toUIMessageStreamResponse();
+      } catch (fallbackErr) {
+        const msg = fallbackErr instanceof Error ? fallbackErr.message : "AI processing failed";
+        logError("ai_request", { wallet: walletAddress, error: `Both models failed: ${msg}` });
+        return new Response(
+          JSON.stringify({
+            error: "AI temporarily unavailable. Try a direct command like 'long SOL $50 5x'.",
+            trace_id: traceId,
+          }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "AI processing failed";
     logError("ai_request", { wallet: walletAddress, error: msg });
