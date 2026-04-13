@@ -70,12 +70,11 @@ const MAX_SAFE_RAW_AMOUNT = BigInt("9223372036854775807"); // 2^63 - 1
  * Uses string arithmetic instead of float multiplication.
  */
 function amountToRaw(amount: number, decimals: number): bigint {
-  // Convert to string to avoid float precision issues
-  const str = amount.toFixed(decimals); // guaranteed safe for decimals <= 18
-  const [intPart, fracPart = ""] = str.split(".");
-  const paddedFrac = fracPart.padEnd(decimals, "0").slice(0, decimals);
-  const raw = BigInt(intPart + paddedFrac);
-  return raw;
+  // Convert to string to avoid float precision issues.
+  // Use truncation (not rounding) to never send more than intended.
+  const factor = Math.pow(10, decimals);
+  const truncated = Math.floor(amount * factor);
+  return BigInt(truncated);
 }
 
 // ---- Idempotency cache (30s TTL) ----

@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate it's plausible base64 size
-    if (txBase64.length > 3000 || txBase64.length < 100) {
+    if (txBase64.length > 6000 || txBase64.length < 100) {
       return NextResponse.json({ error: "Invalid transaction size" }, { status: 400 });
     }
 

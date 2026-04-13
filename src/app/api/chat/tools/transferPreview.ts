@@ -36,8 +36,9 @@ async function detectTokenProgram(connection: Connection, mintAddress: PublicKey
 
 const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 
-const ESTIMATED_FEE_SOL = 0.000005;
-const ATA_CREATION_FEE_SOL = 0.00203928;
+const ESTIMATED_FEE_SOL = 0.000005; // base fee (5000 lamports)
+const ATA_CREATION_FEE_SOL = 0.00203928; // rent-exempt minimum for token account
+const SOL_RESERVE = 0.003; // buffer for fees + rent during congestion
 
 // Well-known verified tokens (for display names + scam protection)
 // This is NOT a whitelist — unknown tokens are still supported with a warning
@@ -349,7 +350,7 @@ export function createTransferPreviewTool(wallet: string) {
         try {
           const balance = await connection.getBalance(new PublicKey(wallet));
           senderBalance = balance / 1e9;
-          const totalNeeded = amount + ESTIMATED_FEE_SOL + 0.001;
+          const totalNeeded = amount + ESTIMATED_FEE_SOL + SOL_RESERVE;
           if (senderBalance < totalNeeded) {
             return {
               status: "error",

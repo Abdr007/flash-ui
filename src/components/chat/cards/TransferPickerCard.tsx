@@ -21,7 +21,8 @@ const TransferPickerCard = memo(function TransferPickerCard({
   if (!data) return null;
 
   const activeToken = showCustom ? customToken : token;
-  const canSend = amount && Number(amount) > 0 && address.length >= 32 && activeToken.length > 0;
+  const isValidAddress = address.length >= 32 && address.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(address);
+  const canSend = amount && Number(amount) > 0 && isValidAddress && activeToken.length > 0;
 
   function handleSend() {
     if (!canSend || !onAction) return;

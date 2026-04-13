@@ -205,17 +205,18 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
   }
 
   async function handleConfirm() {
-    // Triple guard: state + wallet + lock
-    if (status !== "preview" || !walletAddress || executionLockRef.current) return;
+    // Lock FIRST to prevent any race condition
+    if (executionLockRef.current || status !== "preview" || !walletAddress) return;
+    executionLockRef.current = true;
 
     // Verify wallet hasn't changed since preview
     if (walletAddress !== data!.sender) {
+      executionLockRef.current = false;
       setError("Wallet changed since preview. Please request a new transfer preview.");
       setStatus("error");
       return;
     }
 
-    executionLockRef.current = true;
     attemptRef.current++;
     setStatus("executing");
     setError(null);
@@ -290,7 +291,10 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
 
       const broadcastResp = await fetch("/api/broadcast", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-wallet-address": data!.sender,
+        },
         body: JSON.stringify({ transaction: signedBase64 }),
         signal: broadcastController.signal,
       }).finally(() => clearTimeout(broadcastTimer));
@@ -316,7 +320,7 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
 
       let confirmed = false;
       const confirmStart = Date.now();
-      const CONFIRM_TIMEOUT = 30_000;
+      const CONFIRM_TIMEOUT = 45_000;
       const POLL_MS = 2_000;
 
       while (Date.now() - confirmStart < CONFIRM_TIMEOUT) {
