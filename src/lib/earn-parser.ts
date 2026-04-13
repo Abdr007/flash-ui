@@ -49,7 +49,19 @@ interface Token {
 
 const DEPOSIT_SET = new Set(["deposit", "add", "supply"]);
 const WITHDRAW_SET = new Set(["withdraw", "remove", "redeem"]);
-const POOL_SET = new Set(["crypto", "defi", "gold", "meme", "wif", "fart", "ore", "stable"]);
+const POOL_SET = new Set([
+  "crypto",
+  "defi",
+  "gold",
+  "meme",
+  "wif",
+  "fart",
+  "trump",
+  "ore",
+  "stable",
+  "equity",
+  "community",
+]);
 const FILLER_SET = new Set(["into", "from", "in", "to", "the", "pool", "earn", "of", "my", "and"]);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _TOKEN_UNITS = new Set(["usdc", "usd", "dollars", "dollar"]);

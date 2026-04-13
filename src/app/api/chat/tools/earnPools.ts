@@ -48,7 +48,8 @@ export function createEarnPoolsTool(wallet: string) {
           "FLP.3": { name: "DeFi Pool", poolName: "Governance.1" },
           "FLP.4": { name: "Community Pool", poolName: "Community.1" },
           "FLP.5": { name: "WIF Pool", poolName: "Community.2" },
-          "FLP.7": { name: "FART Pool", poolName: "Trump.1" },
+          "FLP.6": { name: "Stable Pool", poolName: "Stable.1" },
+          "FLP.7": { name: "FART/TRUMP Pool", poolName: "Trump.1" },
           "FLP.8": { name: "Ore Pool", poolName: "Ore.1" },
           "FLP.x": { name: "Equity Pool", poolName: "Equity.1" },
         };
@@ -143,7 +144,8 @@ export function createEarnPositionsTool(wallet: string) {
         "FLP.3": "DeFi",
         "FLP.4": "Community",
         "FLP.5": "WIF",
-        "FLP.7": "FART",
+        "FLP.6": "Stable",
+        "FLP.7": "FART/TRUMP",
         "FLP.8": "Ore",
         "FLP.x": "Equity",
       };

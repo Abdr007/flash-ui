@@ -76,6 +76,7 @@ export function createEarnDepositTool(wallet: string) {
               meme: "FLP.4",
               community: "FLP.4",
               wif: "FLP.5",
+              stable: "FLP.6",
               trump: "FLP.7",
               fart: "FLP.7",
               ore: "FLP.8",
@@ -88,7 +89,9 @@ export function createEarnDepositTool(wallet: string) {
               apy = Number(poolData.flpWeeklyApy) || 0;
             }
           }
-        } catch {}
+        } catch (err) {
+          console.warn("[earnDeposit] Flash API fetch failed:", err instanceof Error ? err.message : "unknown");
+        }
 
         const expectedShares = flpPrice > 0 ? amount_usdc / flpPrice : 0;
 

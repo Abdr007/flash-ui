@@ -394,8 +394,9 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       steps: [
         {
           question: "Which pool would you like to deposit into?",
-          options: ["Crypto", "DeFi", "Meme", "Gold"],
-          allowCustom: false,
+          options: ["Crypto", "DeFi", "Meme", "Gold", "WIF", "Ore"],
+          allowCustom: true,
+          customPlaceholder: "e.g. FART, TRUMP, Stable",
         },
         {
           question: "How much USDC to deposit?",
@@ -417,8 +418,9 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       steps: [
         {
           question: "Which pool would you like to withdraw from?",
-          options: ["Crypto", "DeFi", "Meme", "Gold"],
-          allowCustom: false,
+          options: ["Crypto", "DeFi", "Meme", "Gold", "WIF", "Ore"],
+          allowCustom: true,
+          customPlaceholder: "e.g. FART, TRUMP, Stable",
         },
         {
           question: "How much to withdraw?",
