@@ -71,6 +71,18 @@ export function createBuildTradeTool(wallet: string) {
           .positive()
           .optional()
           .describe("Stop loss price — must be below entry for LONG, above for SHORT"),
+        order_type: z
+          .enum(["MARKET", "LIMIT"])
+          .optional()
+          .default("MARKET")
+          .describe("Order type: MARKET (default, instant) or LIMIT (triggers at limit_price)"),
+        limit_price: z
+          .number()
+          .positive()
+          .optional()
+          .describe(
+            "Trigger price for limit orders. Required when order_type is LIMIT. For LONG: price to buy at (below current). For SHORT: price to sell at (above current).",
+          ),
       })
       .strict(),
     execute: async ({
@@ -81,6 +93,8 @@ export function createBuildTradeTool(wallet: string) {
       degen,
       take_profit_price,
       stop_loss_price,
+      order_type,
+      limit_price,
     }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 
@@ -303,6 +317,7 @@ export function createBuildTradeTool(wallet: string) {
           degen: isDegen,
           ...(take_profit_price != null && { take_profit_price }),
           ...(stop_loss_price != null && { stop_loss_price }),
+          ...(order_type === "LIMIT" && limit_price != null && { order_type: "LIMIT", limit_price }),
         };
 
         // ---- STEP 7: Firewall validation ----

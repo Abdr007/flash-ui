@@ -434,7 +434,7 @@ function parseSingleIntent(input: string): ParseResult {
   cleaned = cleaned.replace(/\d+(?:\.\d+)?\s*%\s*(?:tp|take\s*profit|sl|stop\s*loss)/gi, "");
   cleaned = cleaned.replace(/\b(?:tp|take\s*profit|sl|stop\s*loss)\s+(?:at\s+)?\d+(?:\.\d+)?\s*%/gi, "");
 
-  // Step 3: "limit" keyword → pass to AI (AI knows about trigger orders and can explain)
+  // Step 3: "limit" keyword → pass to AI which knows how to call build_trade with order_type:"LIMIT"
   if (/\blimit\b/i.test(cleaned)) {
     return {
       type: "unknown",

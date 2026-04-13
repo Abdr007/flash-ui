@@ -221,6 +221,8 @@ export interface BuildOpenParams {
   slippageBps?: number;
   takeProfitPrice?: number;
   stopLossPrice?: number;
+  orderType?: "MARKET" | "LIMIT";
+  limitPrice?: number;
 }
 
 export async function buildOpenPosition(params: BuildOpenParams): Promise<ApiQuote> {
@@ -237,6 +239,8 @@ export async function buildOpenPosition(params: BuildOpenParams): Promise<ApiQuo
     // the same versioned tx — single base64, single signature.
     takeProfit: params.takeProfitPrice != null ? String(params.takeProfitPrice) : undefined,
     stopLoss: params.stopLossPrice != null ? String(params.stopLossPrice) : undefined,
+    orderType: params.orderType ?? "MARKET",
+    limitPrice: params.limitPrice != null ? String(params.limitPrice) : undefined,
   });
 
   if (result.err) {
@@ -460,12 +464,12 @@ export async function enrichTradeWithQuote(trade: TradeObject): Promise<TradeObj
       };
     }
 
-    // ---- Limit entry orders not supported (trigger orders on existing positions ARE) ----
-    if (trade.order_type === "limit") {
+    // ---- Limit order validation ----
+    if (trade.order_type === "limit" && !trade.limit_price) {
       return {
         ...trade,
         status: "ERROR",
-        error: "Limit entry orders are not supported. Open a market order, then use 'set tp/sl' to add trigger orders.",
+        error: "Limit orders require a limit price. Example: 'limit long SOL at $140 5x $50'",
       };
     }
 
