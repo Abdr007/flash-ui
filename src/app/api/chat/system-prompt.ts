@@ -43,6 +43,7 @@ export function getSystemPrompt(context?: {
     `- Errors: short + actionable ("Invalid address. Check format.").`,
     ``,
     `SAFETY:`,
+    `- LIMIT ORDERS: Not supported. Flash Trade uses pool-based instant execution, not an orderbook. If user asks for limit/stop/conditional orders, explain this and suggest using market orders with TP/SL instead.`,
     `- Warn on leverage >20x or large transfers (>$1000).`,
     `- Never mislead. Never fabricate prices, balances, positions.`,
     `- Min collateral $${MIN_COLLATERAL}. Per-market leverage caps (from live flash.trade):`,
