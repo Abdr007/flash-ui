@@ -83,6 +83,24 @@ const FAST_TRADE_RE_B = new RegExp(
   "i",
 );
 
+// Format C: 5x long SOL $25 (leverage FIRST — power user pattern)
+// Groups: 1=leverage, 2=side, 3=market, 4=collateral
+const FAST_TRADE_RE_C = new RegExp(
+  "^(\\d+(?:\\.\\d+)?)x\\s+(long|short)\\s+(\\w+)\\s+[$]?(\\d+(?:\\.\\d+)?)" +
+    "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
+    "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?$",
+  "i",
+);
+
+// Format D: $25 long SOL 5x (collateral first)
+// Groups: 1=collateral, 2=side, 3=market, 4=leverage
+const FAST_TRADE_RE_D = new RegExp(
+  "^[$]?(\\d+(?:\\.\\d+)?)\\s+(long|short)\\s+(\\w+)\\s+(\\d+(?:\\.\\d+)?)x" +
+    "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
+    "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?$",
+  "i",
+);
+
 // ---- Metrics (module-level, non-blocking) ----
 export const metrics = {
   hits: 0,
@@ -128,23 +146,37 @@ function parse(input: string): ParsedTrade | null {
     .replace(/\s+/g, " ")
     .trim();
 
-  // Try format A: long SOL $25 5x
-  let m = FAST_TRADE_RE.exec(cleanedInput);
+  // Try all formats in priority order
+  let m = FAST_TRADE_RE.exec(cleanedInput); // A: long SOL $25 5x
   let collateral: number;
   let leverage: number;
+  let sideIdx = 1;
+  let marketIdx = 2;
 
   if (m) {
     collateral = parseFloat(m[3]);
     leverage = parseFloat(m[4]);
-  } else {
-    // Try format B: long SOL 5x $25
-    m = FAST_TRADE_RE_B.exec(cleanedInput);
-    if (!m) return null;
+  } else if ((m = FAST_TRADE_RE_B.exec(cleanedInput))) {
+    // B: long SOL 5x $25
     leverage = parseFloat(m[3]);
     collateral = parseFloat(m[4]);
+  } else if ((m = FAST_TRADE_RE_C.exec(cleanedInput))) {
+    // C: 5x long SOL $25
+    leverage = parseFloat(m[1]);
+    sideIdx = 2;
+    marketIdx = 3;
+    collateral = parseFloat(m[4]);
+  } else if ((m = FAST_TRADE_RE_D.exec(cleanedInput))) {
+    // D: $25 long SOL 5x
+    collateral = parseFloat(m[1]);
+    sideIdx = 2;
+    marketIdx = 3;
+    leverage = parseFloat(m[4]);
+  } else {
+    return null;
   }
 
-  const market = resolveMarket(m[2]);
+  const market = resolveMarket(m[marketIdx]);
   if (!market) return null;
 
   // Numeric safety — reject NaN/Infinity/out-of-bounds
@@ -162,7 +194,7 @@ function parse(input: string): ParsedTrade | null {
   if (sl != null && (!Number.isFinite(sl) || sl <= 0)) return null;
 
   return {
-    side: m[1].toUpperCase() as "LONG" | "SHORT",
+    side: m[sideIdx].toUpperCase() as "LONG" | "SHORT",
     market,
     collateral,
     leverage,
