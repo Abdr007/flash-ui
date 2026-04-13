@@ -59,9 +59,9 @@ const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.c
 // ---- Kill switch for transfers (independent of trading) ----
 const TRANSFERS_ENABLED = process.env.TRANSFERS_ENABLED !== "false";
 
-const SOL_COMPUTE_UNITS = 300;
-const SPL_COMPUTE_UNITS = 60_000;
-const PRIORITY_FEE_MICROLAMPORTS = 1;
+const SOL_COMPUTE_UNITS = 5_000; // SOL transfer + compute budget ixs
+const SPL_COMPUTE_UNITS = 100_000; // SPL transfer + ATA creation + compute budget
+const PRIORITY_FEE_MICROLAMPORTS = 50_000; // ~0.00005 SOL — ensures landing
 const MAX_SAFE_RAW_AMOUNT = BigInt("9223372036854775807"); // 2^63 - 1
 
 /**
