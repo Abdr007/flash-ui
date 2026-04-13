@@ -311,10 +311,19 @@ export function createTransferPreviewTool(wallet: string) {
 
       // ---- Validate recipient ----
       if (!isValidPublicKey(recipient)) {
+        // Check if it looks like a lowercased address
+        const looksLowered =
+          recipient.length >= 32 &&
+          recipient.length <= 44 &&
+          /^[a-z0-9]+$/i.test(recipient) &&
+          recipient === recipient.toLowerCase();
+        const hint = looksLowered
+          ? " Solana addresses are case-sensitive — copy the exact address from your wallet."
+          : "";
         return {
           status: "error",
           data: null,
-          error: `Invalid recipient address: "${recipient}". Must be a valid Solana public key (32-44 base58 characters).`,
+          error: `Invalid recipient address.${hint} Must be a valid Solana public key (32-44 base58 characters).`,
           request_id: requestId,
           latency_ms: Date.now() - start,
         };

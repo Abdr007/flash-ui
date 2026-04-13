@@ -136,9 +136,13 @@ export async function withLatency<T>(fn: () => Promise<T>): Promise<{ result: T;
 
 // ---- Request-scoped Trace ID ----
 
-/** Generate a unique request-scoped trace ID */
+/** Generate a unique request-scoped trace ID (cryptographically random) */
 export function generateTraceId(): string {
-  return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const id =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID().slice(0, 12)
+      : Math.random().toString(36).slice(2, 14);
+  return `req_${Date.now()}_${id}`;
 }
 
 // ---- Scrubbing ----
