@@ -46,20 +46,37 @@ interface RawOrder {
   sizeAmount?: number;
   // limit order arrays on order accounts
   limitOrders?: RawLimitEntry[];
+  takeProfitOrders?: RawTriggerEntry[];
+  stopLossOrders?: RawTriggerEntry[];
   triggerOrders?: RawTriggerEntry[];
 }
 
 interface RawLimitEntry {
+  market?: string;
+  symbol?: string;
+  marketSymbol?: string;
+  orderId?: number;
+  sideUi?: string;
+  side?: string;
   limitPrice?: number;
   limitPriceUi?: number;
+  entryPriceUi?: number;
   reserveAmount?: number;
+  reserveAmountUi?: string;
   sizeAmount?: number;
   sizeUsdUi?: number;
   collateralUsdUi?: number;
+  collateralAmountUsdUi?: number;
   leverageUi?: number;
 }
 
 interface RawTriggerEntry {
+  market?: string;
+  symbol?: string;
+  marketSymbol?: string;
+  orderId?: number;
+  sideUi?: string;
+  side?: string;
   triggerPrice?: number;
   triggerPriceUi?: number;
   isStopLoss?: boolean;
@@ -175,36 +192,81 @@ async function fetchOrders(wallet: string): Promise<ParsedOrder[]> {
       continue;
     }
 
-    // Order account object with nested arrays
+    // Order account object with nested arrays (from /orders/owner/{wallet})
     if (Array.isArray(o.limitOrders)) {
       for (let i = 0; i < o.limitOrders.length; i++) {
         const lo = o.limitOrders[i];
         if (!lo) continue;
         // Skip empty orders (zero reserve + zero size)
-        if (safeFloat(lo.reserveAmount) === 0 && safeFloat(lo.sizeAmount) === 0 && safeFloat(lo.sizeUsdUi) === 0)
-          continue;
+        if (safeFloat(lo.reserveAmountUi ?? lo.reserveAmount) === 0 && safeFloat(lo.sizeUsdUi) === 0) continue;
+        const loMarket = String(lo.symbol || lo.marketSymbol || market || "");
+        const loSideRaw = String(lo.sideUi || lo.side || "").toUpperCase();
+        const loSide: "LONG" | "SHORT" = loSideRaw === "SHORT" ? "SHORT" : "LONG";
         orders.push({
-          market,
-          side,
-          order_id: i,
+          market: loMarket,
+          side: loSide,
+          order_id: safeFloat(lo.orderId ?? i),
           type: "limit",
-          price: safeFloat(lo.limitPriceUi ?? lo.limitPrice),
+          price: safeFloat(lo.entryPriceUi ?? lo.limitPriceUi ?? lo.limitPrice),
           size_usd: safeFloat(lo.sizeUsdUi),
-          collateral_usd: safeFloat(lo.collateralUsdUi),
+          collateral_usd: safeFloat(lo.collateralAmountUsdUi ?? lo.collateralUsdUi),
           leverage: safeFloat(lo.leverageUi),
         });
       }
     }
 
+    // Parse TP orders
+    const tpOrders = Array.isArray(o.takeProfitOrders) ? o.takeProfitOrders : [];
+    for (let i = 0; i < tpOrders.length; i++) {
+      const tp = tpOrders[i];
+      if (!tp) continue;
+      if (safeFloat(tp.triggerPriceUi ?? tp.triggerPrice) === 0) continue;
+      const tpMarket = String(tp.symbol || tp.marketSymbol || market || "");
+      const tpSideRaw = String(tp.sideUi || tp.side || "").toUpperCase();
+      orders.push({
+        market: tpMarket,
+        side: tpSideRaw === "SHORT" ? "SHORT" : "LONG",
+        order_id: safeFloat(tp.orderId ?? i),
+        type: "take_profit",
+        price: safeFloat(tp.triggerPriceUi ?? tp.triggerPrice),
+        size_usd: safeFloat(tp.sizeUsdUi),
+        collateral_usd: 0,
+        leverage: 0,
+      });
+    }
+
+    // Parse SL orders
+    const slOrders = Array.isArray(o.stopLossOrders) ? o.stopLossOrders : [];
+    for (let i = 0; i < slOrders.length; i++) {
+      const sl = slOrders[i];
+      if (!sl) continue;
+      if (safeFloat(sl.triggerPriceUi ?? sl.triggerPrice) === 0) continue;
+      const slMarket = String(sl.symbol || sl.marketSymbol || market || "");
+      const slSideRaw = String(sl.sideUi || sl.side || "").toUpperCase();
+      orders.push({
+        market: slMarket,
+        side: slSideRaw === "SHORT" ? "SHORT" : "LONG",
+        order_id: safeFloat(sl.orderId ?? i),
+        type: "stop_loss",
+        price: safeFloat(sl.triggerPriceUi ?? sl.triggerPrice),
+        size_usd: safeFloat(sl.sizeUsdUi),
+        collateral_usd: 0,
+        leverage: 0,
+      });
+    }
+
+    // Also check old triggerOrders format
     if (Array.isArray(o.triggerOrders)) {
       for (let i = 0; i < o.triggerOrders.length; i++) {
         const to = o.triggerOrders[i];
         if (!to) continue;
-        if (safeFloat(to.triggerPriceUi ?? to.triggerPrice) === 0 && safeFloat(to.sizeUsdUi) === 0) continue;
+        if (safeFloat(to.triggerPriceUi ?? to.triggerPrice) === 0) continue;
+        const toMarket = String(to.symbol || to.marketSymbol || market || "");
+        const toSideRaw = String(to.sideUi || to.side || "").toUpperCase();
         orders.push({
-          market,
-          side,
-          order_id: i,
+          market: toMarket,
+          side: toSideRaw === "SHORT" ? "SHORT" : "LONG",
+          order_id: safeFloat(to.orderId ?? i),
           type: to.isStopLoss ? "stop_loss" : "take_profit",
           price: safeFloat(to.triggerPriceUi ?? to.triggerPrice),
           size_usd: safeFloat(to.sizeUsdUi),
