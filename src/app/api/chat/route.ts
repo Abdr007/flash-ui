@@ -583,18 +583,18 @@ function matchDirectTool(input: string): DirectToolMatch | null {
     return { toolName: "get_all_prices", params: {} };
   }
 
-  // ── Positions ──
+  // ── Positions (comprehensive) ──
   if (
-    /^(?:(?:show\s+)?(?:my\s+)?positions?|(?:my\s+)?open\s+(?:trades?|positions?)|(?:show\s+)?(?:my\s+)?trades?)$/i.test(
+    /^(?:(?:show\s+)?(?:me\s+)?(?:my\s+)?positions?|(?:my\s+)?(?:open|active)\s+(?:trades?|positions?)|(?:show\s+)?(?:me\s+)?(?:my\s+)?trades?|(?:what|how\s+many)\s+positions?\s+(?:do\s+)?i\s+have|my\s+open\s+positions?)$/i.test(
       t,
     )
   ) {
     return { toolName: "get_positions", params: {} };
   }
 
-  // ── Portfolio (comprehensive natural language) ──
+  // ── Portfolio (comprehensive — covers 60+ natural phrases) ──
   if (
-    /^(?:portfolio|(?:show\s+)?(?:my\s+)?portfolio|(?:my\s+)?(?:wallet\s+)?balance[s]?|(?:show\s+)?(?:my\s+)?balance[s]?|(?:what(?:'?s| is| are)\s+)?(?:my\s+)?(?:token\s+)?balance[s]?|how\s+much\s+(?:do\s+)?i\s+have|(?:my|show(?:\s+my)?)\s+tokens?|token\s+balances?|what\s+tokens?\s+(?:do\s+)?i\s+have|(?:my|show(?:\s+my)?)\s+holdings?|net\s+worth|total\s+balance|(?:my|show(?:\s+my)?)\s+wallet|how(?:'?s)?\s+my\s+portfolio|(?:my|show(?:\s+my)?)\s+(?:total\s+)?(?:pnl|p&l|profit|loss)|am\s+i\s+(?:profitable|making\s+money|losing)|how\s+much\s+am\s+i\s+(?:making|losing|earning)|unrealized\s+(?:pnl|p&l|profit))$/i.test(
+    /^(?:portfolio|(?:show\s+)?(?:my\s+)?portfolio|(?:my\s+)?(?:wallet\s+)?balance[s]?|(?:show\s+)?(?:my\s+)?balance[s]?|(?:what(?:'?s| is| are)\s+)?(?:my\s+)?(?:token\s+)?balance[s]?|how\s+much\s+(?:do\s+)?i\s+have|(?:my|show(?:\s+(?:me\s+)?my)?)\s+tokens?|token\s+balances?|what\s+tokens?\s+(?:do\s+)?i\s+have|(?:my|show(?:\s+(?:me\s+)?my)?)\s+holdings?|net\s+worth|total\s+balance|(?:show\s+)?(?:my\s+)?wallet|how(?:'?s| is)?\s+my\s+(?:portfolio|account)|(?:my|show(?:\s+(?:me\s+)?my)?)\s+(?:total\s+)?(?:pnl|p&l|profit|loss)|am\s+i\s+(?:profitable|making\s+money|losing(?:\s+money)?)|how\s+much\s+am\s+i\s+(?:making|losing|earning)|unrealized\s+(?:pnl|p&l|profit)|(?:account|wallet)\s+balance|show\s+(?:me\s+)?(?:my\s+)?(?:money|funds|assets))$/i.test(
       t,
     )
   ) {
