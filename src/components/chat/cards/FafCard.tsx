@@ -355,9 +355,8 @@ const FafCard = memo(function FafCard({
                 className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.1)" }}
               >
-                <span className="text-[16px] font-bold" style={{ color: "var(--color-accent-lime)" }}>
-                  F
-                </span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/ft-logo.svg" alt="FAF" width={20} height={20} style={{ borderRadius: "50%" }} />
               </span>
               <div>
                 <div className="text-[15px] font-semibold text-text-primary">Start Earning with FAF</div>
@@ -401,9 +400,8 @@ const FafCard = memo(function FafCard({
                 border: "1.5px solid rgba(51,201,161,0.2)",
               }}
             >
-              <span className="text-[18px] font-bold" style={{ color: "var(--color-brand-cyan)" }}>
-                F
-              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/ft-logo.svg" alt="FAF" width={28} height={28} style={{ borderRadius: "50%" }} />
             </span>
             <div>
               <div className="text-[20px] font-bold text-text-primary num">
@@ -532,11 +530,11 @@ const FafCard = memo(function FafCard({
         {onAction && (
           <div className="flex flex-wrap gap-2 px-6 py-4" style={{ borderTop: "1px solid rgba(51,201,161,0.04)" }}>
             {[
-              { label: "Stake FAF", intent: "I want to stake FAF tokens", primary: true },
-              { label: "Claim Rewards", intent: "claim my faf rewards", primary: hasRewards },
-              { label: "VIP Tiers", intent: "show me the vip tiers", primary: false },
-              { label: "Unstake", intent: "I want to unstake FAF", primary: false },
-              { label: "Requests", intent: "show my unstake requests", primary: false },
+              { label: "Stake FAF", intent: "I want to stake FAF tokens" },
+              { label: "Claim Rewards", intent: "claim my faf rewards" },
+              { label: "VIP Tiers", intent: "show me the vip tiers" },
+              { label: "Unstake", intent: "I want to unstake FAF" },
+              { label: "Requests", intent: "show my unstake requests" },
             ].map((opt) => (
               <button
                 key={opt.label}
@@ -544,10 +542,9 @@ const FafCard = memo(function FafCard({
                 className="px-4 py-2 rounded-xl text-[12px] font-medium cursor-pointer
                   transition-all duration-150 hover:scale-[1.03] hover:-translate-y-[1px] active:scale-[0.97]"
                 style={{
-                  background: opt.primary ? "rgba(51,201,161,0.08)" : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${opt.primary ? "rgba(51,201,161,0.2)" : "rgba(255,255,255,0.06)"}`,
-                  color: opt.primary ? "var(--color-brand-cyan)" : "var(--color-text-secondary)",
-                  boxShadow: opt.primary ? "0 0 12px -4px rgba(51,201,161,0.1)" : "none",
+                  background: "rgba(51,201,161,0.05)",
+                  border: "1px solid rgba(51,201,161,0.12)",
+                  color: "var(--color-brand-cyan)",
                 }}
               >
                 {opt.label}

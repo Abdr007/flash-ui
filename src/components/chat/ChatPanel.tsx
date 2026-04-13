@@ -14,7 +14,7 @@ import ToolResultCard from "./ToolResultCard";
 import QuickReply from "./QuickReply";
 import PortfolioHero from "@/components/portfolio/PortfolioHero";
 import { SectionBoundary } from "@/components/ErrorBoundary";
-import { getSuggestedActionGroups, getAutocompleteSuggestions, type SuggestedAction } from "@/lib/predictive-actions";
+import { getAutocompleteSuggestions } from "@/lib/predictive-actions";
 import { feedPrices } from "@/lib/market-awareness";
 
 interface ChatPanelProps {
@@ -30,20 +30,10 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScroll = useRef(true);
 
-  const walletConnected = useFlashStore((s) => s.walletConnected);
-  const positions = useFlashStore((s) => s.positions);
   const prices = useFlashStore((s) => s.prices);
-  const lastTradeDraft = useFlashStore((s) => s.lastTradeDraft);
-  // Optional-chain contextMemory because during initial hydration / hot
-  // reload the selector can briefly see a store snapshot where nested
-  // objects aren't populated yet, throwing "Cannot read properties of
-  // undefined (reading 'recentMarkets')" which the error boundary then
-  // catches with a generic 'state' stack trace.
-  const recentMarkets = useFlashStore((s) => s.contextMemory?.recentMarkets ?? []);
-  // Read isExecuting/activeTrade lazily via getState() — NOT as reactive subscriptions
+  // Read isExecuting lazily via getState() — NOT as reactive subscription
   // This prevents the cascade crash when completeExecution sets both to null/false simultaneously
   const getIsExecuting = useCallback(() => useFlashStore.getState().isExecuting, []);
-  const getActiveTrade = useCallback(() => useFlashStore.getState().activeTrade, []);
   const isExecuting = getIsExecuting();
   const setStreaming = useFlashStore((s) => s.setStreaming);
 
@@ -108,22 +98,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
     autoScroll.current = scrollHeight - scrollTop - clientHeight < 80;
   }, []);
-
-  // Predictions
-  const predictionState = useMemo(
-    () => ({
-      positions,
-      lastTradeDraft,
-      recentMarkets,
-      prices,
-      walletConnected,
-      hasActiveTrade: !!getActiveTrade(),
-      isExecuting: getIsExecuting(),
-    }),
-    [positions, lastTradeDraft, recentMarkets, prices, walletConnected, getActiveTrade, getIsExecuting],
-  );
-
-  const actionGroups = useMemo(() => getSuggestedActionGroups(predictionState), [predictionState]);
 
   // Input handlers
   const handleInputChange = useCallback((value: string) => {
@@ -191,13 +165,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     const t = setTimeout(() => setOptimisticPending(false), 3000);
     return () => clearTimeout(t);
   }, [optimisticPending]);
-
-  const handleChipClick = useCallback(
-    (action: SuggestedAction) => {
-      handleSubmit(action.intent);
-    },
-    [handleSubmit],
-  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -374,36 +341,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               ))}
             </div>
           )}
-
-          {/* Suggestion chips (above input when chat active, hidden during wizard flows) */}
-          {hasMessages &&
-            actionGroups.length > 0 &&
-            !isStreaming &&
-            !isExecuting &&
-            !optimisticPending &&
-            messages.length > 8 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {actionGroups
-                  .flatMap((g) => g.actions)
-                  .slice(0, 4)
-                  .map((action, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleChipClick(action)}
-                      aria-label={action.label}
-                      className="chip chip-stagger text-[12px] px-3 py-1.5
-                    text-text-secondary hover:text-text-primary cursor-pointer"
-                      style={{
-                        background: "rgba(14,19,28,0.7)",
-                        border: "1px solid rgba(51,201,161,0.06)",
-                        borderRadius: "9999px",
-                      }}
-                    >
-                      {action.label}
-                    </button>
-                  ))}
-              </div>
-            )}
 
           {/* Input box (Galileo-style glass card) */}
           <div className="relative overflow-hidden glass-card input-glow" style={{ borderRadius: "16px" }}>

@@ -142,7 +142,7 @@ const FAF_PATTERNS: {
   // ── Stake (no amount → prompt) ──
   { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "__prompt__" },
   {
-    pattern: /(?:want|wanna|like)\s+to\s+(?!un)stake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i,
+    pattern: /(?:want|wanna|like)\s+to\s+(?!un)stake\s+(?:my\s+)?(?:faf(?:\s+tokens?)?\s*|tokens?\s*)$/i,
     action: "stake_prompt",
     toolName: "__prompt__",
   },
