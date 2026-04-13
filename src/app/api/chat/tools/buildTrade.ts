@@ -206,7 +206,9 @@ export function createBuildTradeTool(wallet: string) {
 
         // ---- STEP 6: Build trade preview via Flash API ----
         const preview = await fetchTradePreview(resolved, side, collateral_usd, leverage);
-        const entry_price = preview?.entry_price ?? priceData.price;
+        // For limit orders, entry price IS the limit price (that's the price the order triggers at)
+        const entry_price =
+          order_type === "LIMIT" && limit_price ? limit_price : (preview?.entry_price ?? priceData.price);
         const position_size = preview?.position_size ?? collateral_usd * leverage;
         const fee_rate = preview?.fee_rate ?? 0.0008;
         const fees = preview?.fees ?? position_size * fee_rate;

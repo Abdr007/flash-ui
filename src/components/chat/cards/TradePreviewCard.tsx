@@ -361,6 +361,14 @@ const TradePreviewCard = memo(function TradePreviewCard({
           >
             {t.side}
           </span>
+          {t.order_type === "LIMIT" && (
+            <span
+              className="text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-full"
+              style={{ color: "var(--color-accent-blue)", background: "rgba(59,130,246,0.12)" }}
+            >
+              LIMIT
+            </span>
+          )}
         </div>
         <ConfidenceBadge confidence={confidence} />
       </div>
@@ -385,7 +393,9 @@ const TradePreviewCard = memo(function TradePreviewCard({
       {/* Primary prices */}
       <div className="grid grid-cols-2 border-b border-border-subtle">
         <div className="px-5 py-4">
-          <div className="text-[11px] text-text-tertiary mb-1">Entry</div>
+          <div className="text-[11px] text-text-tertiary mb-1">
+            {t.order_type === "LIMIT" ? "Limit Price" : "Entry"}
+          </div>
           <div className="text-[20px] font-semibold num text-text-primary leading-none">
             {formatPrice(t.entry_price)}
           </div>
