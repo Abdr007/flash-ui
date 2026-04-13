@@ -535,6 +535,7 @@ function resolveMarket(input: string): string {
 
 function matchDirectTool(input: string): DirectToolMatch | null {
   const t = input.toLowerCase().trim();
+  const tOriginal = input.trim(); // preserve case for addresses
 
   // ── Price queries ──
   // "price of SOL", "SOL price", "what's SOL at", "how much is BTC", "price SOL", "btc?"
@@ -588,7 +589,8 @@ function matchDirectTool(input: string): DirectToolMatch | null {
   if (m) return { toolName: "close_position_preview", params: { market: resolveMarket(m[1]) } };
 
   // ── Transfer: "send 0.1 SOL to <address>" ──
-  m = /^(?:send|transfer)\s+(\d+(?:\.\d+)?)\s+(\w+)\s+to\s+([1-9A-HJ-NP-Za-km-z]{32,44})$/i.exec(t);
+  // Use tOriginal to preserve base58 case in the recipient address
+  m = /^(?:send|transfer)\s+(\d+(?:\.\d+)?)\s+(\w+)\s+to\s+([1-9A-HJ-NP-Za-km-z]{32,44})$/i.exec(tOriginal);
   if (m)
     return {
       toolName: "transfer_preview",
