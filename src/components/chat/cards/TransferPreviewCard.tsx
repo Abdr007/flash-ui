@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useState, useRef } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import { ToolError } from "./shared";
 import type { ToolOutput } from "./types";
@@ -136,6 +137,7 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
   const [copied, setCopied] = useState<"addr" | "tx" | null>(null);
   const [confirmInput, setConfirmInput] = useState("");
   const walletAddress = useFlashStore((s) => s.walletAddress);
+  const { signTransaction: walletSignTransaction } = useWallet();
   // Execution lock — prevents double-click across renders
   const executionLockRef = useRef(false);
   // Attempt counter — ensures each retry gets a fresh blockhash (not stale cache)
@@ -261,26 +263,12 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
       const txBytes = Uint8Array.from(atob(txBase64), (c) => c.charCodeAt(0));
       const tx = VersionedTransaction.deserialize(txBytes);
 
-      // HIGH FIX: Use wallet adapter from window.solana with proper validation
-      // Note: window.solana works for Phantom, Solflare, Backpack — the major Solana wallets
-      // The wallet-adapter-react signTransaction requires component-level hook access which
-      // we can't use inside a memo callback. This is the standard pattern for signing in
-      // event handlers outside of hooks.
-      const walletAdapter = (window as unknown as { solana?: { signTransaction: (tx: unknown) => Promise<unknown> } })
-        .solana;
-      if (!walletAdapter?.signTransaction) {
+      // Sign via wallet adapter (properly authorized by the connected wallet)
+      if (!walletSignTransaction) {
         throw new Error("Wallet not available. Please connect your wallet.");
       }
 
-      // Wallet signing with 60s timeout (user may need time to approve)
-      const signTimeout = new Promise<never>((_, reject) => {
-        const t = setTimeout(() => reject(new Error("Wallet signing timed out. Please try again.")), 60_000);
-        // Don't block Node.js exit
-        if (typeof t === "object" && "unref" in t) (t as NodeJS.Timeout).unref();
-      });
-      const signed = (await Promise.race([walletAdapter.signTransaction(tx), signTimeout])) as {
-        serialize?: () => Uint8Array;
-      } | null;
+      const signed = await walletSignTransaction(tx);
 
       if (!signed || typeof signed.serialize !== "function") {
         throw new Error("Wallet returned invalid signed transaction");
