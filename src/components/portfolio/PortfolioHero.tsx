@@ -318,7 +318,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
               strokeLinecap="round"
               style={{
                 transform: assetsExpanded ? "rotate(180deg)" : "rotate(0)",
-                transition: "transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+                transition: "transform 350ms cubic-bezier(0.22, 1, 0.36, 1)",
               }}
             >
               <polyline points="6 9 12 15 18 9" />
@@ -332,13 +332,13 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
               maxHeight: assetsExpanded ? "400px" : "0",
               opacity: assetsExpanded ? 1 : 0,
               overflowY: assetsExpanded ? "auto" : "hidden",
-              transition: "max-height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 250ms",
+              transition: "max-height 450ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease-out",
             }}
           >
             {tokens.map((t) => (
               <div
                 key={t.mint || t.symbol}
-                className="flex items-center justify-between px-6 py-4 transition-colors duration-100 hover:bg-white/[0.02]"
+                className="flex items-center justify-between px-6 py-4 transition-colors duration-200 hover:bg-white/[0.02]"
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}
               >
                 <div className="flex items-center gap-4">
@@ -438,7 +438,7 @@ const ActionNode = memo(function ActionNode({
           background: "rgba(51, 201, 161, 0.05)",
           border: "1.5px solid rgba(51, 201, 161, 0.18)",
           boxShadow: "0 0 24px -6px rgba(51, 201, 161, 0.12), inset 0 0 16px -4px rgba(51, 201, 161, 0.06)",
-          transition: "all 200ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          transition: "all 300ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
@@ -496,7 +496,7 @@ const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
           background: "linear-gradient(135deg, rgba(51,201,161,0.08), rgba(200,245,71,0.04))",
           border: "1.5px solid rgba(200,245,71,0.2)",
           boxShadow: "0 0 24px -6px rgba(200,245,71,0.12), inset 0 0 16px -4px rgba(200,245,71,0.06)",
-          transition: "all 200ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          transition: "all 300ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
@@ -673,7 +673,7 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
           key={t.symbol}
           onClick={() => onAction(`price of ${t.symbol}`)}
           aria-label={`View ${t.symbol} price, ${t.change >= 0 ? "up" : "down"} ${Math.abs(t.change).toFixed(1)}%`}
-          className="flex items-center gap-1.5 cursor-pointer transition-opacity duration-150 hover:opacity-70"
+          className="flex items-center gap-1.5 cursor-pointer transition-opacity duration-250 hover:opacity-70"
           style={{
             marginLeft: i > 0 ? "14px" : "0",
             borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none",

@@ -353,7 +353,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                 backdropFilter: "blur(24px) saturate(1.4)",
                 border: "1px solid rgba(51,201,161,0.08)",
                 boxShadow: "0 8px 32px -8px rgba(0,0,0,0.5)",
-                animation: "slideDown 120ms cubic-bezier(0.2, 0, 0, 1) both",
+                animation: "slideDown 200ms cubic-bezier(0.22, 1, 0.36, 1) both",
               }}
             >
               {autocomplete.map((s, i) => (
@@ -362,7 +362,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                   role="option"
                   aria-selected={i === selectedAC}
                   onClick={() => handleSubmit(s)}
-                  className={`autocomplete-item w-full text-left px-4 py-2.5 text-[14px] cursor-pointer transition-all duration-100
+                  className={`autocomplete-item w-full text-left px-4 py-2.5 text-[14px] cursor-pointer transition-all duration-200
                     ${i === selectedAC ? "text-text-primary" : "text-text-secondary hover:text-text-primary"}`}
                   style={{
                     background: i === selectedAC ? "rgba(51,201,161,0.06)" : "transparent",
@@ -442,8 +442,8 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                   aria-label="Send message"
                   disabled={!input.trim() || isStreaming || isExecuting}
                   className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer shrink-0
-                    transition-all duration-150 disabled:opacity-20 disabled:cursor-default
-                    active:scale-90"
+                    transition-all duration-250 disabled:opacity-20 disabled:cursor-default
+                    active:scale-92"
                   style={{
                     background:
                       input.trim() && !isStreaming && !isExecuting
@@ -451,7 +451,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                         : "rgba(255,255,255,0.06)",
                     color: input.trim() && !isStreaming && !isExecuting ? "#070A0F" : "var(--color-text-tertiary)",
                     boxShadow: input.trim() && !isStreaming && !isExecuting ? "0 0 16px rgba(200,245,71,0.3)" : "none",
-                    transition: "all 200ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+                    transition: "all 300ms cubic-bezier(0.22, 1, 0.36, 1)",
                   }}
                 >
                   <svg

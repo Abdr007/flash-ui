@@ -22,9 +22,16 @@ export default function ConfirmOverlay() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-bg-root/80 backdrop-blur-sm" onClick={isInFlight ? undefined : cancelTrade} />
+      <div
+        className="absolute inset-0 bg-bg-root/80 backdrop-blur-sm"
+        style={{ animation: "fadeIn 200ms ease-out" }}
+        onClick={isInFlight ? undefined : cancelTrade}
+      />
 
-      <div className="relative w-[440px] glass-card overflow-hidden" style={{ animation: "slideUp 200ms ease-out" }}>
+      <div
+        className="relative w-[440px] glass-card overflow-hidden"
+        style={{ animation: "slideUp 350ms cubic-bezier(0.22, 1, 0.36, 1)" }}
+      >
         {/* Header */}
         <div
           className="px-6 py-5 flex items-center justify-between"
