@@ -59,9 +59,10 @@ const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.c
 // ---- Kill switch for transfers (independent of trading) ----
 const TRANSFERS_ENABLED = process.env.TRANSFERS_ENABLED !== "false";
 
-const SOL_COMPUTE_UNITS = 3_000; // SOL transfer uses ~2300 CU
-const SPL_COMPUTE_UNITS = 80_000; // SPL transfer + ATA creation
-const PRIORITY_FEE_MICROLAMPORTS = 1_000; // 1000 µL/CU — minimal but enough to land
+// SOL transfers: NO compute budget instructions = absolute minimum fee (5000 lamports base only)
+// SPL transfers: need CU budget for token program + ATA creation
+const SPL_COMPUTE_UNITS = 80_000;
+const SPL_PRIORITY_FEE_MICROLAMPORTS = 100; // 100 µL/CU — near-zero but nonzero for ordering
 const MAX_SAFE_RAW_AMOUNT = BigInt("9223372036854775807"); // 2^63 - 1
 
 /**
@@ -139,16 +140,19 @@ export async function POST(req: NextRequest) {
     const connection = new Connection(RPC_URL, { commitment: "confirmed" });
     const instructions = [];
 
-    // Compute budget — cheapest possible
-    const computeUnits = is_native_sol ? SOL_COMPUTE_UNITS : SPL_COMPUTE_UNITS;
-    instructions.push(ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnits }));
-    instructions.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: PRIORITY_FEE_MICROLAMPORTS }));
+    // SOL transfers: ZERO compute budget instructions = absolute minimum fee
+    // (just the 5000 lamport base fee — the cheapest possible on Solana)
+    // SPL transfers: need compute budget for token program complexity
+    if (!is_native_sol) {
+      instructions.push(ComputeBudgetProgram.setComputeUnitLimit({ units: SPL_COMPUTE_UNITS }));
+      instructions.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: SPL_PRIORITY_FEE_MICROLAMPORTS }));
+    }
 
     if (is_native_sol) {
-      // ---- SOL Transfer ----
+      // ---- SOL Transfer — single instruction, minimum fee ----
       const lamports = Math.round(amount * LAMPORTS_PER_SOL);
       const balance = await connection.getBalance(senderPubkey);
-      const totalNeeded = lamports + 5000 + 1_000_000;
+      const totalNeeded = lamports + 5000; // only base fee needed
       if (balance < totalNeeded) {
         return NextResponse.json({
           error: `Insufficient SOL. Have ${(balance / LAMPORTS_PER_SOL).toFixed(4)}, need ${(totalNeeded / LAMPORTS_PER_SOL).toFixed(4)}`,
@@ -316,8 +320,8 @@ export async function POST(req: NextRequest) {
       transaction: base64,
       blockhash,
       lastValidBlockHeight,
-      computeUnits,
-      priorityFee: PRIORITY_FEE_MICROLAMPORTS,
+      computeUnits: is_native_sol ? 0 : SPL_COMPUTE_UNITS,
+      priorityFee: is_native_sol ? 0 : SPL_PRIORITY_FEE_MICROLAMPORTS,
     };
 
     // Cache for idempotency
