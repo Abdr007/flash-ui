@@ -1,36 +1,149 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# Flash Terminal
 
-First, run the development server:
+**AI-Powered Perpetual Trading on Solana**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Chat-first trading terminal built on [Flash Trade](https://flash.trade) protocol.
+Market orders, limit orders, trigger orders, FAF staking, earn yield, instant transfers — all through natural language.
+
+[![CI](https://github.com/Abdr007/flash-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/Abdr007/flash-ui/actions/workflows/ci.yml)
+
+[Live Demo](https://flash-ui-eight.vercel.app) &bull; [Flash Trade](https://flash.trade)
+
+</div>
+
+---
+
+## Architecture
+
+```
+User Input
+    |
+    v
++------------------+     +------------------+     +------------------+
+|   Fast-Path      | --> |   FAF Patterns   | --> |  Direct Tool     |
+|   (4 regex       |     |   (40+ patterns) |     |  Match (30+)     |
+|   formats, <5ms) |     |                  |     |                  |
++------------------+     +------------------+     +------------------+
+    |                         |                         |
+    | miss                    | miss                    | miss
+    v                         v                         v
++------------------+     +------------------+     +------------------+
+|   NLP Parser     | --> |  Conversational  | --> |   AI Fallback    |
+|   (confidence    |     |  Intents         |     |   Sonnet 4.6     |
+|   threshold 0.8) |     |  (wizards)       |     |   (26 tools)     |
++------------------+     +------------------+     +------------------+
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**65-75% of requests resolve with zero AI inference.** The system is regex-first, AI-fallback.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Category | Capabilities |
+|---|---|
+| **Trading** | Market orders, limit orders, degen mode (500x), TP/SL bundled in tx |
+| **Order Management** | View orders, cancel limit orders, edit (cancel+replace), trigger orders |
+| **Position Management** | Close, partial close, reverse/flip, add/remove collateral |
+| **FAF Staking** | Stake, unstake, claim rewards, VIP tiers, cancel unstake |
+| **Earn** | 11 pools, deposit, withdraw, positions, live APY |
+| **Transfers** | SOL + SPL tokens, cheapest fees on Solana (5000 lamports base) |
+| **Portfolio** | Live PnL (with fees), wallet tokens via Helius DAS, 60+ prompt patterns |
 
-## Learn More
+## Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript (strict mode) |
+| AI | Claude Sonnet 4.6 + Haiku 4.5 via Vercel AI SDK v6 |
+| State | Zustand (3 domain slices) |
+| Blockchain | Solana (web3.js), Flash SDK, Pyth oracles |
+| Styling | Tailwind CSS 4, custom design system |
+| Testing | Vitest (231 tests), Playwright (E2E) |
+| CI/CD | GitHub Actions, Vercel, husky + lint-staged |
+| Deployment | Vercel (Fluid Compute) |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Quality
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Metric | Value |
+|---|---|
+| Unit tests | 231 |
+| E2E tests | 5 |
+| AI tools | 26 |
+| Prompts chaos-tested | 450+ |
+| ESLint warnings | 0 |
+| Prettier | All files formatted |
+| Build | Clean |
+| CI | Green |
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/
+  app/
+    api/
+      chat/          # AI chat route + 26 tools
+      broadcast/     # Multi-endpoint tx broadcast
+      faf/           # FAF staking tx builder
+      health/        # Health check (Flash API + RPC + Pyth)
+      transfer/      # Token transfer builder
+    page.tsx         # Main app shell
+    landing/         # Landing page
+  components/
+    chat/
+      cards/         # 18 card components (split from monolith)
+      ChatPanel.tsx  # Chat UI
+    portfolio/       # Portfolio hero + panels
+    earn/            # Earn modal
+    ui/              # Skeleton, ThemeToggle
+  hooks/             # useExecuteTx, useLivePnl, usePriceStream
+  lib/               # Core: api, parser, firewall, pnl, metrics, errors
+  store/             # Zustand: data-slice, trade-slice, chat-slice
+  i18n/              # Translation system (7 locales ready)
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Setup
+
+```bash
+# Install
+npm install
+
+# Dev
+npm run dev
+
+# Build
+npm run build
+
+# Test
+npm test              # Unit tests (231)
+npm run test:e2e      # Playwright E2E
+
+# Quality
+npm run lint          # ESLint
+npm run format:check  # Prettier
+npm run type-check    # TypeScript
+npm run validate      # All of the above + build
+```
+
+## Environment Variables
+
+```env
+# Required
+HELIUS_RPC_URL=https://...          # Solana RPC (HTTPS required)
+ANTHROPIC_API_KEY=sk-ant-...        # Claude AI
+WALLET_AUTH_SECRET=...              # HMAC signing secret
+
+# Optional
+SIMULATION_MODE=false               # Paper trading mode
+TRANSFERS_ENABLED=true              # Transfer kill switch
+TRADING_ENABLED=true                # Trading kill switch
+NEXT_PUBLIC_SENTRY_DSN=...          # Error tracking
+NEXT_PUBLIC_FLASH_API_URL=...       # Flash API override
+```
+
+---
+
+<div align="center">
+  <sub>Built with precision. Shipped with confidence.</sub>
+</div>
