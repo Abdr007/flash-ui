@@ -68,6 +68,8 @@ interface RawLimitEntry {
   collateralUsdUi?: number;
   collateralAmountUsdUi?: number;
   leverageUi?: number;
+  limitTakeProfitPriceUi?: number;
+  limitStopLossPriceUi?: number;
 }
 
 interface RawTriggerEntry {
@@ -92,6 +94,8 @@ interface ParsedOrder {
   size_usd: number;
   collateral_usd: number;
   leverage: number;
+  take_profit_price?: number;
+  stop_loss_price?: number;
 }
 
 // ---- Helpers ----
@@ -211,6 +215,8 @@ async function fetchOrders(wallet: string): Promise<ParsedOrder[]> {
           size_usd: safeFloat(lo.sizeUsdUi),
           collateral_usd: safeFloat(lo.collateralAmountUsdUi ?? lo.collateralUsdUi),
           leverage: safeFloat(lo.leverageUi),
+          take_profit_price: safeFloat(lo.limitTakeProfitPriceUi) || undefined,
+          stop_loss_price: safeFloat(lo.limitStopLossPriceUi) || undefined,
         });
       }
     }
@@ -511,6 +517,8 @@ export function createEditLimitOrderTool(wallet: string) {
               slippageBps: 80,
               orderType: "LIMIT",
               limitPrice: String(new_limit_price),
+              ...(existingOrder.take_profit_price && { takeProfit: String(existingOrder.take_profit_price) }),
+              ...(existingOrder.stop_loss_price && { stopLoss: String(existingOrder.stop_loss_price) }),
             },
           );
           if (newResult.transactionBase64) {
