@@ -494,12 +494,39 @@ export function createEditLimitOrderTool(wallet: string) {
           };
         }
 
+        // Step 3: Also build the NEW limit order transaction (so card can sign both)
+        let newOrderTx: string | null = null;
+        try {
+          const collateral = existingOrder.collateral_usd > 0 ? existingOrder.collateral_usd : 10;
+          const leverage = existingOrder.leverage > 0 ? existingOrder.leverage : 2;
+          const newResult = await flashPost<{ transactionBase64?: string; err: string | null }>(
+            "/transaction-builder/open-position",
+            {
+              inputTokenSymbol: "USDC",
+              outputTokenSymbol: resolved,
+              inputAmountUi: String(collateral),
+              leverage,
+              tradeType: side,
+              owner: wallet,
+              slippageBps: 80,
+              orderType: "LIMIT",
+              limitPrice: String(new_limit_price),
+            },
+          );
+          if (newResult.transactionBase64) {
+            newOrderTx = newResult.transactionBase64;
+          }
+        } catch {
+          // Non-fatal: user can place manually
+        }
+
         logToolResult("edit_limit_order", requestId, wallet, Date.now() - start, "success");
 
         return {
           status: "success",
           data: {
             type: "edit_limit_order_preview",
+            action: "edit",
             market: resolved,
             side,
             order_id,
@@ -508,15 +535,9 @@ export function createEditLimitOrderTool(wallet: string) {
             size_usd: existingOrder.size_usd,
             collateral_usd: existingOrder.collateral_usd,
             leverage: existingOrder.leverage,
-            label: `Edit limit order #${order_id}: cancel at $${existingOrder.price.toLocaleString()} and re-place at $${new_limit_price.toLocaleString()}`,
+            label: `Edit limit: $${existingOrder.price} → $${new_limit_price}`,
             cancel_transaction: result.transactionBase64,
-            // After user signs the cancel, the AI should call build_trade with:
-            next_step:
-              `After cancel is signed, call build_trade with: ` +
-              `market="${resolved}", side="${side}", order_type="LIMIT", ` +
-              `limit_price=${new_limit_price}` +
-              (existingOrder.collateral_usd > 0 ? `, collateral_usd=${existingOrder.collateral_usd}` : "") +
-              (existingOrder.leverage > 0 ? `, leverage=${existingOrder.leverage}` : ""),
+            new_order_transaction: newOrderTx,
           },
           request_id: requestId,
           latency_ms: Date.now() - start,
