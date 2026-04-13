@@ -133,8 +133,8 @@ export async function POST(req: NextRequest) {
       throw err;
     }
 
-    // Wallet impersonation check
-    const walletCheck = enforceWalletMatch(req, wallet);
+    // Wallet impersonation check (permissive — tx signature is the real auth)
+    const walletCheck = enforceWalletMatch(req, wallet, false);
     if (walletCheck) return walletCheck;
 
     let userPubkey: PublicKey;

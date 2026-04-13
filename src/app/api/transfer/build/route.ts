@@ -106,8 +106,8 @@ export async function POST(req: NextRequest) {
     }
     const { sender, recipient, token, amount, mint, decimals, is_native_sol, request_id } = parsed;
 
-    // ---- Wallet impersonation check ----
-    const walletCheck = enforceWalletMatch(req, sender);
+    // ---- Wallet impersonation check (permissive — tx signature is the real auth) ----
+    const walletCheck = enforceWalletMatch(req, sender, false);
     if (walletCheck) return walletCheck;
 
     // ---- Kill switch ----
