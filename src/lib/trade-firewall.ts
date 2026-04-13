@@ -63,6 +63,8 @@ export const TradePreviewSchema = z
     degen: z.boolean().optional().default(false),
     take_profit_price: z.number().finite().positive().optional(),
     stop_loss_price: z.number().finite().positive().optional(),
+    order_type: z.enum(["MARKET", "LIMIT"]).optional(),
+    limit_price: z.number().finite().positive().optional(),
   })
   .strict(); // [STRICT] Reject unknown fields — no AI-injected extras
 
