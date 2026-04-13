@@ -195,8 +195,12 @@ const TradePreviewCard = memo(function TradePreviewCard({
   // "Rendered fewer hooks than expected".
   const [submitting, setSubmitting] = useState(false);
   const [cancelled, setCancelled] = useState(false);
-  const [tpDraft, setTpDraft] = useState<string>("");
-  const [slDraft, setSlDraft] = useState<string>("");
+  // Pre-fill TP/SL drafts if the trade preview already has them (e.g., limit orders with TP/SL)
+  const previewData = output.data as Record<string, unknown> | null;
+  const initialTp = previewData?.take_profit_price ? String(previewData.take_profit_price) : "";
+  const initialSl = previewData?.stop_loss_price ? String(previewData.stop_loss_price) : "";
+  const [tpDraft, setTpDraft] = useState<string>(initialTp);
+  const [slDraft, setSlDraft] = useState<string>(initialSl);
   const positions = useFlashStore((s) => s.positions);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const setTradeFromAI = useFlashStore((s) => s.setTradeFromAI);
