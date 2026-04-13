@@ -14,7 +14,7 @@ export const OrderActionCard = memo(function OrderActionCard({ output }: { outpu
   const action = String(d?.action ?? d?.type ?? "cancel");
   const market = String(d?.market ?? "");
   const side = String(d?.side ?? "");
-  const txBase64 = String(d?.transaction ?? "");
+  const txBase64 = String(d?.transaction ?? d?.cancel_transaction ?? "");
   const label = String(d?.label ?? `${action} order`);
   const isCancel = action.includes("cancel");
 
