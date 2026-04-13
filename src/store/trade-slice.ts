@@ -431,6 +431,10 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
           circuit_state: circuitState,
         });
 
+        // Note: For limit orders, TP/SL are passed to the API but only get
+        // bundled for market orders. For limit orders, Flash API previews
+        // TP/SL quotes but doesn't include them in the tx. TP/SL on limit
+        // orders must be set after the limit triggers and position opens.
         const { result, latencyMs } = await withLatency(() =>
           buildOpenPosition({
             market: trade.market,
