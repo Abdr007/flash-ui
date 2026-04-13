@@ -368,9 +368,10 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       },
     })),
   ),
-  // ═══ EARN — Quick actions (not wizard — these go to tools directly) ═══
+  // ═══ EARN — Quick actions (many natural forms) ═══
   {
-    pattern: /^I want to earn yield$/i,
+    pattern:
+      /^(?:I want to earn(?:\s+yield)?|I want to earn(?:\s+some)?\s+(?:yield|money|interest)|earn$|deposit$|I want to deposit$|I want to withdraw$|withdraw$)$/i,
     toolName: "action_options",
     data: {
       type: "action_options",
@@ -626,24 +627,27 @@ function matchDirectTool(input: string): DirectToolMatch | null {
 
   // ── Earn pools — fetch live data from Flash API ──
   if (
-    /^(?:(?:what\s+)?(?:earn\s+)?pools?|(?:show\s+)?(?:available\s+)?(?:earn\s+)?pools?|(?:earn|yield)\s+(?:pools?|options?)|show\s+earn\s+pools)/i.test(
+    /^(?:(?:what\s+)?(?:earn\s+)?pools?|(?:show\s+)?(?:all\s+)?(?:available\s+)?(?:earn\s+)?pools?|(?:earn|yield)\s+(?:pools?|options?)|show\s+earn\s+pools|available\s+pools?|pool\s+info|(?:what|which)\s+pools?\s+(?:are|is)|(?:highest|best)\s+(?:apy|yield)|earn$|yield$)/i.test(
       t,
     )
   ) {
     return { toolName: "earn_pools", params: {} };
   }
 
-  // ── Earn deposit: "deposit 50 USDC into crypto pool" ──
-  m = /^deposit\s+\$?(\d+(?:\.\d+)?)\s+(?:USDC\s+)?(?:into?|to)\s+(\w+)\s*(?:pool)?$/i.exec(t);
+  // ── Earn deposit: "deposit 50 USDC into crypto pool", "deposit 50 into crypto pool" ──
+  m = /^(?:deposit|add)\s+\$?(\d+(?:\.\d+)?)\s*(?:usdc\s+)?(?:into?|to)\s+(\w+)\s*(?:pool)?$/i.exec(t);
   if (m) return { toolName: "earn_deposit", params: { pool: m[2].toLowerCase(), amount_usdc: parseFloat(m[1]) } };
 
-  // ── Earn withdraw: "withdraw 50% from crypto pool" ──
-  m = /^withdraw\s+(\d+(?:\.\d+)?)%?\s+(?:from\s+)?(\w+)\s*(?:pool)?$/i.exec(t);
+  // ── Earn withdraw: "withdraw 50% from crypto pool", "withdraw all from crypto" ──
+  m = /^(?:withdraw|remove)\s+(\d+(?:\.\d+)?)%?\s+(?:from\s+)?(\w+)\s*(?:pool)?$/i.exec(t);
   if (m) return { toolName: "earn_withdraw", params: { pool: m[2].toLowerCase(), percent: parseFloat(m[1]) } };
+  // "withdraw all from crypto" → 100%
+  m = /^(?:withdraw|remove)\s+(?:all|everything|max)\s+(?:from\s+)?(\w+)\s*(?:pool)?$/i.exec(t);
+  if (m) return { toolName: "earn_withdraw", params: { pool: m[1].toLowerCase(), percent: 100 } };
 
-  // ── Show earn positions ──
+  // ── Show earn positions (many forms) ──
   if (
-    /^(?:(?:show\s+)?(?:my\s+)?earn(?:ing)?\s+(?:positions?|deposits?)|(?:my\s+)?(?:earn|yield)\s+(?:positions?|deposits?))$/i.test(
+    /^(?:(?:show\s+)?(?:my\s+)?(?:earn(?:ing)?|yield)\s+(?:positions?|deposits?|balance)|(?:my\s+)?(?:earn|yield)\s+(?:positions?|deposits?)|(?:my\s+)?deposits?|earn\s+(?:positions?|balance)|(?:show\s+)?(?:my\s+)?(?:flp|deposits))$/i.test(
       t,
     )
   ) {
