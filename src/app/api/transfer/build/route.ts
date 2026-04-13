@@ -279,21 +279,33 @@ export async function POST(req: NextRequest) {
 
     const transaction = new VersionedTransaction(messageV0);
 
-    // ---- Pre-send simulation ----
-    const simulation = await connection.simulateTransaction(transaction, { sigVerify: false });
-    if (simulation.value.err) {
-      const errMsg = JSON.stringify(simulation.value.err);
-      // Log details server-side, never expose raw simulation logs to client
-      console.error("[transfer/sim]", errMsg, simulation.value.logs?.slice(-3));
-      // Humanize the error for the client
-      let userMsg = "Transaction simulation failed. Please try again.";
-      if (errMsg.includes("InsufficientFunds") || errMsg.includes("insufficient"))
-        userMsg = "Insufficient funds for this transfer.";
-      else if (errMsg.includes("AccountNotFound"))
-        userMsg = "Recipient account not found on-chain.";
-      else if (errMsg.includes("frozen"))
-        userMsg = "This token account is frozen by the token issuer.";
-      return NextResponse.json({ error: userMsg }, { status: 400 });
+    // ---- Pre-send simulation (best-effort, non-blocking) ----
+    // Use replaceRecentBlockhash to avoid blockhash-expired false negatives,
+    // and sigVerify: false because the tx is unsigned at this stage.
+    try {
+      const simulation = await connection.simulateTransaction(transaction, {
+        sigVerify: false,
+        replaceRecentBlockhash: true,
+      });
+      if (simulation.value.err) {
+        const errMsg = JSON.stringify(simulation.value.err);
+        const logs = simulation.value.logs?.slice(-5)?.join(" ") ?? "";
+        console.error("[transfer/sim]", errMsg, logs);
+        // Only block on clear program errors — not generic simulation failures
+        if (errMsg.includes("InsufficientFunds") || logs.includes("insufficient")) {
+          return NextResponse.json({ error: "Insufficient funds for this transfer." }, { status: 400 });
+        }
+        if (logs.includes("frozen") || errMsg.includes("frozen")) {
+          return NextResponse.json({ error: "This token account is frozen by the token issuer." }, { status: 400 });
+        }
+        // For other simulation errors, log but don't block — let the wallet
+        // handle final validation. Many false negatives come from unsigned
+        // simulation on public RPCs.
+        console.warn("[transfer/sim] Non-fatal simulation error, proceeding:", errMsg);
+      }
+    } catch (simErr) {
+      // Simulation network error — don't block the transfer
+      console.warn("[transfer/sim] Simulation failed to run:", simErr instanceof Error ? simErr.message : "unknown");
     }
 
     // ---- Return unsigned transaction ----
