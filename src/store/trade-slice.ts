@@ -296,11 +296,13 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
         // ---- TOCTOU PROTECTION: Re-validate at execution time ----
         // Between confirmTrade() and now, price/positions may have changed.
         // Re-fetch live price from store and cross-validate.
+        // SKIP for limit orders — the entry price is intentionally different from market price.
+        const isLimitOrder = trade.order_type === "limit" || trade.limit_price;
 
         const livePrice = get().prices[trade.market];
         const previewPrice = trade.entry_price;
 
-        if (livePrice && previewPrice && Number.isFinite(livePrice.price) && livePrice.price > 0) {
+        if (!isLimitOrder && livePrice && previewPrice && Number.isFinite(livePrice.price) && livePrice.price > 0) {
           // Cross-validate: store price (Pyth SSE) vs preview price (Flash API)
           const priceCheck = validatePrice(previewPrice, livePrice.price, trade.market);
           if (!priceCheck.valid) {
