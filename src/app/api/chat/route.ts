@@ -323,6 +323,44 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       ],
     },
   },
+  // ═══ LIMIT ORDER WIZARD — step-by-step limit order builder ═══
+  {
+    pattern:
+      /^(?:limit\s+order|place\s+(?:a\s+)?limit\s+order|I\s+want\s+to\s+(?:place\s+(?:a\s+)?)?limit\s+order|set\s+(?:a\s+)?limit\s+order|create\s+(?:a\s+)?limit\s+order)$/i,
+    toolName: "wizard",
+    data: {
+      type: "wizard",
+      intro: "Let's set up your limit order. I'll guide you through it.",
+      commandTemplate: "limit {0} {1} at {4} {2} {3}",
+      steps: [
+        { question: "Which direction?", options: ["long", "short"] },
+        {
+          question: "Which market?",
+          options: ["SOL", "BTC", "ETH"],
+          allowCustom: true,
+          customPlaceholder: "Enter market symbol...",
+        },
+        {
+          question: "What leverage?",
+          options: ["2x", "5x", "10x", "20x"],
+          allowCustom: true,
+          customPlaceholder: "e.g. 15x",
+        },
+        {
+          question: "How much collateral (USD)?",
+          options: ["$10", "$25", "$50", "$100"],
+          allowCustom: true,
+          customPlaceholder: "e.g. 200",
+        },
+        {
+          question: "At what price should the limit order trigger?",
+          options: [],
+          allowCustom: true,
+          customPlaceholder: "e.g. 140",
+        },
+      ],
+    },
+  },
   // ═══ QUICK TRADE WIZARD — "long SOL" / "short BTC" → 2-step (leverage + collateral) ═══
   ...["long", "short"].flatMap((side) =>
     [
