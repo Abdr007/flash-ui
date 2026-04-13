@@ -609,13 +609,14 @@ function matchDirectTool(input: string): DirectToolMatch | null {
     );
   if (m) return { toolName: "get_market_info", params: { market: resolveMarket(m[1]) } };
 
-  // ── Close position ──
+  // ── Close position (validate market exists) ──
   m = /^(?:close|exit|flatten)\s+(?:my\s+)?(\w+)(?:\s+(?:position|trade|long|short))?$/i.exec(t);
-  if (m) return { toolName: "close_position_preview", params: { market: resolveMarket(m[1]) } };
+  if (m && resolveMarket(m[1])) return { toolName: "close_position_preview", params: { market: resolveMarket(m[1]) } };
 
-  // ── Reverse / Flip position ──
+  // ── Reverse / Flip position (validate market exists) ──
   m = /^(?:reverse|flip)\s+(?:my\s+)?(\w+)(?:\s+(?:position|trade|long|short))?$/i.exec(t);
-  if (m) return { toolName: "reverse_position_preview", params: { market: resolveMarket(m[1]) } };
+  if (m && resolveMarket(m[1]))
+    return { toolName: "reverse_position_preview", params: { market: resolveMarket(m[1]) } };
 
   // ── Market info (reversed word order) ──
   m = /^(\w+)\s+(?:market\s+)?(?:info|details|stats)$/i.exec(t);

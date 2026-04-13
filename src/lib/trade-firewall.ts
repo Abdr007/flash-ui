@@ -20,13 +20,18 @@ import type { Position } from "./types";
 // Source of truth: markets registry SYMBOL_CAPS table (captured from the
 // live flash.trade UI). Falls back to the absolute ceiling if the registry
 // doesn't know the market yet.
-export function getMaxLeverageForMarket(
-  market: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _degen?: boolean,
-): number {
+// Degen pools: SOL (Crypto.1), BTC/ETH (Crypto.1), Gold (Virtual.1), DeFi (Governance.1)
+const DEGEN_MARKETS = new Set(["SOL", "BTC", "ETH", "WBTC"]);
+const DEGEN_MAX_LEVERAGE = 500;
+
+export function getMaxLeverageForMarket(market: string, degen?: boolean): number {
   const fromRegistry = getMaxLeverage(market);
-  return fromRegistry > 0 ? fromRegistry : MAX_LEVERAGE;
+  const base = fromRegistry > 0 ? fromRegistry : MAX_LEVERAGE;
+  // Degen mode unlocks 500x on supported markets
+  if (degen && DEGEN_MARKETS.has(market.toUpperCase())) {
+    return Math.max(base, DEGEN_MAX_LEVERAGE);
+  }
+  return base;
 }
 
 const MAX_COLLATERAL = 50_000;
