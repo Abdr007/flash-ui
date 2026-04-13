@@ -440,7 +440,7 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
             owner: wallet,
             takeProfitPrice: trade.take_profit_price ?? undefined,
             stopLossPrice: trade.stop_loss_price ?? undefined,
-            orderType: trade.order_type === "limit" ? "LIMIT" : "MARKET",
+            orderType: trade.order_type?.toUpperCase() === "LIMIT" ? "LIMIT" : "MARKET",
             limitPrice: trade.limit_price ?? undefined,
           }),
         );
