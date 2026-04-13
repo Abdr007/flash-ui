@@ -50,7 +50,18 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   });
 
   useEffect(() => {
-    if (!walletConnected) return;
+    if (!walletConnected) {
+      // Cleanup runs when wallet disconnects — reset local portfolio state
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTotalWalletUsd(0);
+
+      setTokens([]);
+
+      setChange24h(null);
+
+      setAssetsExpanded(false);
+      return;
+    }
     refreshRef.current();
     const iv = setInterval(() => refreshRef.current(), POSITION_REFRESH_MS);
     return () => clearInterval(iv);

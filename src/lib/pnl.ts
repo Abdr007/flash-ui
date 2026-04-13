@@ -28,12 +28,16 @@ export function computePositionPnl(position: Position, markPrice: number): Posit
     return position;
   }
 
-  let pnl: number;
+  let rawPnl: number;
   if (position.side === "LONG") {
-    pnl = ((markPrice - position.entry_price) / position.entry_price) * position.size_usd;
+    rawPnl = ((markPrice - position.entry_price) / position.entry_price) * position.size_usd;
   } else {
-    pnl = ((position.entry_price - markPrice) / position.entry_price) * position.size_usd;
+    rawPnl = ((position.entry_price - markPrice) / position.entry_price) * position.size_usd;
   }
+
+  // Subtract fees from PnL (matches Flash API's pnlWithFeeUsdUi behavior)
+  const fees = Number.isFinite(position.fees) && position.fees > 0 ? position.fees : 0;
+  const pnl = rawPnl - fees;
 
   const pnlPct = (pnl / position.collateral_usd) * 100;
 
