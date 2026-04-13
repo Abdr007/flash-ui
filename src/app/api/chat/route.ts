@@ -302,6 +302,50 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       ],
     },
   },
+  // ═══ QUICK TRADE WIZARD — "long SOL" / "short BTC" → 2-step (leverage + collateral) ═══
+  ...["long", "short"].flatMap((side) =>
+    [
+      "SOL",
+      "BTC",
+      "ETH",
+      "ZEC",
+      "BNB",
+      "JUP",
+      "PYTH",
+      "JTO",
+      "BONK",
+      "WIF",
+      "PENGU",
+      "FARTCOIN",
+      "HYPE",
+      "KMNO",
+      "RAY",
+      "ORE",
+      "PUMP",
+    ].map((market) => ({
+      pattern: new RegExp(`^${side}\\s+${market}$`, "i"),
+      toolName: "wizard",
+      data: {
+        type: "wizard",
+        intro: `Setting up ${side.toUpperCase()} ${market} trade.`,
+        commandTemplate: `${side} ${market} {0} {1}`,
+        steps: [
+          {
+            question: "What leverage?",
+            options: ["3x", "5x", "10x", "20x"],
+            allowCustom: true,
+            customPlaceholder: "e.g. 15x",
+          },
+          {
+            question: "How much collateral (USD)?",
+            options: ["$10", "$25", "$50", "$100"],
+            allowCustom: true,
+            customPlaceholder: "e.g. 200",
+          },
+        ],
+      },
+    })),
+  ),
   // ═══ EARN — Quick actions (not wizard — these go to tools directly) ═══
   {
     pattern: /^I want to earn yield$/i,

@@ -356,8 +356,8 @@ export function getTradeConfidence(trade: {
 // ---- Input Autocomplete (unchanged from Phase 3) ----
 
 const COMMAND_PREFIXES = [
-  { prefix: "long", completions: Object.keys(MARKETS).map((m) => `long ${m} $50 5x`) },
-  { prefix: "short", completions: Object.keys(MARKETS).map((m) => `short ${m} $50 5x`) },
+  { prefix: "long", completions: Object.keys(MARKETS).map((m) => `long ${m}`) },
+  { prefix: "short", completions: Object.keys(MARKETS).map((m) => `short ${m}`) },
   { prefix: "close", completions: Object.keys(MARKETS).map((m) => `close ${m}`) },
   { prefix: "price", completions: Object.keys(MARKETS).map((m) => `price ${m}`) },
 ];
