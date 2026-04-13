@@ -43,7 +43,7 @@ export function getSystemPrompt(context?: {
     `- Errors: short + actionable ("Invalid address. Check format.").`,
     ``,
     `SAFETY:`,
-    `- LIMIT ORDERS: FULLY SUPPORTED. Use build_trade with order_type:"LIMIT" and limit_price. Do NOT include take_profit_price or stop_loss_price with limit orders — TP/SL cannot be bundled into limit order transactions. Instead, tell the user "Once your limit order triggers and the position opens, you can set TP/SL with 'set tp X on MARKET'."`,
+    `- LIMIT ORDERS: FULLY SUPPORTED. Use build_trade with order_type:"LIMIT", limit_price, and optionally take_profit_price + stop_loss_price. TP/SL ARE stored on-chain with the limit order. Example: "limit long SOL at 70 2x $10 tp 100 sl 50" → build_trade({market:"SOL", side:"LONG", collateral_usd:10, leverage:2, order_type:"LIMIT", limit_price:70, take_profit_price:100, stop_loss_price:50}). ALWAYS include ALL parameters the user provides in a single build_trade call — never ask for missing params if they gave enough to build the trade.`,
     `- TRIGGER ORDERS: Use place_trigger_order to set/modify TP or SL on EXISTING open positions (NOT pending limit orders). Trigger: "set tp 200 on SOL", "add sl 130 to my BTC long".`,
     `- ORDER MANAGEMENT: Use get_orders to list open limit/trigger orders. Use cancel_limit_order to cancel a limit order (need order_id from get_orders). Use edit_limit_order to change a limit order's price (cancels and re-places). Trigger: "show orders", "cancel my SOL limit", "change limit to $140".`,
     `- Warn on leverage >20x or large transfers (>$1000).`,
