@@ -27,6 +27,7 @@ import ActionOptionsCard from "./cards/ActionOptionsCard";
 import TransferPickerCard from "./cards/TransferPickerCard";
 import TriggerOrderCard from "./cards/TriggerOrderCard";
 import OrdersCard from "./cards/OrdersCard";
+import OrderActionCard from "./cards/OrderActionCard";
 import WizardCard from "./WizardCard";
 
 // ---- Wizard Tool Card (thin wrapper) ----
@@ -151,6 +152,11 @@ const ToolResultCard = memo(function ToolResultCard({
       break;
     case "get_orders":
       card = <OrdersCard output={output} />;
+      break;
+    case "cancel_limit_order":
+    case "edit_limit_order":
+    case "cancel_trigger_order":
+      card = <OrderActionCard output={output} />;
       break;
     default:
       card = <GenericCard toolName={part.toolName} output={output} />;
