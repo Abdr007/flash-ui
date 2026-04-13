@@ -117,7 +117,13 @@ export function createEarnPositionsTool(wallet: string) {
       logToolCall("earn_positions", requestId, wallet);
 
       if (!wallet) {
-        return { status: "error", data: null, error: "Connect your wallet to view earn positions.", request_id: requestId, latency_ms: 0 };
+        return {
+          status: "error",
+          data: null,
+          error: "Connect your wallet to view earn positions.",
+          request_id: requestId,
+          latency_ms: 0,
+        };
       }
 
       // Mainnet FLP compounding mints (from flash-sdk PoolConfig.json)
@@ -132,14 +138,21 @@ export function createEarnPositionsTool(wallet: string) {
         "FLP.x": "HokRUTnsr3FgLj9sq2iw3F6XkPoHn62wytcdNuPZowa7",
       };
       const POOL_NAME_BY_FLP: Record<string, string> = {
-        "FLP.1": "Crypto", "FLP.2": "Gold", "FLP.3": "DeFi",
-        "FLP.4": "Community", "FLP.5": "WIF", "FLP.7": "FART",
-        "FLP.8": "Ore", "FLP.x": "Equity",
+        "FLP.1": "Crypto",
+        "FLP.2": "Gold",
+        "FLP.3": "DeFi",
+        "FLP.4": "Community",
+        "FLP.5": "WIF",
+        "FLP.7": "FART",
+        "FLP.8": "Ore",
+        "FLP.x": "Equity",
       };
 
       try {
         // Fetch pool data for FLP prices
-        const poolRes = await fetch("https://api.prod.flash.trade/earn-page/data", { signal: AbortSignal.timeout(8000) });
+        const poolRes = await fetch("https://api.prod.flash.trade/earn-page/data", {
+          signal: AbortSignal.timeout(8000),
+        });
         const poolData = poolRes.ok ? await poolRes.json() : { pools: [] };
 
         // Read FLP balances on-chain via Helius RPC
@@ -150,8 +163,14 @@ export function createEarnPositionsTool(wallet: string) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              jsonrpc: "2.0", id: 1, method: "getTokenAccountsByOwner",
-              params: [wallet, { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }, { encoding: "jsonParsed" }],
+              jsonrpc: "2.0",
+              id: 1,
+              method: "getTokenAccountsByOwner",
+              params: [
+                wallet,
+                { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+                { encoding: "jsonParsed" },
+              ],
             }),
             signal: AbortSignal.timeout(8000),
           });
@@ -163,7 +182,10 @@ export function createEarnPositionsTool(wallet: string) {
               const uiAmount = Number(acc?.account?.data?.parsed?.info?.tokenAmount?.uiAmount ?? 0);
               if (!mint || uiAmount <= 0) continue;
               for (const [sym, mintAddr] of Object.entries(FLP_MINTS)) {
-                if (mintAddr === mint) { balData[sym] = uiAmount; break; }
+                if (mintAddr === mint) {
+                  balData[sym] = uiAmount;
+                  break;
+                }
               }
             }
           }
@@ -224,17 +246,29 @@ export function createEarnPositionsTool(wallet: string) {
 // ============================================
 
 const POOL_FLP_MAP: Record<string, string> = {
-  crypto: "FLP.1", gold: "FLP.2", defi: "FLP.3",
-  meme: "FLP.4", community: "FLP.4",
-  wif: "FLP.5", trump: "FLP.7", fart: "FLP.7",
-  ore: "FLP.8", equity: "FLP.x",
+  crypto: "FLP.1",
+  gold: "FLP.2",
+  defi: "FLP.3",
+  meme: "FLP.4",
+  community: "FLP.4",
+  wif: "FLP.5",
+  trump: "FLP.7",
+  fart: "FLP.7",
+  ore: "FLP.8",
+  equity: "FLP.x",
 };
 
 const POOL_NAMES_W: Record<string, string> = {
-  crypto: "Crypto Pool", gold: "Gold Pool", defi: "DeFi Pool",
-  meme: "Community Pool", community: "Community Pool",
-  wif: "WIF Pool", trump: "TRUMP Pool", fart: "FART Pool",
-  ore: "Ore Pool", equity: "Equity Pool",
+  crypto: "Crypto Pool",
+  gold: "Gold Pool",
+  defi: "DeFi Pool",
+  meme: "Community Pool",
+  community: "Community Pool",
+  wif: "WIF Pool",
+  trump: "TRUMP Pool",
+  fart: "FART Pool",
+  ore: "Ore Pool",
+  equity: "Equity Pool",
 };
 
 export function createEarnWithdrawTool(wallet: string) {
@@ -242,28 +276,44 @@ export function createEarnWithdrawTool(wallet: string) {
     description:
       "Preview withdrawing from an earn pool. Shows current balance, withdrawal amount, and value. " +
       "Call when user says 'withdraw from crypto pool', 'withdraw 50% from defi pool'.",
-    inputSchema: z.object({
-      pool: z.string().describe("Pool name"),
-      percent: z.number().min(1).max(100).default(100).describe("Percentage to withdraw"),
-    }).strict(),
+    inputSchema: z
+      .object({
+        pool: z.string().describe("Pool name"),
+        percent: z.number().min(1).max(100).default(100).describe("Percentage to withdraw"),
+      })
+      .strict(),
     execute: async ({ pool, percent }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
       const start = Date.now();
       logToolCall("earn_withdraw", requestId, wallet, { pool, percent });
 
       if (!wallet) {
-        return { status: "error", data: null, error: "Connect your wallet to withdraw.", request_id: requestId, latency_ms: 0 };
+        return {
+          status: "error",
+          data: null,
+          error: "Connect your wallet to withdraw.",
+          request_id: requestId,
+          latency_ms: 0,
+        };
       }
 
       const poolLower = (pool ?? "").toLowerCase();
       const flpSymbol = POOL_FLP_MAP[poolLower];
       if (!flpSymbol) {
-        return { status: "error", data: null, error: `Unknown pool: ${pool}. Valid: ${Object.keys(POOL_FLP_MAP).join(", ")}`, request_id: requestId, latency_ms: 0 };
+        return {
+          status: "error",
+          data: null,
+          error: `Unknown pool: ${pool}. Valid: ${Object.keys(POOL_FLP_MAP).join(", ")}`,
+          request_id: requestId,
+          latency_ms: 0,
+        };
       }
 
       try {
         // Fetch pool data only — FLP balance is checked client-side via on-chain read
-        const poolRes = await fetch("https://api.prod.flash.trade/earn-page/data", { signal: AbortSignal.timeout(8000) });
+        const poolRes = await fetch("https://api.prod.flash.trade/earn-page/data", {
+          signal: AbortSignal.timeout(8000),
+        });
         const poolData = poolRes.ok ? await poolRes.json() : { pools: [] };
 
         const poolInfo = (poolData.pools ?? []).find((p: Record<string, unknown>) => p.flpTokenSymbol === flpSymbol);

@@ -24,8 +24,7 @@ interface PoolStatic {
 
 function buildFeeds(): Record<string, string> {
   const out: Record<string, string> = {};
-  const pools =
-    (PoolConfig as { pools?: PoolStatic[] }).pools || [];
+  const pools = (PoolConfig as { pools?: PoolStatic[] }).pools || [];
   for (const pool of pools) {
     const poolName = pool.poolName || "";
     if (poolName.startsWith(DEVNET_PREFIX)) continue;

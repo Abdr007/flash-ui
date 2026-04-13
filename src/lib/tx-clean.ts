@@ -17,9 +17,7 @@ import {
 } from "@solana/web3.js";
 
 // Programs to strip (FlashLog / Lighthouse — same program, different Solscan labels)
-const STRIP_PROGRAMS = new Set([
-  "L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95",
-]);
+const STRIP_PROGRAMS = new Set(["L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95"]);
 
 // Match Flash Trade website exactly
 const FLASH_CU_LIMIT = 420_000;

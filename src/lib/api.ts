@@ -13,12 +13,7 @@
 // - Price staleness detection
 
 import { FLASH_API_URL } from "./constants";
-import type {
-  MarketPrice,
-  Position,
-  TradeObject,
-  Side,
-} from "./types";
+import type { MarketPrice, Position, TradeObject, Side } from "./types";
 
 const TIMEOUT_MS = 15_000;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
@@ -73,10 +68,7 @@ async function apiGetInternal<T>(path: string): Promise<T> {
   }
 }
 
-async function apiPost<T>(
-  path: string,
-  body: Record<string, unknown>
-): Promise<T> {
+async function apiPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -130,7 +122,7 @@ export async function getAllPrices(): Promise<MarketPrice[]> {
   const results: MarketPrice[] = [];
 
   for (const [symbol, p] of Object.entries(res)) {
-    const price = p.priceUi ?? (p.price / Math.pow(10, Math.abs(p.exponent)));
+    const price = p.priceUi ?? p.price / Math.pow(10, Math.abs(p.exponent));
     // Reject NaN, Infinity, zero, negative prices
     if (!Number.isFinite(price) || price <= 0) continue;
     results.push({
@@ -145,11 +137,9 @@ export async function getAllPrices(): Promise<MarketPrice[]> {
 }
 
 export async function getPrice(symbol: string): Promise<MarketPrice> {
-  const res = await apiGet<ApiPriceEntry>(
-    `/prices/${encodeURIComponent(symbol)}`
-  );
+  const res = await apiGet<ApiPriceEntry>(`/prices/${encodeURIComponent(symbol)}`);
 
-  const price = res.priceUi ?? (res.price / Math.pow(10, Math.abs(res.exponent)));
+  const price = res.priceUi ?? res.price / Math.pow(10, Math.abs(res.exponent));
   if (!Number.isFinite(price) || price <= 0) {
     throw new Error(`Invalid price for ${symbol}: ${price}`);
   }
@@ -177,7 +167,7 @@ function safeFloat(val: unknown, fallback = 0): number {
 
 export async function getPositions(ownerPubkey: string): Promise<Position[]> {
   const res = await apiGet<unknown[]>(
-    `/positions/owner/${encodeURIComponent(ownerPubkey)}?includePnlInLeverageDisplay=true`
+    `/positions/owner/${encodeURIComponent(ownerPubkey)}?includePnlInLeverageDisplay=true`,
   );
 
   if (!Array.isArray(res)) return [];
@@ -233,26 +223,21 @@ export interface BuildOpenParams {
   stopLossPrice?: number;
 }
 
-export async function buildOpenPosition(
-  params: BuildOpenParams
-): Promise<ApiQuote> {
-  const result = await apiPost<ApiQuote>(
-    "/transaction-builder/open-position",
-    {
-      inputTokenSymbol: "USDC",
-      outputTokenSymbol: params.market,
-      inputAmountUi: String(params.collateral),
-      leverage: params.leverage,
-      tradeType: params.side,
-      owner: params.owner,
-      slippageBps: params.slippageBps ?? 80,
-      // Wire fields are `takeProfit` / `stopLoss` (string), not `*Price`.
-      // When supplied, the Flash builder inlines TP + SL instructions into
-      // the same versioned tx — single base64, single signature.
-      takeProfit: params.takeProfitPrice != null ? String(params.takeProfitPrice) : undefined,
-      stopLoss: params.stopLossPrice != null ? String(params.stopLossPrice) : undefined,
-    }
-  );
+export async function buildOpenPosition(params: BuildOpenParams): Promise<ApiQuote> {
+  const result = await apiPost<ApiQuote>("/transaction-builder/open-position", {
+    inputTokenSymbol: "USDC",
+    outputTokenSymbol: params.market,
+    inputAmountUi: String(params.collateral),
+    leverage: params.leverage,
+    tradeType: params.side,
+    owner: params.owner,
+    slippageBps: params.slippageBps ?? 80,
+    // Wire fields are `takeProfit` / `stopLoss` (string), not `*Price`.
+    // When supplied, the Flash builder inlines TP + SL instructions into
+    // the same versioned tx — single base64, single signature.
+    takeProfit: params.takeProfitPrice != null ? String(params.takeProfitPrice) : undefined,
+    stopLoss: params.stopLossPrice != null ? String(params.stopLossPrice) : undefined,
+  });
 
   if (result.err) {
     throw new Error(result.err);
@@ -279,17 +264,14 @@ export interface BuildCloseParams {
 }
 
 export async function buildClosePosition(
-  params: BuildCloseParams
+  params: BuildCloseParams,
 ): Promise<{ transactionBase64: string; err: string | null }> {
-  return apiPost<{ transactionBase64: string; err: string | null }>(
-    "/transaction-builder/close-position",
-    {
-      marketSymbol: params.market,
-      side: params.side,
-      owner: params.owner,
-      closePercent: params.closePercent ?? 100,
-    }
-  );
+  return apiPost<{ transactionBase64: string; err: string | null }>("/transaction-builder/close-position", {
+    marketSymbol: params.market,
+    side: params.side,
+    owner: params.owner,
+    closePercent: params.closePercent ?? 100,
+  });
 }
 
 // ---- Collateral Management ----
@@ -312,9 +294,7 @@ export interface CollateralResult {
   err: string | null;
 }
 
-export async function buildAddCollateral(
-  params: BuildAddCollateralParams
-): Promise<CollateralResult> {
+export async function buildAddCollateral(params: BuildAddCollateralParams): Promise<CollateralResult> {
   return apiPost<CollateralResult>("/transaction-builder/add-collateral", { ...params });
 }
 
@@ -325,9 +305,7 @@ export interface BuildRemoveCollateralParams {
   owner: string;
 }
 
-export async function buildRemoveCollateral(
-  params: BuildRemoveCollateralParams
-): Promise<CollateralResult> {
+export async function buildRemoveCollateral(params: BuildRemoveCollateralParams): Promise<CollateralResult> {
   return apiPost<CollateralResult>("/transaction-builder/remove-collateral", { ...params });
 }
 
@@ -343,13 +321,20 @@ export interface BuildCloseWithTxParams {
   withdrawTokenSymbol: string;
 }
 
-export async function buildClosePositionTx(
-  params: BuildCloseWithTxParams
-): Promise<{ transactionBase64?: string; err: string | null; receiveTokenAmountUsdUi?: string; settledPnl?: string; fees?: string }> {
-  return apiPost<{ transactionBase64?: string; err: string | null; receiveTokenAmountUsdUi?: string; settledPnl?: string; fees?: string }>(
-    "/transaction-builder/close-position",
-    { ...params },
-  );
+export async function buildClosePositionTx(params: BuildCloseWithTxParams): Promise<{
+  transactionBase64?: string;
+  err: string | null;
+  receiveTokenAmountUsdUi?: string;
+  settledPnl?: string;
+  fees?: string;
+}> {
+  return apiPost<{
+    transactionBase64?: string;
+    err: string | null;
+    receiveTokenAmountUsdUi?: string;
+    settledPnl?: string;
+    fees?: string;
+  }>("/transaction-builder/close-position", { ...params });
 }
 
 // ---- Trigger Orders (TP/SL) ----
@@ -369,12 +354,11 @@ export interface BuildTriggerParams {
 // Not used by the open-position flow — TP/SL is bundled inline via buildOpenPosition
 // (see takeProfit/stopLoss fields there).
 export async function buildPlaceTriggerOrder(
-  params: BuildTriggerParams
+  params: BuildTriggerParams,
 ): Promise<{ transactionBase64?: string; err: string | null }> {
-  return apiPost<{ transactionBase64?: string; err: string | null }>(
-    "/transaction-builder/place-trigger-order",
-    { ...params },
-  );
+  return apiPost<{ transactionBase64?: string; err: string | null }>("/transaction-builder/place-trigger-order", {
+    ...params,
+  });
 }
 
 // ---- Reverse Position ----
@@ -385,13 +369,20 @@ export interface BuildReverseParams {
   slippagePercentage?: string;
 }
 
-export async function buildReversePosition(
-  params: BuildReverseParams
-): Promise<{ transactionBase64?: string; err: string | null; newEntryPrice?: string; newLeverage?: string; newCollateralUsd?: string }> {
-  return apiPost<{ transactionBase64?: string; err: string | null; newEntryPrice?: string; newLeverage?: string; newCollateralUsd?: string }>(
-    "/transaction-builder/reverse-position",
-    { ...params },
-  );
+export async function buildReversePosition(params: BuildReverseParams): Promise<{
+  transactionBase64?: string;
+  err: string | null;
+  newEntryPrice?: string;
+  newLeverage?: string;
+  newCollateralUsd?: string;
+}> {
+  return apiPost<{
+    transactionBase64?: string;
+    err: string | null;
+    newEntryPrice?: string;
+    newLeverage?: string;
+    newCollateralUsd?: string;
+  }>("/transaction-builder/reverse-position", { ...params });
 }
 
 // ---- Trade Validation ----
@@ -399,9 +390,7 @@ export async function buildReversePosition(
 import { MIN_COLLATERAL, MAX_LEVERAGE, MARKETS } from "./constants";
 import { getMaxLeverage } from "./markets-registry";
 
-export function validateTradeObject(
-  trade: TradeObject
-): { valid: boolean; error?: string } {
+export function validateTradeObject(trade: TradeObject): { valid: boolean; error?: string } {
   if (!trade.market || !MARKETS[trade.market]) {
     return { valid: false, error: `Unknown market: ${trade.market}` };
   }
@@ -429,9 +418,7 @@ export function validateTradeObject(
 
 // ---- Enrichment ----
 
-export async function enrichTradeWithQuote(
-  trade: TradeObject
-): Promise<TradeObject> {
+export async function enrichTradeWithQuote(trade: TradeObject): Promise<TradeObject> {
   if (!trade.market || !trade.collateral_usd || !trade.leverage) {
     return trade;
   }
@@ -465,11 +452,7 @@ export async function enrichTradeWithQuote(
     }
 
     // Validate ALL computed values before marking READY
-    if (
-      !Number.isFinite(size) || size <= 0 ||
-      !Number.isFinite(liqPrice) || liqPrice <= 0 ||
-      !Number.isFinite(fees)
-    ) {
+    if (!Number.isFinite(size) || size <= 0 || !Number.isFinite(liqPrice) || liqPrice <= 0 || !Number.isFinite(fees)) {
       return {
         ...trade,
         status: "ERROR",
@@ -479,7 +462,11 @@ export async function enrichTradeWithQuote(
 
     // ---- Limit order gate (defense-in-depth — parser rejects first) ----
     if (trade.order_type === "limit" || trade.limit_price) {
-      return { ...trade, status: "ERROR", error: "Limit orders are not yet supported. Use market orders with TP/SL instead." };
+      return {
+        ...trade,
+        status: "ERROR",
+        error: "Limit orders are not yet supported. Use market orders with TP/SL instead.",
+      };
     }
 
     // ---- TP/SL Validation: numeric safety + dynamic range + direction ----
@@ -492,16 +479,32 @@ export async function enrichTradeWithQuote(
       }
       const dist = Math.abs(tpPrice - entry) / entry;
       if (dist > 5.0) {
-        return { ...trade, status: "ERROR", error: `Take profit $${tpPrice} is >500% from market price $${entry.toFixed(2)} — unrealistic` };
+        return {
+          ...trade,
+          status: "ERROR",
+          error: `Take profit $${tpPrice} is >500% from market price $${entry.toFixed(2)} — unrealistic`,
+        };
       }
       if (dist < 0.001) {
-        return { ...trade, status: "ERROR", error: `Take profit $${tpPrice} is <0.1% from entry $${entry.toFixed(2)} — too tight` };
+        return {
+          ...trade,
+          status: "ERROR",
+          error: `Take profit $${tpPrice} is <0.1% from entry $${entry.toFixed(2)} — too tight`,
+        };
       }
       if (trade.action === "LONG" && tpPrice <= entry) {
-        return { ...trade, status: "ERROR", error: `Take profit ($${tpPrice}) must be above entry ($${entry.toFixed(2)}) for LONG` };
+        return {
+          ...trade,
+          status: "ERROR",
+          error: `Take profit ($${tpPrice}) must be above entry ($${entry.toFixed(2)}) for LONG`,
+        };
       }
       if (trade.action === "SHORT" && tpPrice >= entry) {
-        return { ...trade, status: "ERROR", error: `Take profit ($${tpPrice}) must be below entry ($${entry.toFixed(2)}) for SHORT` };
+        return {
+          ...trade,
+          status: "ERROR",
+          error: `Take profit ($${tpPrice}) must be below entry ($${entry.toFixed(2)}) for SHORT`,
+        };
       }
     }
 
@@ -511,16 +514,32 @@ export async function enrichTradeWithQuote(
       }
       const dist = Math.abs(slPrice - entry) / entry;
       if (dist > 5.0) {
-        return { ...trade, status: "ERROR", error: `Stop loss $${slPrice} is >500% from market price $${entry.toFixed(2)} — unrealistic` };
+        return {
+          ...trade,
+          status: "ERROR",
+          error: `Stop loss $${slPrice} is >500% from market price $${entry.toFixed(2)} — unrealistic`,
+        };
       }
       if (dist < 0.001) {
-        return { ...trade, status: "ERROR", error: `Stop loss $${slPrice} is <0.1% from entry $${entry.toFixed(2)} — too tight` };
+        return {
+          ...trade,
+          status: "ERROR",
+          error: `Stop loss $${slPrice} is <0.1% from entry $${entry.toFixed(2)} — too tight`,
+        };
       }
       if (trade.action === "LONG" && slPrice >= entry) {
-        return { ...trade, status: "ERROR", error: `Stop loss ($${slPrice}) must be below entry ($${entry.toFixed(2)}) for LONG` };
+        return {
+          ...trade,
+          status: "ERROR",
+          error: `Stop loss ($${slPrice}) must be below entry ($${entry.toFixed(2)}) for LONG`,
+        };
       }
       if (trade.action === "SHORT" && slPrice <= entry) {
-        return { ...trade, status: "ERROR", error: `Stop loss ($${slPrice}) must be above entry ($${entry.toFixed(2)}) for SHORT` };
+        return {
+          ...trade,
+          status: "ERROR",
+          error: `Stop loss ($${slPrice}) must be above entry ($${entry.toFixed(2)}) for SHORT`,
+        };
       }
     }
 

@@ -33,10 +33,7 @@ export async function GET() {
     clearTimeout(timer);
 
     if (!res.ok) {
-      return Response.json(
-        { error: `Flash API ${res.status}` },
-        { status: 502 },
-      );
+      return Response.json({ error: `Flash API ${res.status}` }, { status: 502 });
     }
 
     const data = await res.json();
@@ -55,9 +52,6 @@ export async function GET() {
       });
     }
 
-    return Response.json(
-      { error: "Earn data unavailable" },
-      { status: 502 },
-    );
+    return Response.json({ error: "Earn data unavailable" }, { status: 502 });
   }
 }

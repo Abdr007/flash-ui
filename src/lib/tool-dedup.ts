@@ -61,11 +61,7 @@ function evictStale(): void {
 
 // ---- Public API ----
 
-export function makeDedupKey(
-  toolName: string,
-  params: Record<string, unknown>,
-  wallet: string,
-): string {
+export function makeDedupKey(toolName: string, params: Record<string, unknown>, wallet: string): string {
   const payload = `${toolName}:${JSON.stringify(params)}:${wallet}`;
   let hash = 0;
   for (let i = 0; i < payload.length; i++) {
@@ -87,10 +83,7 @@ export function makeRequestId(): string {
  * - Failed promises are removed from inFlight immediately
  * - Concurrent callers sharing a failed promise all get the error
  */
-export async function dedup<T>(
-  dedupKey: string,
-  fn: () => Promise<T>,
-): Promise<T> {
+export async function dedup<T>(dedupKey: string, fn: () => Promise<T>): Promise<T> {
   evictStale();
 
   // Layer 1: In-flight locking

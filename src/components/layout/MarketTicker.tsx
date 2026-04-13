@@ -27,14 +27,9 @@ export default function MarketTicker() {
               border: isActive ? "1px solid var(--color-border-subtle)" : "1px solid transparent",
             }}
           >
-            <span
-              className="w-2.5 h-2.5 rounded-full shrink-0"
-              style={{ background: meta?.dotColor ?? "#444" }}
-            />
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: meta?.dotColor ?? "#444" }} />
             <span className="text-[13px] font-medium text-text-primary">{symbol}</span>
-            <span className="num text-[13px] text-text-secondary">
-              {p ? formatPrice(p.price) : "—"}
-            </span>
+            <span className="num text-[13px] text-text-secondary">{p ? formatPrice(p.price) : "—"}</span>
           </button>
         );
       })}

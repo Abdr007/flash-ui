@@ -33,7 +33,13 @@ const ET_FORMATTER = new Intl.DateTimeFormat("en-US", {
 });
 
 const DAY_INDEX: Record<string, number> = {
-  Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
 };
 
 function getEtParts(now: Date) {
@@ -67,7 +73,7 @@ function formatEt(day: number, hour: number, minute: number): string {
 function equityStatus(now: Date): MarketStatus {
   const { day, totalMinutes } = getEtParts(now);
   const openMin = 9 * 60 + 30; // 09:30 ET
-  const closeMin = 16 * 60;    // 16:00 ET
+  const closeMin = 16 * 60; // 16:00 ET
 
   if (day === 0 || day === 6) {
     return {
@@ -100,8 +106,8 @@ function equityStatus(now: Date): MarketStatus {
  */
 function fxOrMetalsStatus(now: Date, label: string): MarketStatus {
   const { day, totalMinutes } = getEtParts(now);
-  const sessionOpen = 17 * 60;  // 17:00 ET (5:00 PM)
-  const breakEnd = 18 * 60;     // 18:00 ET (6:00 PM)
+  const sessionOpen = 17 * 60; // 17:00 ET (5:00 PM)
+  const breakEnd = 18 * 60; // 18:00 ET (6:00 PM)
 
   // Saturday — fully closed
   if (day === 6) {
@@ -144,9 +150,9 @@ function fxOrMetalsStatus(now: Date, label: string): MarketStatus {
  */
 function commodityStatus(now: Date): MarketStatus {
   const { day, totalMinutes } = getEtParts(now);
-  const sundayOpen = 18 * 60;      // 18:00 ET (6:00 PM)
+  const sundayOpen = 18 * 60; // 18:00 ET (6:00 PM)
   const dailyBreakStart = 17 * 60; // 17:00 ET (5:00 PM)
-  const dailyBreakEnd = 18 * 60;   // 18:00 ET (6:00 PM)
+  const dailyBreakEnd = 18 * 60; // 18:00 ET (6:00 PM)
 
   // Saturday — fully closed
   if (day === 6) {
@@ -185,10 +191,7 @@ function commodityStatus(now: Date): MarketStatus {
 
 // ---- Public API ----
 
-export function getMarketStatus(
-  category: MarketCategory,
-  now: Date = new Date(),
-): MarketStatus {
+export function getMarketStatus(category: MarketCategory, now: Date = new Date()): MarketStatus {
   switch (category) {
     case "crypto":
       return { open: true };
@@ -203,9 +206,6 @@ export function getMarketStatus(
   }
 }
 
-export function isMarketOpen(
-  category: MarketCategory,
-  now: Date = new Date(),
-): boolean {
+export function isMarketOpen(category: MarketCategory, now: Date = new Date()): boolean {
   return getMarketStatus(category, now).open;
 }

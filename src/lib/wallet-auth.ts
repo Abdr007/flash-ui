@@ -139,9 +139,7 @@ export function getAuthWallet(req: NextRequest): string | null {
   const authHeader = req.headers.get("authorization");
   if (!authHeader) return null;
 
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : authHeader;
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
 
   const payload = verifyAuthToken(token);
   return payload?.wallet ?? null;
@@ -156,7 +154,7 @@ export function requireAuth(req: NextRequest): { wallet: string } | NextResponse
   if (!wallet) {
     return NextResponse.json(
       { error: "Authentication required. Sign a message with your wallet first." },
-      { status: 401 }
+      { status: 401 },
     );
   }
   return { wallet };

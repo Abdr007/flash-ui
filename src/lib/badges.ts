@@ -15,7 +15,7 @@ export interface Badge {
   id: string;
   name: string;
   description: string;
-  icon: string;       // emoji
+  icon: string; // emoji
   tier: "bronze" | "silver" | "gold";
   category: "discipline" | "risk" | "volume" | "skill";
   earned: boolean;
@@ -234,7 +234,9 @@ export function generateShareCard(): ShareCard | null {
     `SL discipline: ${Math.round(p.slUsageRate * 100)}%`,
     topMarkets ? `Markets: ${topMarkets}` : "",
     `Badges: ${earned.length}/${computeBadges().length}`,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return {
     title,

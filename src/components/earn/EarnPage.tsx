@@ -68,10 +68,15 @@ export default function EarnPage({ onBack }: { onBack: () => void }) {
   const totalTvl = pools.reduce((sum, p) => sum + safe(parseFloat(p.aum)), 0);
 
   return (
-    <div className="flex flex-col items-center pt-8 pb-6 px-6 w-full max-w-[560px] mx-auto" style={{ animation: "fadeIn 300ms ease-out" }}>
+    <div
+      className="flex flex-col items-center pt-8 pb-6 px-6 w-full max-w-[560px] mx-auto"
+      style={{ animation: "fadeIn 300ms ease-out" }}
+    >
       {/* Header */}
       <div className="w-full flex items-center justify-between mb-6">
-        <button onClick={onBack} className="text-[12px] text-text-tertiary hover:text-text-secondary cursor-pointer">← Back</button>
+        <button onClick={onBack} className="text-[12px] text-text-tertiary hover:text-text-secondary cursor-pointer">
+          ← Back
+        </button>
         <div className="text-[12px] text-text-tertiary tracking-[0.2em] uppercase">Earn</div>
         <div className="w-12" />
       </div>
@@ -88,9 +93,7 @@ export default function EarnPage({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Error */}
-      {error && (
-        <div className="w-full text-[12px] text-accent-short text-center py-2 mb-2">{error}</div>
-      )}
+      {error && <div className="w-full text-[12px] text-accent-short text-center py-2 mb-2">{error}</div>}
 
       {/* Pool List */}
       {loading ? (
@@ -118,11 +121,13 @@ export default function EarnPage({ onBack }: { onBack: () => void }) {
       )}
 
       {/* Info */}
-      <div className="w-full mt-4 px-4 py-3 rounded-xl text-[11px] text-text-tertiary leading-relaxed"
-        style={{ background: "rgba(59,130,246,0.04)", border: "1px solid rgba(59,130,246,0.08)" }}>
+      <div
+        className="w-full mt-4 px-4 py-3 rounded-xl text-[11px] text-text-tertiary leading-relaxed"
+        style={{ background: "rgba(59,130,246,0.04)", border: "1px solid rgba(59,130,246,0.08)" }}
+      >
         <span className="font-medium text-accent-blue">How it works: </span>
-        Deposit USDC → receive FLP tokens. FLP auto-compounds trading fees into token value.
-        Your earnings grow as traders pay fees. Withdraw anytime.
+        Deposit USDC → receive FLP tokens. FLP auto-compounds trading fees into token value. Your earnings grow as
+        traders pay fees. Withdraw anytime.
       </div>
     </div>
   );
@@ -130,7 +135,15 @@ export default function EarnPage({ onBack }: { onBack: () => void }) {
 
 // ---- Pool Card ----
 
-function PoolCard({ pool, walletConnected, onRefresh }: { pool: EarnPool; walletConnected: boolean; onRefresh: () => void }) {
+function PoolCard({
+  pool,
+  walletConnected,
+  onRefresh,
+}: {
+  pool: EarnPool;
+  walletConnected: boolean;
+  onRefresh: () => void;
+}) {
   const [modal, setModal] = useState<"deposit" | "withdraw" | null>(null);
   const meta = POOL_META[pool.flpTokenSymbol] ?? { name: pool.flpTokenSymbol, assets: "", color: "#555" };
   const aum = safe(parseFloat(pool.aum));
@@ -138,15 +151,18 @@ function PoolCard({ pool, walletConnected, onRefresh }: { pool: EarnPool; wallet
   const sflpApr = safe(pool.sflpWeeklyApr);
   const flpPrice = safe(pool.flpPrice);
 
-  const apyColor = flpApy > 40 ? "var(--color-accent-long)" : flpApy > 15 ? "var(--color-accent-blue)" : "var(--color-text-secondary)";
+  const apyColor =
+    flpApy > 40 ? "var(--color-accent-long)" : flpApy > 15 ? "var(--color-accent-blue)" : "var(--color-text-secondary)";
 
   return (
     <div className="glass-card overflow-hidden card-anim">
       {/* Header */}
       <div className="px-5 py-3.5 flex items-center justify-between border-b border-border-subtle">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-white"
-            style={{ background: meta.color }}>
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-white"
+            style={{ background: meta.color }}
+          >
             {meta.name.charAt(0)}
           </div>
           <div>
@@ -189,24 +205,27 @@ function PoolCard({ pool, walletConnected, onRefresh }: { pool: EarnPool; wallet
           </button>
         </div>
       ) : (
-        <div className="px-5 py-3 text-[11px] text-text-tertiary text-center">
-          Connect wallet to deposit
-        </div>
+        <div className="px-5 py-3 text-[11px] text-text-tertiary text-center">Connect wallet to deposit</div>
       )}
 
       {/* Modal — portaled to body to escape overflow:hidden */}
-      {modal && typeof document !== "undefined" && createPortal(
-        <EarnModal
-          mode={modal}
-          poolAlias={meta.name.split(" ")[0].toLowerCase()}
-          poolName={meta.name}
-          flpPrice={flpPrice}
-          poolApy={flpApy}
-          onClose={() => setModal(null)}
-          onSuccess={() => { setModal(null); onRefresh(); }}
-        />,
-        document.body,
-      )}
+      {modal &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <EarnModal
+            mode={modal}
+            poolAlias={meta.name.split(" ")[0].toLowerCase()}
+            poolName={meta.name}
+            flpPrice={flpPrice}
+            poolApy={flpApy}
+            onClose={() => setModal(null)}
+            onSuccess={() => {
+              setModal(null);
+              onRefresh();
+            }}
+          />,
+          document.body,
+        )}
     </div>
   );
 }

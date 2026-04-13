@@ -14,11 +14,7 @@ import ToolResultCard from "./ToolResultCard";
 import QuickReply from "./QuickReply";
 import PortfolioHero from "@/components/portfolio/PortfolioHero";
 import { SectionBoundary } from "@/components/ErrorBoundary";
-import {
-  getSuggestedActionGroups,
-  getAutocompleteSuggestions,
-  type SuggestedAction,
-} from "@/lib/predictive-actions";
+import { getSuggestedActionGroups, getAutocompleteSuggestions, type SuggestedAction } from "@/lib/predictive-actions";
 import { feedPrices } from "@/lib/market-awareness";
 
 interface ChatPanelProps {
@@ -51,27 +47,33 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const isExecuting = getIsExecuting();
   const setStreaming = useFlashStore((s) => s.setStreaming);
 
-  const transport = useMemo(() => new DefaultChatTransport({
-    api: "/api/chat",
-    fetch: async (url, init) => {
-      try {
-        const state = useFlashStore.getState();
-        let body: Record<string, unknown> = {};
-        try { body = JSON.parse((init?.body as string) ?? "{}"); } catch {}
-        body.wallet_address = state.walletAddress ?? "";
-        body.context = state.getContextForAPI();
-        // Pass transfer history for insights tool (lightweight, last 50 only)
-        try {
-          const hist = localStorage.getItem("flash_transfer_history");
-          if (hist) body.transfer_history = hist;
-        } catch {}
-        return fetch(url, { ...init, body: JSON.stringify(body) });
-      } catch (e) {
-        console.error("[ChatTransport]", e);
-        return fetch(url, init);
-      }
-    },
-  }), []);
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        fetch: async (url, init) => {
+          try {
+            const state = useFlashStore.getState();
+            let body: Record<string, unknown> = {};
+            try {
+              body = JSON.parse((init?.body as string) ?? "{}");
+            } catch {}
+            body.wallet_address = state.walletAddress ?? "";
+            body.context = state.getContextForAPI();
+            // Pass transfer history for insights tool (lightweight, last 50 only)
+            try {
+              const hist = localStorage.getItem("flash_transfer_history");
+              if (hist) body.transfer_history = hist;
+            } catch {}
+            return fetch(url, { ...init, body: JSON.stringify(body) });
+          } catch (e) {
+            console.error("[ChatTransport]", e);
+            return fetch(url, init);
+          }
+        },
+      }),
+    [],
+  );
 
   const { messages, sendMessage, status } = useChat({ transport });
   const isStreaming = status === "streaming";
@@ -79,7 +81,9 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const hasMessages = messages.length > 0;
   const lastUserMsg = useRef<string>("");
 
-  useEffect(() => { setStreaming(isStreaming); }, [isStreaming, setStreaming]);
+  useEffect(() => {
+    setStreaming(isStreaming);
+  }, [isStreaming, setStreaming]);
 
   useEffect(() => {
     if (Object.keys(prices).length > 0) feedPrices(prices);
@@ -106,10 +110,18 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   }, []);
 
   // Predictions
-  const predictionState = useMemo(() => ({
-    positions, lastTradeDraft, recentMarkets, prices,
-    walletConnected, hasActiveTrade: !!getActiveTrade(), isExecuting: getIsExecuting(),
-  }), [positions, lastTradeDraft, recentMarkets, prices, walletConnected, getActiveTrade, getIsExecuting]);
+  const predictionState = useMemo(
+    () => ({
+      positions,
+      lastTradeDraft,
+      recentMarkets,
+      prices,
+      walletConnected,
+      hasActiveTrade: !!getActiveTrade(),
+      isExecuting: getIsExecuting(),
+    }),
+    [positions, lastTradeDraft, recentMarkets, prices, walletConnected, getActiveTrade, getIsExecuting],
+  );
 
   const actionGroups = useMemo(() => getSuggestedActionGroups(predictionState), [predictionState]);
 
@@ -124,15 +136,18 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
   const [optimisticPending, setOptimisticPending] = useState(false);
 
   // Rotating placeholder prompts
-  const PROMPTS = useMemo(() => [
-    "Long SOL 5x $100...",
-    "What's the price of ETH?",
-    "Show my positions...",
-    "Stake 500 FAF...",
-    "Send 2 SOL to...",
-    "Close my BTC position...",
-    "Show all market prices...",
-  ], []);
+  const PROMPTS = useMemo(
+    () => [
+      "Long SOL 5x $100...",
+      "What's the price of ETH?",
+      "Show my positions...",
+      "Stake 500 FAF...",
+      "Send 2 SOL to...",
+      "Close my BTC position...",
+      "Show all market prices...",
+    ],
+    [],
+  );
   const [promptIdx, setPromptIdx] = useState(0);
   useEffect(() => {
     if (hasMessages) return;
@@ -140,24 +155,29 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     return () => clearInterval(iv);
   }, [hasMessages, PROMPTS.length]);
 
-  const handleSubmit = useCallback((text?: string) => {
-    const raw = (text ?? input).trim();
-    if (!raw || isStreaming || getIsExecuting()) return;
+  const handleSubmit = useCallback(
+    (text?: string) => {
+      const raw = (text ?? input).trim();
+      if (!raw || isStreaming || getIsExecuting()) return;
 
-    const msg = raw;
+      const msg = raw;
 
-    // Optimistic: show typing indicator BEFORE server responds
-    setOptimisticPending(true);
+      // Optimistic: show typing indicator BEFORE server responds
+      setOptimisticPending(true);
 
-    // Haptic feedback on mobile (noop on desktop/iOS)
-    try { navigator?.vibrate?.(10); } catch {}
+      // Haptic feedback on mobile (noop on desktop/iOS)
+      try {
+        navigator?.vibrate?.(10);
+      } catch {}
 
-    lastUserMsg.current = msg;
-    sendMessage({ text: msg });
-    setInput("");
-    setAutocomplete([]);
-    setSelectedAC(-1);
-  }, [input, isStreaming, getIsExecuting, sendMessage]);
+      lastUserMsg.current = msg;
+      sendMessage({ text: msg });
+      setInput("");
+      setAutocomplete([]);
+      setSelectedAC(-1);
+    },
+    [input, isStreaming, getIsExecuting, sendMessage],
+  );
 
   // Clear optimistic state once real streaming starts
   useEffect(() => {
@@ -172,39 +192,75 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     return () => clearTimeout(t);
   }, [optimisticPending]);
 
-  const handleChipClick = useCallback((action: SuggestedAction) => {
-    handleSubmit(action.intent);
-  }, [handleSubmit]);
+  const handleChipClick = useCallback(
+    (action: SuggestedAction) => {
+      handleSubmit(action.intent);
+    },
+    [handleSubmit],
+  );
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (autocomplete.length > 0) {
-      if (e.key === "ArrowDown") { e.preventDefault(); setSelectedAC(p => p < autocomplete.length - 1 ? p + 1 : 0); return; }
-      if (e.key === "ArrowUp") { e.preventDefault(); setSelectedAC(p => p > 0 ? p - 1 : autocomplete.length - 1); return; }
-      if (e.key === "Tab" && selectedAC >= 0) { e.preventDefault(); setInput(autocomplete[selectedAC]); setAutocomplete([]); return; }
-    }
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      if (selectedAC >= 0 && autocomplete.length > 0) { handleSubmit(autocomplete[selectedAC]); } else { handleSubmit(); }
-    }
-    if (e.key === "Escape") { setAutocomplete([]); setSelectedAC(-1); }
-  }, [autocomplete, selectedAC, handleSubmit]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (autocomplete.length > 0) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setSelectedAC((p) => (p < autocomplete.length - 1 ? p + 1 : 0));
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setSelectedAC((p) => (p > 0 ? p - 1 : autocomplete.length - 1));
+          return;
+        }
+        if (e.key === "Tab" && selectedAC >= 0) {
+          e.preventDefault();
+          setInput(autocomplete[selectedAC]);
+          setAutocomplete([]);
+          return;
+        }
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (selectedAC >= 0 && autocomplete.length > 0) {
+          handleSubmit(autocomplete[selectedAC]);
+        } else {
+          handleSubmit();
+        }
+      }
+      if (e.key === "Escape") {
+        setAutocomplete([]);
+        setSelectedAC(-1);
+      }
+    },
+    [autocomplete, selectedAC, handleSubmit],
+  );
 
   // Auto-resize textarea
-  const handleTextareaInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    handleInputChange(e.target.value);
-    const el = e.target;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 120) + "px";
-  }, [handleInputChange]);
+  const handleTextareaInput = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      handleInputChange(e.target.value);
+      const el = e.target;
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight, 120) + "px";
+    },
+    [handleInputChange],
+  );
 
   return (
     <div className="flex flex-col h-full relative">
       {/* Chat area ambient glow */}
-      <div className="absolute inset-0 pointer-events-none z-0" style={{
-        background: "radial-gradient(ellipse 60% 40% at 50% 20%, rgba(51,201,161,0.04) 0%, transparent 70%)",
-      }} />
+      <div
+        className="absolute inset-0 pointer-events-none z-0"
+        style={{
+          background: "radial-gradient(ellipse 60% 40% at 50% 20%, rgba(51,201,161,0.04) 0%, transparent 70%)",
+        }}
+      />
       {/* ---- Scrollable area ---- */}
-      <div ref={scrollRef} onScroll={handleScroll} className="no-scrollbar flex-1 overflow-y-auto scroll-smooth relative z-10">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="no-scrollbar flex-1 overflow-y-auto scroll-smooth relative z-10"
+      >
         {!hasMessages ? (
           /* ---- Hero: centers vertically in available space ---- */
           <div className="flex flex-col items-center justify-center dot-grid" style={{ minHeight: "100%" }}>
@@ -217,17 +273,18 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               const prev = idx > 0 ? messages[idx - 1] : null;
               const sameRole = prev?.role === message.role;
               const mt = idx === 0 ? "" : sameRole ? "mt-2" : "mt-6";
-              const userText = message.role === "user"
-                ? message.parts?.filter((p): p is { type: "text"; text: string } => p.type === "text").map((p) => p.text).join(" ") ?? ""
-                : "";
+              const userText =
+                message.role === "user"
+                  ? (message.parts
+                      ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
+                      .map((p) => p.text)
+                      .join(" ") ?? "")
+                  : "";
 
               // Show quick replies only on the FIRST user message (button intent),
               // not on follow-up messages from quick reply clicks (prevents loops)
-              const showQuickReply = message.role === "user"
-                && idx === 0
-                && messages.length === 1
-                && !isStreaming
-                && !isExecuting;
+              const showQuickReply =
+                message.role === "user" && idx === 0 && messages.length === 1 && !isStreaming && !isExecuting;
 
               // Per-message error boundary — a crashing tool card replaces only
               // its own slot with a small inline fallback. ChatPanel does NOT
@@ -258,7 +315,10 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                         )}
                       </>
                     ) : (
-                      <AssistantMessage parts={(message.parts ?? []) as Record<string, unknown>[]} onAction={handleSubmit} />
+                      <AssistantMessage
+                        parts={(message.parts ?? []) as Record<string, unknown>[]}
+                        onAction={handleSubmit}
+                      />
                     )}
                   </div>
                 </SectionBoundary>
@@ -272,34 +332,38 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
             />
           </div>
         )}
-
       </div>
 
       {/* ---- Gradient fade ---- */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-32"
-        style={{ background: "linear-gradient(to top, var(--color-bg-root), var(--color-bg-root) 30%, transparent)" }} />
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-32"
+        style={{ background: "linear-gradient(to top, var(--color-bg-root), var(--color-bg-root) 30%, transparent)" }}
+      />
 
       {/* ---- Input (outside scroll, always at bottom) ---- */}
       <div className="shrink-0 relative z-10 safe-bottom">
         <div className="relative mx-auto w-full max-w-3xl px-4 py-3">
           {/* Autocomplete */}
           {autocomplete.length > 0 && (
-            <div className="absolute bottom-full left-4 right-4 mb-2 overflow-hidden rounded-xl"
+            <div
+              role="listbox"
+              className="absolute bottom-full left-4 right-4 mb-2 overflow-hidden rounded-xl"
               style={{
                 background: "rgba(14,19,28,0.9)",
                 backdropFilter: "blur(24px) saturate(1.4)",
                 border: "1px solid rgba(51,201,161,0.08)",
                 boxShadow: "0 8px 32px -8px rgba(0,0,0,0.5)",
                 animation: "slideDown 120ms cubic-bezier(0.2, 0, 0, 1) both",
-              }}>
+              }}
+            >
               {autocomplete.map((s, i) => (
                 <button
                   key={i}
+                  role="option"
+                  aria-selected={i === selectedAC}
                   onClick={() => handleSubmit(s)}
                   className={`autocomplete-item w-full text-left px-4 py-2.5 text-[14px] cursor-pointer transition-all duration-100
-                    ${i === selectedAC
-                      ? "text-text-primary"
-                      : "text-text-secondary hover:text-text-primary"}`}
+                    ${i === selectedAC ? "text-text-primary" : "text-text-secondary hover:text-text-primary"}`}
                   style={{
                     background: i === selectedAC ? "rgba(51,201,161,0.06)" : "transparent",
                     borderLeft: i === selectedAC ? "2px solid var(--color-brand-teal)" : "2px solid transparent",
@@ -312,31 +376,52 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
           )}
 
           {/* Suggestion chips (above input when chat active, hidden during wizard flows) */}
-          {hasMessages && actionGroups.length > 0 && !isStreaming && !isExecuting && !optimisticPending && messages.length > 8 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {actionGroups.flatMap((g) => g.actions).slice(0, 4).map((action, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleChipClick(action)}
-                  className="chip chip-stagger text-[12px] px-3 py-1.5
+          {hasMessages &&
+            actionGroups.length > 0 &&
+            !isStreaming &&
+            !isExecuting &&
+            !optimisticPending &&
+            messages.length > 8 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {actionGroups
+                  .flatMap((g) => g.actions)
+                  .slice(0, 4)
+                  .map((action, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleChipClick(action)}
+                      aria-label={action.label}
+                      className="chip chip-stagger text-[12px] px-3 py-1.5
                     text-text-secondary hover:text-text-primary cursor-pointer"
-                  style={{ background: "rgba(14,19,28,0.7)", border: "1px solid rgba(51,201,161,0.06)", borderRadius: "9999px" }}
-                >
-                  {action.label}
-                </button>
-              ))}
-            </div>
-          )}
+                      style={{
+                        background: "rgba(14,19,28,0.7)",
+                        border: "1px solid rgba(51,201,161,0.06)",
+                        borderRadius: "9999px",
+                      }}
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+              </div>
+            )}
 
           {/* Input box (Galileo-style glass card) */}
-          <div className="relative overflow-hidden glass-card input-glow"
-            style={{ borderRadius: "16px" }}>
+          <div className="relative overflow-hidden glass-card input-glow" style={{ borderRadius: "16px" }}>
             <textarea
               ref={inputRef}
               value={input}
               onChange={handleTextareaInput}
               onKeyDown={handleKeyDown}
-              placeholder={isExecuting ? "Executing trade..." : isStreaming ? "Thinking..." : hasMessages ? "Ask anything..." : PROMPTS[promptIdx]}
+              aria-label="Chat message"
+              placeholder={
+                isExecuting
+                  ? "Executing trade..."
+                  : isStreaming
+                    ? "Thinking..."
+                    : hasMessages
+                      ? "Ask anything..."
+                      : PROMPTS[promptIdx]
+              }
               disabled={isExecuting}
               rows={1}
               className="w-full bg-transparent text-[15px] text-text-primary px-5 pt-4 pb-14
@@ -345,33 +430,40 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               autoFocus
             />
             <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3">
-              <div className="flex items-center gap-2">
-                {isStreaming && <StreamingDot inline />}
-              </div>
+              <div className="flex items-center gap-2">{isStreaming && <StreamingDot inline />}</div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => {
                     handleSubmit();
-                    try { navigator?.vibrate?.(10); } catch {}
+                    try {
+                      navigator?.vibrate?.(10);
+                    } catch {}
                   }}
+                  aria-label="Send message"
                   disabled={!input.trim() || isStreaming || isExecuting}
                   className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer shrink-0
                     transition-all duration-150 disabled:opacity-20 disabled:cursor-default
                     active:scale-90"
                   style={{
-                    background: input.trim() && !isStreaming && !isExecuting
-                      ? "var(--color-accent-lime)"
-                      : "rgba(255,255,255,0.06)",
-                    color: input.trim() && !isStreaming && !isExecuting
-                      ? "#070A0F"
-                      : "var(--color-text-tertiary)",
-                    boxShadow: input.trim() && !isStreaming && !isExecuting
-                      ? "0 0 16px rgba(200,245,71,0.3)"
-                      : "none",
+                    background:
+                      input.trim() && !isStreaming && !isExecuting
+                        ? "var(--color-accent-lime)"
+                        : "rgba(255,255,255,0.06)",
+                    color: input.trim() && !isStreaming && !isExecuting ? "#070A0F" : "var(--color-text-tertiary)",
+                    boxShadow: input.trim() && !isStreaming && !isExecuting ? "0 0 16px rgba(200,245,71,0.3)" : "none",
                     transition: "all 200ms cubic-bezier(0.34, 1.56, 0.64, 1)",
                   }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <line x1="12" y1="19" x2="12" y2="5" />
                     <polyline points="5 12 12 5 19 12" />
                   </svg>
@@ -389,44 +481,87 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
 
 const StreamingDot = memo(function StreamingDot({ inline }: { inline?: boolean }) {
   if (inline) {
-    return <div className="w-2 h-2 rounded-full shrink-0" style={{ background: "var(--color-text-tertiary)", animation: "pulseDot 1s infinite" }} />;
+    return (
+      <div
+        className="w-2 h-2 rounded-full shrink-0"
+        style={{ background: "var(--color-text-tertiary)", animation: "pulseDot 1s infinite" }}
+      />
+    );
   }
   return (
     <div className="flex items-center gap-3 py-2 mt-6 msg-anim">
-      <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center"
-        style={{ background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <div
+        className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center"
+        style={{ background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}
+      >
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
           <path d="M3 12L8 3L13 12H3Z" fill="var(--color-accent-blue)" fillOpacity="0.9" />
         </svg>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-text-tertiary)", animation: "typingBounce 1.2s ease-in-out infinite -0.3s" }} />
-        <div className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-text-tertiary)", animation: "typingBounce 1.2s ease-in-out infinite -0.15s" }} />
-        <div className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-text-tertiary)", animation: "typingBounce 1.2s ease-in-out infinite 0s" }} />
+        <div
+          className="h-1.5 w-1.5 rounded-full"
+          style={{
+            background: "var(--color-text-tertiary)",
+            animation: "typingBounce 1.2s ease-in-out infinite -0.3s",
+          }}
+        />
+        <div
+          className="h-1.5 w-1.5 rounded-full"
+          style={{
+            background: "var(--color-text-tertiary)",
+            animation: "typingBounce 1.2s ease-in-out infinite -0.15s",
+          }}
+        />
+        <div
+          className="h-1.5 w-1.5 rounded-full"
+          style={{ background: "var(--color-text-tertiary)", animation: "typingBounce 1.2s ease-in-out infinite 0s" }}
+        />
       </div>
     </div>
   );
 });
 
-const ErrorRetry = memo(function ErrorRetry({ show, messages, onRetry }: { show: boolean; messages: { role: string; parts?: unknown[] }[]; onRetry: () => void }) {
+const ErrorRetry = memo(function ErrorRetry({
+  show,
+  messages,
+  onRetry,
+}: {
+  show: boolean;
+  messages: { role: string; parts?: unknown[] }[];
+  onRetry: () => void;
+}) {
   if (!show) return null;
   // Don't show error if the last assistant message has content (fast-path false positive)
   const lastMsg = messages[messages.length - 1];
   if (lastMsg?.role === "assistant" && lastMsg.parts && lastMsg.parts.length > 0) return null;
   return (
     <div className="flex items-center gap-3 py-2 mt-4 msg-anim">
-      <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px]"
-        style={{ background: "rgba(255,77,77,0.06)", border: "1px solid rgba(255,77,77,0.12)" }}>
+      <div
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px]"
+        style={{ background: "rgba(255,77,77,0.06)", border: "1px solid rgba(255,77,77,0.12)" }}
+      >
         <span className="text-text-secondary">Something went wrong.</span>
-        <button onClick={onRetry} className="font-semibold cursor-pointer hover:underline"
-          style={{ color: "var(--color-accent-lime)" }}>Retry</button>
+        <button
+          onClick={onRetry}
+          className="font-semibold cursor-pointer hover:underline"
+          style={{ color: "var(--color-accent-lime)" }}
+        >
+          Retry
+        </button>
       </div>
     </div>
   );
 });
 
 // Markdown renderer — bold, clickable code commands, newlines
-const SimpleMarkdown = memo(function SimpleMarkdown({ text, onAction }: { text: string; onAction?: (cmd: string) => void }) {
+const SimpleMarkdown = memo(function SimpleMarkdown({
+  text,
+  onAction,
+}: {
+  text: string;
+  onAction?: (cmd: string) => void;
+}) {
   const lines = text.split("\n");
   return (
     <>
@@ -455,7 +590,11 @@ const SimpleMarkdown = memo(function SimpleMarkdown({ text, onAction }: { text: 
           }
 
           if (firstMatch === boldMatch) {
-            parts.push(<strong key={key++} className="font-semibold text-text-primary">{firstMatch[1]}</strong>);
+            parts.push(
+              <strong key={key++} className="font-semibold text-text-primary">
+                {firstMatch[1]}
+              </strong>,
+            );
           } else {
             // Code blocks are CLICKABLE — sends the command to chat
             const cmd = firstMatch[1];
@@ -472,14 +611,18 @@ const SimpleMarkdown = memo(function SimpleMarkdown({ text, onAction }: { text: 
                 }}
               >
                 {cmd}
-              </button>
+              </button>,
             );
           }
 
           remaining = remaining.slice(firstMatch.index + firstMatch[0].length);
         }
 
-        return <div key={i} className="flex items-center gap-1 flex-wrap">{parts}</div>;
+        return (
+          <div key={i} className="flex items-center gap-1 flex-wrap">
+            {parts}
+          </div>
+        );
       })}
     </>
   );
@@ -488,15 +631,23 @@ const SimpleMarkdown = memo(function SimpleMarkdown({ text, onAction }: { text: 
 const UserMessage = memo(function UserMessage({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-lg px-3.5 py-2.5"
-        style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.12)" }}>
+      <div
+        className="max-w-[85%] rounded-lg px-3.5 py-2.5"
+        style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.12)" }}
+      >
         <span className="text-[13px] text-text-primary leading-relaxed">{text}</span>
       </div>
     </div>
   );
 });
 
-const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { parts: Record<string, unknown>[]; onAction?: (cmd: string) => void }) {
+const AssistantMessage = memo(function AssistantMessage({
+  parts,
+  onAction,
+}: {
+  parts: Record<string, unknown>[];
+  onAction?: (cmd: string) => void;
+}) {
   // Guard: parts could be undefined/null/not-array from bad API response
   const rawParts = Array.isArray(parts) ? parts : [];
 
@@ -522,7 +673,9 @@ const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { p
         const toolOutput = p?.output as Record<string, unknown> | undefined;
         const reqId = toolOutput?.request_id ?? (toolOutput?.output as Record<string, unknown> | undefined)?.request_id;
         return typeof reqId === "string" && reqId.startsWith("fast_");
-      } catch { return false; }
+      } catch {
+        return false;
+      }
     });
     if (!fastPart) return { isFastPath: false, fastPathSummary: "" };
     const toolInput = fastPart?.input as Record<string, unknown> | undefined;
@@ -549,7 +702,9 @@ const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { p
       <div className="flex flex-col gap-3 min-w-0 flex-1">
         {isFastPath && (
           <div className="flex items-center gap-2 -mb-1.5">
-            <span className="text-[10px] font-semibold tracking-wider" style={{ color: "var(--color-accent-lime)" }}>⚡ INSTANT</span>
+            <span className="text-[10px] font-semibold tracking-wider" style={{ color: "var(--color-accent-lime)" }}>
+              ⚡ INSTANT
+            </span>
             {fastPathSummary && <span className="text-[10px] text-text-tertiary">{fastPathSummary}</span>}
           </div>
         )}
@@ -575,10 +730,14 @@ const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { p
               );
             }
 
-            if (part.type === "dynamic-tool" || (typeof part.type === "string" && (part.type as string).startsWith("tool-"))) {
-              const toolName = part.type === "dynamic-tool"
-                ? String(part.toolName ?? "unknown")
-                : (part.type as string).replace("tool-", "");
+            if (
+              part.type === "dynamic-tool" ||
+              (typeof part.type === "string" && (part.type as string).startsWith("tool-"))
+            ) {
+              const toolName =
+                part.type === "dynamic-tool"
+                  ? String(part.toolName ?? "unknown")
+                  : (part.type as string).replace("tool-", "");
 
               return (
                 <div key={String(part.toolCallId ?? i)} className="card-anim">
@@ -587,16 +746,19 @@ const AssistantMessage = memo(function AssistantMessage({ parts, onAction }: { p
                       type: String(part.type),
                       toolName,
                       toolCallId: String(part.toolCallId ?? `tc_${i}`),
-                      state: (part.state as "input-streaming" | "input-available" | "output-available") ?? "input-available",
+                      state:
+                        (part.state as "input-streaming" | "input-available" | "output-available") ?? "input-available",
                       input: part.input as Record<string, unknown> | undefined,
-                      output: part.output as {
-                        status: "success" | "error" | "degraded";
-                        data: unknown;
-                        error?: string;
-                        request_id?: string;
-                        latency_ms?: number;
-                        warnings?: string[];
-                      } | undefined,
+                      output: part.output as
+                        | {
+                            status: "success" | "error" | "degraded";
+                            data: unknown;
+                            error?: string;
+                            request_id?: string;
+                            latency_ms?: number;
+                            warnings?: string[];
+                          }
+                        | undefined,
                     }}
                     onAction={onAction}
                   />

@@ -7,10 +7,17 @@
 // - No secrets in response
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, RPC_READ_METHODS } from "@/lib/api-security";
 
-const RPC_URL =
-  process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
+const RpcBody = z.object({
+  jsonrpc: z.literal("2.0"),
+  id: z.union([z.string(), z.number()]),
+  method: z.string(),
+  params: z.array(z.unknown()).optional(),
+});
+
+const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 
 const MAX_BODY_SIZE = 10_000; // 10KB
 
@@ -27,15 +34,17 @@ export async function POST(req: NextRequest) {
   if (sizeCheck) return sizeCheck;
 
   try {
-    const body = await req.json();
+    const rawBody = await req.json();
+    const parsed = RpcBody.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    const body = parsed.data;
 
     // ---- Method Whitelist (read-only — no sendTransaction) ----
-    const method = body?.method;
-    if (!method || typeof method !== "string" || !RPC_READ_METHODS.has(method)) {
-      return NextResponse.json(
-        { error: "Method not allowed" },
-        { status: 403 }
-      );
+    const { method } = body;
+    if (!RPC_READ_METHODS.has(method)) {
+      return NextResponse.json({ error: "Method not allowed" }, { status: 403 });
     }
 
     // ---- Proxy to Helius ----

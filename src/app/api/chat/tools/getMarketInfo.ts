@@ -16,9 +16,11 @@ export function createGetMarketInfoTool(wallet: string) {
   return tool({
     description:
       "Get market metadata: pool, category, leverage caps (normal + degen), live price, fee rate, utilization, and trading-hours status",
-    inputSchema: z.object({
-      market: z.string().describe("Market symbol (e.g., SOL, BTC, MET, EUR)"),
-    }).strict(),
+    inputSchema: z
+      .object({
+        market: z.string().describe("Market symbol (e.g., SOL, BTC, MET, EUR)"),
+      })
+      .strict(),
     execute: async ({ market }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 
@@ -29,7 +31,13 @@ export function createGetMarketInfoTool(wallet: string) {
         const resolved = resolveMarket(market);
         const meta = resolved ? getMarket(resolved) : null;
         if (!resolved || !meta) {
-          return { status: "error", data: null, error: `Unknown market: ${market}`, request_id: requestId, latency_ms: 0 };
+          return {
+            status: "error",
+            data: null,
+            error: `Unknown market: ${market}`,
+            request_id: requestId,
+            latency_ms: 0,
+          };
         }
 
         logToolCall("get_market_info", requestId, wallet, { market: resolved });

@@ -14,12 +14,7 @@
 
 import PoolConfig from "flash-sdk/dist/PoolConfig.json";
 
-export type MarketCategory =
-  | "crypto"
-  | "equity"
-  | "forex"
-  | "metals"
-  | "commodity";
+export type MarketCategory = "crypto" | "equity" | "forex" | "metals" | "commodity";
 
 export interface Market {
   symbol: string;
@@ -75,54 +70,54 @@ interface SymbolCap {
 
 const SYMBOL_CAPS: Record<string, SymbolCap> = {
   // ── Crypto.1 ── SOL/BTC/ETH support the degen tier (100x → 500x)
-  SOL:      { normal: 100, degen: 500 },
-  BTC:      { normal: 100, degen: 500 },
-  ETH:      { normal: 100, degen: 500 },
-  BNB:      { normal: 50,  degen: 50 },
-  ZEC:      { normal: 10,  degen: 10 },
+  SOL: { normal: 100, degen: 500 },
+  BTC: { normal: 100, degen: 500 },
+  ETH: { normal: 100, degen: 500 },
+  BNB: { normal: 50, degen: 50 },
+  ZEC: { normal: 10, degen: 10 },
 
   // ── Virtual.1 — FX ── flat 500x, no degen gating
-  EUR:      { normal: 500, degen: 500 },
-  GBP:      { normal: 500, degen: 500 },
-  USDJPY:   { normal: 500, degen: 500 },
-  USDCNH:   { normal: 500, degen: 500 },
+  EUR: { normal: 500, degen: 500 },
+  GBP: { normal: 500, degen: 500 },
+  USDJPY: { normal: 500, degen: 500 },
+  USDCNH: { normal: 500, degen: 500 },
 
   // ── Virtual.1 — Metals ── 100x
-  XAU:      { normal: 100, degen: 100 },
-  XAG:      { normal: 100, degen: 100 },
-  XAUt:     { normal: 100, degen: 100 }, // inferred — same as XAU
+  XAU: { normal: 100, degen: 100 },
+  XAG: { normal: 100, degen: 100 },
+  XAUt: { normal: 100, degen: 100 }, // inferred — same as XAU
 
   // ── Virtual.1 — Commodities ──
-  CRUDEOIL: { normal: 5,   degen: 5 },
-  NATGAS:   { normal: 10,  degen: 10 },
+  CRUDEOIL: { normal: 5, degen: 5 },
+  NATGAS: { normal: 10, degen: 10 },
 
   // ── Governance.1 ── Mixed caps per symbol
-  JUP:      { normal: 50,  degen: 50 },
-  PYTH:     { normal: 50,  degen: 50 },
-  RAY:      { normal: 50,  degen: 50 },
-  KMNO:     { normal: 50,  degen: 50 },
-  JTO:      { normal: 10,  degen: 10 },
-  MET:      { normal: 10,  degen: 10 },
-  HYPE:     { normal: 20,  degen: 20 },
+  JUP: { normal: 50, degen: 50 },
+  PYTH: { normal: 50, degen: 50 },
+  RAY: { normal: 50, degen: 50 },
+  KMNO: { normal: 50, degen: 50 },
+  JTO: { normal: 10, degen: 10 },
+  MET: { normal: 10, degen: 10 },
+  HYPE: { normal: 20, degen: 20 },
 
   // ── Community / Memes / Trump ── 25x
-  BONK:     { normal: 25,  degen: 25 },
-  PENGU:    { normal: 25,  degen: 25 },
-  PUMP:     { normal: 25,  degen: 25 },
-  WIF:      { normal: 25,  degen: 25 },
-  FARTCOIN: { normal: 25,  degen: 25 },
+  BONK: { normal: 25, degen: 25 },
+  PENGU: { normal: 25, degen: 25 },
+  PUMP: { normal: 25, degen: 25 },
+  WIF: { normal: 25, degen: 25 },
+  FARTCOIN: { normal: 25, degen: 25 },
 
   // ── Ore.1 ── 5x
-  ORE:      { normal: 5,   degen: 5 },
+  ORE: { normal: 5, degen: 5 },
 
   // ── Equity.1 ── 20x across the board
-  SPY:      { normal: 20,  degen: 20 },
-  NVDA:     { normal: 20,  degen: 20 },
-  TSLA:     { normal: 20,  degen: 20 },
-  AAPL:     { normal: 20,  degen: 20 },
-  AMD:      { normal: 20,  degen: 20 },
-  AMZN:     { normal: 20,  degen: 20 },
-  PLTR:     { normal: 20,  degen: 20 }, // inferred — same as other equities
+  SPY: { normal: 20, degen: 20 },
+  NVDA: { normal: 20, degen: 20 },
+  TSLA: { normal: 20, degen: 20 },
+  AAPL: { normal: 20, degen: 20 },
+  AMD: { normal: 20, degen: 20 },
+  AMZN: { normal: 20, degen: 20 },
+  PLTR: { normal: 20, degen: 20 }, // inferred — same as other equities
 };
 
 // Fallback cap for any symbol that ends up in PoolConfig but is missing
@@ -231,8 +226,7 @@ let lastFetchMs = 0;
 let inflight: Promise<void> | null = null;
 
 const LIVE_TTL_MS = 60_000;
-const FLASH_API_URL =
-  process.env.NEXT_PUBLIC_FLASH_API_URL || "https://flashapi.trade";
+const FLASH_API_URL = process.env.NEXT_PUBLIC_FLASH_API_URL || "https://flashapi.trade";
 
 // ---- Live upgrade from /pool-data ----
 

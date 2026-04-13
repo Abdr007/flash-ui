@@ -43,12 +43,16 @@ export function createTransferHistoryTool(wallet: string) {
       "Show transfer history, recent transfers, and spending insights. " +
       "Analyzes past transfers to show patterns: top tokens, frequent recipients, volume. " +
       "Call when user asks about transfer history, recent sends, or spending patterns.",
-    inputSchema: z.object({
-      history_json: z.string().optional().describe(
-        "JSON string of transfer history from client localStorage. " +
-        "If not provided, returns empty results."
-      ),
-    }).strict(),
+    inputSchema: z
+      .object({
+        history_json: z
+          .string()
+          .optional()
+          .describe(
+            "JSON string of transfer history from client localStorage. " + "If not provided, returns empty results.",
+          ),
+      })
+      .strict(),
     execute: async ({ history_json }): Promise<ToolResponse<TransferInsights>> => {
       const requestId = makeRequestId();
       const start = Date.now();

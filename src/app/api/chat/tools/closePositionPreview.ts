@@ -21,34 +21,20 @@ import { makeRequestId } from "@/lib/tool-dedup";
 import { withLatency, logError } from "@/lib/logger";
 import { enforceFirewall } from "@/lib/trade-firewall";
 import type { ToolResponse } from "./shared";
-import {
-  resolveMarket,
-  runTradeGuards,
-  logToolCall,
-  logToolResult,
-  logFirewallResult,
-} from "./shared";
+import { resolveMarket, runTradeGuards, logToolCall, logToolResult, logFirewallResult } from "./shared";
 
 export function createClosePositionPreviewTool(wallet: string) {
   return tool({
     description:
-      "Preview closing a position: estimated PnL, fees, exit price. " +
-      "Does NOT execute — returns preview only.",
-    inputSchema: z.object({
-      market: z.string().describe("Market symbol"),
-      side: z.enum(["LONG", "SHORT"]).optional().describe("Position side to close — auto-detected if omitted"),
-      close_percent: z
-        .number()
-        .min(1)
-        .max(100)
-        .default(100)
-        .describe("Percentage to close (1-100)"),
-    }).strict(),
-    execute: async ({
-      market,
-      side,
-      close_percent,
-    }): Promise<ToolResponse<unknown>> => {
+      "Preview closing a position: estimated PnL, fees, exit price. " + "Does NOT execute — returns preview only.",
+    inputSchema: z
+      .object({
+        market: z.string().describe("Market symbol"),
+        side: z.enum(["LONG", "SHORT"]).optional().describe("Position side to close — auto-detected if omitted"),
+        close_percent: z.number().min(1).max(100).default(100).describe("Percentage to close (1-100)"),
+      })
+      .strict(),
+    execute: async ({ market, side, close_percent }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 
       try {
@@ -86,10 +72,7 @@ export function createClosePositionPreviewTool(wallet: string) {
 
         // ---- STEP 5: Fetch data (positions + current price) ----
         const { result, latency_ms } = await withLatency(async () => {
-          const [positions, priceData] = await Promise.all([
-            fetchPositions(wallet),
-            fetchPrice(resolved),
-          ]);
+          const [positions, priceData] = await Promise.all([fetchPositions(wallet), fetchPrice(resolved)]);
           return { positions, priceData };
         });
 
@@ -117,9 +100,7 @@ export function createClosePositionPreviewTool(wallet: string) {
         // Defensive close_percent normalization — Zod's .default() may not
         // apply if the AI passes null instead of omitting the field.
         const pctRaw = Number(close_percent);
-        const effectivePercent = Number.isFinite(pctRaw) && pctRaw >= 1 && pctRaw <= 100
-          ? pctRaw
-          : 100;
+        const effectivePercent = Number.isFinite(pctRaw) && pctRaw >= 1 && pctRaw <= 100 ? pctRaw : 100;
 
         const exitPrice = Number.isFinite(result.priceData?.price)
           ? (result.priceData!.price as number)
@@ -148,9 +129,10 @@ export function createClosePositionPreviewTool(wallet: string) {
         const closingSize = position.size_usd * closeRatio;
         const closeFee = closingSize * 0.0008;
 
-        const pnl = effectiveSide === "LONG"
-          ? ((exitPrice - position.entry_price) / position.entry_price) * closingSize
-          : ((position.entry_price - exitPrice) / position.entry_price) * closingSize;
+        const pnl =
+          effectiveSide === "LONG"
+            ? ((exitPrice - position.entry_price) / position.entry_price) * closingSize
+            : ((position.entry_price - exitPrice) / position.entry_price) * closingSize;
 
         const preview = {
           market: resolved,
@@ -167,12 +149,7 @@ export function createClosePositionPreviewTool(wallet: string) {
         };
 
         // ---- STEP 7: Firewall validation ----
-        const firewall = enforceFirewall(
-          "close_position_preview",
-          preview,
-          wallet,
-          result.positions,
-        );
+        const firewall = enforceFirewall("close_position_preview", preview, wallet, result.positions);
 
         // ---- STEP 8: Log firewall result (ALWAYS — pass or block) ----
         logFirewallResult(
@@ -195,13 +172,7 @@ export function createClosePositionPreviewTool(wallet: string) {
         }
 
         // ---- STEP 9: Return validated response ----
-        logToolResult(
-          "close_position_preview",
-          requestId,
-          wallet,
-          latency_ms,
-          "success",
-        );
+        logToolResult("close_position_preview", requestId, wallet, latency_ms, "success");
 
         return {
           status: "success",

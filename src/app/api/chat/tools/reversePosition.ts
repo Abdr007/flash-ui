@@ -10,22 +10,19 @@ import { fetchPositions, fetchPrice } from "../flash-api";
 import { makeRequestId } from "@/lib/tool-dedup";
 import { withLatency, logError } from "@/lib/logger";
 import type { ToolResponse } from "./shared";
-import {
-  resolveMarket,
-  runTradeGuards,
-  logToolCall,
-  logToolResult,
-} from "./shared";
+import { resolveMarket, runTradeGuards, logToolCall, logToolResult } from "./shared";
 
 export function createReversePositionTool(wallet: string) {
   return tool({
     description:
       "Preview reversing/flipping a position direction (LONG to SHORT or SHORT to LONG). " +
       "Closes the existing position and opens the opposite side. Does NOT execute — returns preview only.",
-    inputSchema: z.object({
-      market: z.string().describe("Market symbol (e.g. SOL, BTC, ETH)"),
-      side: z.enum(["LONG", "SHORT"]).describe("Current position side to reverse"),
-    }).strict(),
+    inputSchema: z
+      .object({
+        market: z.string().describe("Market symbol (e.g. SOL, BTC, ETH)"),
+        side: z.enum(["LONG", "SHORT"]).describe("Current position side to reverse"),
+      })
+      .strict(),
     execute: async ({ market, side }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 
@@ -39,22 +36,23 @@ export function createReversePositionTool(wallet: string) {
 
         const resolved = resolveMarket(market);
         if (!resolved) {
-          return { status: "error", data: null, error: `Unknown market: ${market}`, request_id: requestId, latency_ms: 0 };
+          return {
+            status: "error",
+            data: null,
+            error: `Unknown market: ${market}`,
+            request_id: requestId,
+            latency_ms: 0,
+          };
         }
 
         logToolCall("reverse_position_preview", requestId, wallet, { market: resolved, side });
 
         const { result, latency_ms } = await withLatency(async () => {
-          const [positions, priceData] = await Promise.all([
-            fetchPositions(wallet),
-            fetchPrice(resolved),
-          ]);
+          const [positions, priceData] = await Promise.all([fetchPositions(wallet), fetchPrice(resolved)]);
           return { positions, priceData };
         });
 
-        const position = result.positions.find(
-          (p) => p.market === resolved && p.side === side,
-        );
+        const position = result.positions.find((p) => p.market === resolved && p.side === side);
 
         if (!position) {
           return {

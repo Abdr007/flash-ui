@@ -29,7 +29,12 @@ function makeDummyWallet(pubkey: PublicKey): Wallet {
 }
 
 function isValidPubkey(addr: string): boolean {
-  try { new PublicKey(addr); return addr.length >= 32; } catch { return false; }
+  try {
+    new PublicKey(addr);
+    return addr.length >= 32;
+  } catch {
+    return false;
+  }
 }
 
 // ---- faf_dashboard ----
@@ -50,7 +55,13 @@ export function createFafDashboardTool(wallet: string) {
       if (guardErr) return guardErr;
 
       if (!isValidPubkey(wallet)) {
-        return { status: "error", data: null, error: "Connect your wallet to view FAF staking.", request_id: requestId, latency_ms: Date.now() - start };
+        return {
+          status: "error",
+          data: null,
+          error: "Connect your wallet to view FAF staking.",
+          request_id: requestId,
+          latency_ms: Date.now() - start,
+        };
       }
 
       try {
@@ -64,8 +75,13 @@ export function createFafDashboardTool(wallet: string) {
         if (!info) {
           return {
             status: "success",
-            data: { type: "faf_dashboard", hasAccount: false, message: "No FAF stake found. Stake FAF to start earning rewards and fee discounts." },
-            request_id: requestId, latency_ms: Date.now() - start,
+            data: {
+              type: "faf_dashboard",
+              hasAccount: false,
+              message: "No FAF stake found. Stake FAF to start earning rewards and fee discounts.",
+            },
+            request_id: requestId,
+            latency_ms: Date.now() - start,
           };
         }
 
@@ -73,7 +89,8 @@ export function createFafDashboardTool(wallet: string) {
         return {
           status: "success",
           data: { type: "faf_dashboard", hasAccount: true, ...info },
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to load FAF data";
@@ -91,9 +108,11 @@ export function createFafStakeTool(wallet: string) {
       "Preview STAKING (depositing) FAF tokens. Shows amount, estimated tier change, and fee discount. " +
       "User must confirm before execution. Call ONLY when user wants to STAKE/DEPOSIT — NOT for unstake/withdraw. " +
       "Trigger: 'faf stake <amount>', 'stake 10 faf', 'i want to stake'.",
-    inputSchema: z.object({
-      amount: z.number().positive().describe("Amount of FAF to stake"),
-    }).strict(),
+    inputSchema: z
+      .object({
+        amount: z.number().positive().describe("Amount of FAF to stake"),
+      })
+      .strict(),
     execute: async ({ amount }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId("faf_stake");
       const start = Date.now();
@@ -103,7 +122,13 @@ export function createFafStakeTool(wallet: string) {
       if (guardErr) return guardErr;
 
       if (!Number.isFinite(amount) || amount <= 0) {
-        return { status: "error", data: null, error: "Amount must be positive.", request_id: requestId, latency_ms: Date.now() - start };
+        return {
+          status: "error",
+          data: null,
+          error: "Amount must be positive.",
+          request_id: requestId,
+          latency_ms: Date.now() - start,
+        };
       }
 
       try {
@@ -131,11 +156,14 @@ export function createFafStakeTool(wallet: string) {
 
         if (fafBalance < amount) {
           return {
-            status: "error", data: null,
-            error: fafBalance === 0
-              ? "You don't have any FAF tokens in your wallet. Buy FAF first to start staking."
-              : `Insufficient FAF balance. You have ${fafBalance.toFixed(2)} FAF but want to stake ${amount}.`,
-            request_id: requestId, latency_ms: Date.now() - start,
+            status: "error",
+            data: null,
+            error:
+              fafBalance === 0
+                ? "You don't have any FAF tokens in your wallet. Buy FAF first to start staking."
+                : `Insufficient FAF balance. You have ${fafBalance.toFixed(2)} FAF but want to stake ${amount}.`,
+            request_id: requestId,
+            latency_ms: Date.now() - start,
           };
         }
 
@@ -157,7 +185,8 @@ export function createFafStakeTool(wallet: string) {
             newFeeDiscount: newTier.feeDiscount,
             tierChanged: currentTier !== newTier.name,
           },
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to build stake preview";
@@ -175,9 +204,11 @@ export function createFafUnstakeTool(wallet: string) {
       "Preview UNSTAKING (withdrawing) FAF tokens. Warns about 90-day lock period. " +
       "Call when user wants to UNSTAKE/WITHDRAW/REMOVE staked FAF — NOT for staking/depositing. " +
       "Trigger: 'faf unstake <amount>', 'unstake 10 faf', 'i want to unstake', 'withdraw faf'.",
-    inputSchema: z.object({
-      amount: z.number().positive().describe("Amount of FAF to unstake"),
-    }).strict(),
+    inputSchema: z
+      .object({
+        amount: z.number().positive().describe("Amount of FAF to unstake"),
+      })
+      .strict(),
     execute: async ({ amount }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId("faf_unstake");
       const start = Date.now();
@@ -196,7 +227,13 @@ export function createFafUnstakeTool(wallet: string) {
         const currentStake = info?.stakedAmount ?? 0;
 
         if (amount > currentStake) {
-          return { status: "error", data: null, error: `Cannot unstake ${amount} FAF. You only have ${currentStake} FAF staked.`, request_id: requestId, latency_ms: Date.now() - start };
+          return {
+            status: "error",
+            data: null,
+            error: `Cannot unstake ${amount} FAF. You only have ${currentStake} FAF staked.`,
+            request_id: requestId,
+            latency_ms: Date.now() - start,
+          };
         }
 
         const newTier = getVipTier(currentStake - amount);
@@ -206,7 +243,8 @@ export function createFafUnstakeTool(wallet: string) {
           status: "success",
           data: {
             type: "faf_unstake_preview",
-            amount, currentStake,
+            amount,
+            currentStake,
             remainingStake: currentStake - amount,
             newTier: newTier.name,
             newFeeDiscount: newTier.feeDiscount,
@@ -214,7 +252,8 @@ export function createFafUnstakeTool(wallet: string) {
             lockDays: 90,
             warning: "Unstaked FAF will be locked for 90 days. You can cancel during this period to re-stake.",
           },
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to build unstake preview";
@@ -231,9 +270,11 @@ export function createFafClaimTool(wallet: string) {
     description:
       "Claim FAF staking rewards and/or USDC revenue. " +
       "Call when user says 'faf claim', 'claim rewards', 'claim revenue'.",
-    inputSchema: z.object({
-      claim_type: z.enum(["all", "rewards", "revenue"]).optional().describe("What to claim"),
-    }).strict(),
+    inputSchema: z
+      .object({
+        claim_type: z.enum(["all", "rewards", "revenue"]).optional().describe("What to claim"),
+      })
+      .strict(),
     execute: async ({ claim_type }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId("faf_claim");
       const start = Date.now();
@@ -250,16 +291,43 @@ export function createFafClaimTool(wallet: string) {
 
         const info = await getFafStakeInfo(conn, dummyWallet, pubkey);
         if (!info) {
-          return { status: "error", data: null, error: "No FAF stake account found.", request_id: requestId, latency_ms: Date.now() - start };
+          return {
+            status: "error",
+            data: null,
+            error: "No FAF stake account found.",
+            request_id: requestId,
+            latency_ms: Date.now() - start,
+          };
         }
 
         const type = claim_type ?? "all";
         const fafRewards = info.pendingRewardsFaf ?? 0;
         const usdcRevenue = info.pendingRevenueUsdc ?? 0;
 
-        if (type === "rewards" && fafRewards <= 0) return { status: "error", data: null, error: "No FAF rewards to claim.", request_id: requestId, latency_ms: Date.now() - start };
-        if (type === "revenue" && usdcRevenue <= 0) return { status: "error", data: null, error: "No USDC revenue to claim.", request_id: requestId, latency_ms: Date.now() - start };
-        if (type === "all" && fafRewards <= 0 && usdcRevenue <= 0) return { status: "error", data: null, error: "No rewards or revenue to claim.", request_id: requestId, latency_ms: Date.now() - start };
+        if (type === "rewards" && fafRewards <= 0)
+          return {
+            status: "error",
+            data: null,
+            error: "No FAF rewards to claim.",
+            request_id: requestId,
+            latency_ms: Date.now() - start,
+          };
+        if (type === "revenue" && usdcRevenue <= 0)
+          return {
+            status: "error",
+            data: null,
+            error: "No USDC revenue to claim.",
+            request_id: requestId,
+            latency_ms: Date.now() - start,
+          };
+        if (type === "all" && fafRewards <= 0 && usdcRevenue <= 0)
+          return {
+            status: "error",
+            data: null,
+            error: "No rewards or revenue to claim.",
+            request_id: requestId,
+            latency_ms: Date.now() - start,
+          };
 
         return {
           status: "success",
@@ -269,7 +337,8 @@ export function createFafClaimTool(wallet: string) {
             fafRewards: type === "revenue" ? 0 : fafRewards,
             usdcRevenue: type === "rewards" ? 0 : usdcRevenue,
           },
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed";
@@ -306,7 +375,8 @@ export function createFafRequestsTool(wallet: string) {
         return {
           status: "success",
           data: { type: "faf_requests", requests },
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed";
@@ -323,9 +393,11 @@ export function createFafCancelUnstakeTool(wallet: string) {
     description:
       "Cancel a pending unstake request by index. Returns staked FAF to active stake. " +
       "Call when user says 'faf cancel <index>'.",
-    inputSchema: z.object({
-      index: z.number().int().min(0).describe("Request index (0-based)"),
-    }).strict(),
+    inputSchema: z
+      .object({
+        index: z.number().int().min(0).describe("Request index (0-based)"),
+      })
+      .strict(),
     execute: async ({ index }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId("faf_cancel");
       const start = Date.now();
@@ -343,7 +415,13 @@ export function createFafCancelUnstakeTool(wallet: string) {
         const requests = await getFafUnstakeRequests(conn, dummyWallet, pubkey);
 
         if (index >= requests.length) {
-          return { status: "error", data: null, error: `Request #${index} not found. You have ${requests.length} pending request(s).`, request_id: requestId, latency_ms: Date.now() - start };
+          return {
+            status: "error",
+            data: null,
+            error: `Request #${index} not found. You have ${requests.length} pending request(s).`,
+            request_id: requestId,
+            latency_ms: Date.now() - start,
+          };
         }
 
         const target = requests[index];
@@ -357,7 +435,8 @@ export function createFafCancelUnstakeTool(wallet: string) {
             progressPercent: target.progressPercent,
             timeRemainingSeconds: target.timeRemainingSeconds,
           },
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed";
@@ -401,7 +480,8 @@ export function createFafTierTool(wallet: string) {
             stakedAmount,
             tiers: VIP_TIERS,
           },
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed";

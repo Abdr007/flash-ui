@@ -66,7 +66,7 @@ export function validatePrice(
   }
 
   // Both available — cross-validate
-  const deviation = Math.abs(primaryPrice - fallbackPrice) / fallbackPrice * 100;
+  const deviation = (Math.abs(primaryPrice - fallbackPrice) / fallbackPrice) * 100;
 
   if (deviation > MAX_PRICE_DEVIATION_PCT) {
     logError("system", {
@@ -84,7 +84,8 @@ export function validatePrice(
       price: 0,
       source: "both",
       deviation_pct: deviation,
-      error: `Price deviation ${deviation.toFixed(1)}% exceeds ${MAX_PRICE_DEVIATION_PCT}% threshold — ` +
+      error:
+        `Price deviation ${deviation.toFixed(1)}% exceeds ${MAX_PRICE_DEVIATION_PCT}% threshold — ` +
         `primary $${primaryPrice.toFixed(2)} vs stream $${fallbackPrice.toFixed(2)}`,
     };
   }

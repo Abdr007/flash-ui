@@ -19,7 +19,10 @@ export default function SystemStatus() {
     <div className="relative flex items-center justify-between px-5 h-11 shrink-0">
       {/* Early version — subtle, left */}
       <span className="text-[10px] hidden sm:inline" style={{ color: "rgba(255,255,255,0.18)" }}>
-        <span className="font-semibold" style={{ color: "rgba(58,255,225,0.4)" }}>early</span> version · always verify before signing
+        <span className="font-semibold" style={{ color: "rgba(58,255,225,0.4)" }}>
+          early
+        </span>{" "}
+        version · always verify before signing
       </span>
       <span className="sm:hidden" />
 
@@ -46,21 +49,20 @@ export default function SystemStatus() {
             e.currentTarget.style.transform = "none";
           }}
         >
-          <span className="w-2 h-2 rounded-full"
+          <span
+            className="w-2 h-2 rounded-full"
             style={{
               background: "var(--color-brand-teal)",
               boxShadow: "0 0 6px rgba(51, 201, 161, 0.5)",
               animation: "livePulse 2s ease-in-out infinite",
-            }} />
+            }}
+          />
           <span className="font-mono">
             {walletAddress?.slice(0, 4)}...{walletAddress?.slice(-4)}
           </span>
         </button>
       ) : (
-        <button
-          onClick={handleWallet}
-          className="btn-cta px-5 py-2 text-[12px] font-bold glow-pulse shrink-0"
-        >
+        <button onClick={handleWallet} className="btn-cta px-5 py-2 text-[12px] font-bold glow-pulse shrink-0">
           Connect Wallet
         </button>
       )}

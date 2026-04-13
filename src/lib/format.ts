@@ -11,7 +11,9 @@ export function safe(n: unknown, fallback = 0): number {
   const v = typeof n === "number" ? n : Number(n);
   if (Number.isFinite(v)) return v;
   // Non-blocking log: invalid value reached rendering
-  try { console.warn("[safe] invalid value:", typeof n, String(n).slice(0, 50)); } catch {}
+  try {
+    console.warn("[safe] invalid value:", typeof n, String(n).slice(0, 50));
+  } catch {}
   return fallback;
 }
 
@@ -97,14 +99,12 @@ export function truncateTx(sig: string | null | undefined): string {
 export function liqDistancePct(
   entry: number | null | undefined,
   liq: number | null | undefined,
-  side: "LONG" | "SHORT"
+  side: "LONG" | "SHORT",
 ): number {
   const e = safe(entry);
   const l = safe(liq);
   if (!e || !l) return 0;
-  const result = side === "LONG"
-    ? ((e - l) / e) * 100
-    : ((l - e) / e) * 100;
+  const result = side === "LONG" ? ((e - l) / e) * 100 : ((l - e) / e) * 100;
   return Number.isFinite(result) ? result : 0;
 }
 

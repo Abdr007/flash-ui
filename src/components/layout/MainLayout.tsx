@@ -28,7 +28,9 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
     super(props);
     this.state = { hasError: false };
   }
-  static getDerivedStateFromError(): { hasError: boolean } { return { hasError: true }; }
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
   componentDidCatch(error: Error) {
     console.error("[ChatCrash]", error?.message);
     setTimeout(() => this.setState({ hasError: false }), 0);

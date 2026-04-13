@@ -26,10 +26,7 @@ const REBROADCAST_INTERVAL_MS = 800;
  * Returns the confirmed signature.
  * Throws on failure or wallet rejection.
  */
-export async function executeSignedTransaction(
-  signedBase64: string,
-  connection: Connection,
-): Promise<string> {
+export async function executeSignedTransaction(signedBase64: string, connection: Connection): Promise<string> {
   // ── Step 1: Parallel broadcast ──
   const broadcastResult = await broadcastTransaction(signedBase64);
   if (!broadcastResult.signature) {
@@ -46,9 +43,7 @@ export async function executeSignedTransaction(
 
 // ── Broadcast ──
 
-async function broadcastTransaction(
-  signedBase64: string,
-): Promise<{ signature: string; broadcastCount: number }> {
+async function broadcastTransaction(signedBase64: string): Promise<{ signature: string; broadcastCount: number }> {
   const res = await fetch("/api/broadcast", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -91,7 +86,9 @@ async function waitForConfirmation(
       clearTimeout(rebroadcastTimer);
       clearTimeout(timeoutTimer);
       if (wsSubId !== undefined && !viaWs) {
-        try { conn.removeSignatureListener(wsSubId).catch(() => {}); } catch {}
+        try {
+          conn.removeSignatureListener(wsSubId).catch(() => {});
+        } catch {}
       }
     };
 
@@ -164,25 +161,32 @@ async function waitForConfirmation(
     const timeoutTimer = setTimeout(() => {
       if (settled) return;
       // Final status check before giving up
-      conn.getSignatureStatuses([signature])
+      conn
+        .getSignatureStatuses([signature])
         .then(({ value }) => {
           const status = value[0];
-          if (status && !status.err &&
-            (status.confirmationStatus === "confirmed" || status.confirmationStatus === "finalized")) {
+          if (
+            status &&
+            !status.err &&
+            (status.confirmationStatus === "confirmed" || status.confirmationStatus === "finalized")
+          ) {
             onConfirmed(false);
           } else {
             // CRITICAL FIX: reject on timeout — never tell user "confirmed" for unconfirmed tx
-            onError(new Error(
-              "Transaction was broadcast but not confirmed within 45 seconds. " +
-              "It may still land — check Solscan. Do NOT retry immediately to avoid double-send."
-            ));
+            onError(
+              new Error(
+                "Transaction was broadcast but not confirmed within 45 seconds. " +
+                  "It may still land — check Solscan. Do NOT retry immediately to avoid double-send.",
+              ),
+            );
           }
         })
         .catch(() => {
-          onError(new Error(
-            "Transaction confirmation timed out and status check failed. " +
-            "Check Solscan before retrying."
-          ));
+          onError(
+            new Error(
+              "Transaction confirmation timed out and status check failed. " + "Check Solscan before retrying.",
+            ),
+          );
         });
     }, timeoutMs);
   });

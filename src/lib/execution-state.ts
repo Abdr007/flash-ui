@@ -14,12 +14,12 @@
 
 export type ExecState =
   | "idle"
-  | "pending"      // Trade preview accepted, waiting confirm
-  | "confirmed"    // User confirmed, pre-execution checks running
-  | "executing"    // API call in flight
-  | "signing"      // Wallet signing in progress
-  | "completed"    // Transaction confirmed on-chain
-  | "failed";      // Any step failed
+  | "pending" // Trade preview accepted, waiting confirm
+  | "confirmed" // User confirmed, pre-execution checks running
+  | "executing" // API call in flight
+  | "signing" // Wallet signing in progress
+  | "completed" // Transaction confirmed on-chain
+  | "failed"; // Any step failed
 
 export interface ExecutionRecord {
   state: ExecState;
@@ -65,7 +65,11 @@ function load(): ExecutionRecord | null {
     }
   } catch {
     // Corrupt — clear
-    try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* */ }
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* */
+    }
   }
   return null;
 }
@@ -76,7 +80,9 @@ function persist(record: ExecutionRecord): void {
     if (typeof window !== "undefined") {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(record));
     }
-  } catch { /* Storage full — silent */ }
+  } catch {
+    /* Storage full — silent */
+  }
 }
 
 function clear(): void {
@@ -85,7 +91,9 @@ function clear(): void {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem(STORAGE_KEY);
     }
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 }
 
 // ---- Public API ----
@@ -142,10 +150,7 @@ export function checkStalledExecution(): ExecutionRecord | null {
   if (!record) return null;
 
   // If in executing/signing and older than 2 minutes, it's stalled
-  if (
-    (record.state === "executing" || record.state === "signing") &&
-    Date.now() - record.updated_at > 120_000
-  ) {
+  if ((record.state === "executing" || record.state === "signing") && Date.now() - record.updated_at > 120_000) {
     return record;
   }
 

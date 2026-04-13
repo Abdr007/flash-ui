@@ -20,13 +20,7 @@ interface SpringState {
   velocity: number;
 }
 
-function stepSpring(
-  state: SpringState,
-  target: number,
-  stiffness: number,
-  damping: number,
-  dt: number,
-): SpringState {
+function stepSpring(state: SpringState, target: number, stiffness: number, damping: number, dt: number): SpringState {
   const displacement = state.value - target;
   const springForce = -stiffness * displacement;
   const dampingForce = -damping * state.velocity;
@@ -42,10 +36,7 @@ function isSettled(state: SpringState, target: number): boolean {
 
 // ---- useSpringValue: animate a single number ----
 
-export function useSpringValue(
-  target: number,
-  config: { stiffness?: number; damping?: number } = {},
-): number {
+export function useSpringValue(target: number, config: { stiffness?: number; damping?: number } = {}): number {
   const { stiffness = 300, damping = 22 } = config;
   const [current, setCurrent] = useState(target);
   const stateRef = useRef<SpringState>({ value: target, velocity: 0 });
@@ -96,18 +87,21 @@ export function useMagneticHover(maxOffset = 6) {
   const ref = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const dx = (e.clientX - cx) / rect.width;
-    const dy = (e.clientY - cy) / rect.height;
-    setOffset({
-      x: dx * maxOffset,
-      y: dy * maxOffset,
-    });
-  }, [maxOffset]);
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!ref.current) return;
+      const rect = ref.current.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = (e.clientX - cx) / rect.width;
+      const dy = (e.clientY - cy) / rect.height;
+      setOffset({
+        x: dx * maxOffset,
+        y: dy * maxOffset,
+      });
+    },
+    [maxOffset],
+  );
 
   const handleMouseLeave = useCallback(() => {
     setOffset({ x: 0, y: 0 });
@@ -133,10 +127,7 @@ export function useMagneticHover(maxOffset = 6) {
 
 // ---- useNumberSpring: smooth number transitions ----
 
-export function useNumberSpring(
-  value: number,
-  config?: { stiffness?: number; damping?: number },
-): number {
+export function useNumberSpring(value: number, config?: { stiffness?: number; damping?: number }): number {
   return useSpringValue(value, { stiffness: 200, damping: 25, ...config });
 }
 
@@ -148,7 +139,10 @@ export function useBounceIn() {
   useEffect(() => {
     const t1 = setTimeout(() => setPhase("overshoot"), 60);
     const t2 = setTimeout(() => setPhase("settle"), 180);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   const scale = phase === "start" ? 0.98 : phase === "overshoot" ? 1.02 : 1;

@@ -117,7 +117,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse the JSON response — strip markdown fences if present
-    const cleaned = content.replace(/^```json?\s*/, "").replace(/\s*```$/, "").trim();
+    const cleaned = content
+      .replace(/^```json?\s*/, "")
+      .replace(/\s*```$/, "")
+      .trim();
     const parsed = JSON.parse(cleaned);
 
     // Validate required field

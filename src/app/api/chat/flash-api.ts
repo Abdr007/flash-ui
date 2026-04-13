@@ -101,16 +101,16 @@ export async function fetchAllPrices(): Promise<Record<string, ServerPrice>> {
   }
 
   // Populate server-side price cache for fast path (non-blocking, no exceptions)
-  try { updatePriceCache(result); } catch {}
+  try {
+    updatePriceCache(result);
+  } catch {}
 
   return result;
 }
 
 export async function fetchPrice(market: string): Promise<ServerPrice | null> {
   try {
-    const raw = await serverGet<Record<string, unknown>>(
-      `/prices/${encodeURIComponent(market)}`,
-    );
+    const raw = await serverGet<Record<string, unknown>>(`/prices/${encodeURIComponent(market)}`);
 
     const price = parseOraclePrice(raw);
     if (price <= 0) return null;
@@ -143,9 +143,7 @@ export interface ServerPosition {
   timestamp: number;
 }
 
-export async function fetchPositions(
-  wallet: string,
-): Promise<ServerPosition[]> {
+export async function fetchPositions(wallet: string): Promise<ServerPosition[]> {
   if (!wallet) return [];
 
   const raw = await serverGet<Record<string, unknown>[]>(
@@ -237,9 +235,10 @@ export async function fetchTradePreview(
     const fee_rate = BASE_FEE_BPS / 10000;
     const fees = position_size * fee_rate;
 
-    const liquidation_price = side === "LONG"
-      ? entry_price * (1 - 1 / leverage + MAINTENANCE_MARGIN_RATE)
-      : entry_price * (1 + 1 / leverage - MAINTENANCE_MARGIN_RATE);
+    const liquidation_price =
+      side === "LONG"
+        ? entry_price * (1 - 1 / leverage + MAINTENANCE_MARGIN_RATE)
+        : entry_price * (1 + 1 / leverage - MAINTENANCE_MARGIN_RATE);
 
     return {
       entry_price,
@@ -253,9 +252,7 @@ export async function fetchTradePreview(
   }
 }
 
-export async function fetchPortfolio(
-  wallet: string,
-): Promise<ServerPortfolio> {
+export async function fetchPortfolio(wallet: string): Promise<ServerPortfolio> {
   const positions = await fetchPositions(wallet);
 
   let total_collateral = 0;

@@ -41,13 +41,13 @@ const DECAY_TAU_MS = 5_000; // Time constant for exponential decay
 // ---- Latency Metrics (module-level, non-blocking) ----
 export const pnlMetrics = {
   ticks: 0,
-  skipped: 0,           // no-ops (hash unchanged)
-  computed: 0,           // actual PnL recomputations
-  positionsUpdated: 0,   // individual positions that changed
-  lastTickMs: 0,         // timestamp of last tick
-  lastComputeUs: 0,      // microseconds spent in last computation
-  volatileSpikes: 0,     // number of volatility spikes detected
-  sseGapMs: 0,           // time since last SSE price update (0 = healthy)
+  skipped: 0, // no-ops (hash unchanged)
+  computed: 0, // actual PnL recomputations
+  positionsUpdated: 0, // individual positions that changed
+  lastTickMs: 0, // timestamp of last tick
+  lastComputeUs: 0, // microseconds spent in last computation
+  volatileSpikes: 0, // number of volatility spikes detected
+  sseGapMs: 0, // time since last SSE price update (0 = healthy)
 };
 
 export function useLivePnl() {

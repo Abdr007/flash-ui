@@ -14,9 +14,7 @@ function UserLine({ message }: { message: ChatMessageType }) {
     <div className="flex items-baseline gap-2 font-mono text-[13px]" style={{ animation: "fadeIn 100ms" }}>
       <span className="text-accent-blue shrink-0">{">"}</span>
       <span className="text-text-primary">{message.content}</span>
-      <span className="text-text-tertiary text-[10px] ml-auto shrink-0">
-        {formatTime(message.timestamp)}
-      </span>
+      <span className="text-text-tertiary text-[10px] ml-auto shrink-0">{formatTime(message.timestamp)}</span>
     </div>
   );
 }
@@ -35,9 +33,7 @@ function SystemLine({ message }: { message: ChatMessageType }) {
         <span className="num text-text-secondary">
           {formatUsd(ct.collateral)} · {formatLeverage(ct.leverage)} · {formatPrice(ct.entry_price)}
         </span>
-        <span className="text-text-tertiary text-[10px] ml-auto shrink-0">
-          {formatTime(message.timestamp)}
-        </span>
+        <span className="text-text-tertiary text-[10px] ml-auto shrink-0">{formatTime(message.timestamp)}</span>
       </div>
     );
   }
@@ -48,17 +44,15 @@ function SystemLine({ message }: { message: ChatMessageType }) {
   const prefixColor = isError
     ? "var(--color-accent-short)"
     : isReady
-    ? "var(--color-accent-long)"
-    : "var(--color-text-tertiary)";
+      ? "var(--color-accent-long)"
+      : "var(--color-text-tertiary)";
 
   return (
     <div className="flex flex-col gap-2" style={{ animation: "slideUp 150ms ease-out" }}>
       {message.content && (
         <div className="flex items-baseline gap-2 font-mono text-[12px]">
           <span style={{ color: prefixColor }}>{prefix}</span>
-          <span className={isReady ? "text-text-primary" : "text-text-secondary"}>
-            {message.content}
-          </span>
+          <span className={isReady ? "text-text-primary" : "text-text-secondary"}>{message.content}</span>
         </div>
       )}
       {message.trade_card && <TradeCard trade={message.trade_card} />}

@@ -18,9 +18,9 @@ import type { MarketPrice } from "./types";
 // ---- Types ----
 
 interface PythParsedPrice {
-  id: string;        // feed ID without 0x
+  id: string; // feed ID without 0x
   price: {
-    price: string;   // raw price as string
+    price: string; // raw price as string
     conf: string;
     expo: number;
     publish_time: number;
@@ -62,9 +62,7 @@ export class PriceStream {
     if (feedIds.length === 0) return;
 
     // Build SSE URL with all feed IDs
-    const params = feedIds
-      .map((id) => `ids[]=${encodeURIComponent(id)}`)
-      .join("&");
+    const params = feedIds.map((id) => `ids[]=${encodeURIComponent(id)}`).join("&");
     const url = `${HERMES_SSE_URL}?${params}&parsed=true&allow_unordered=true&benchmarks_only=false`;
 
     try {
@@ -146,10 +144,7 @@ export class PriceStream {
     if (this.destroyed) return;
     this.disconnect();
 
-    const delay = Math.min(
-      1000 * Math.pow(2, this.reconnectAttempts),
-      this.maxReconnectDelay
-    );
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay);
     this.reconnectAttempts++;
 
     this.reconnectTimer = setTimeout(() => {

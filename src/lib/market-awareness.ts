@@ -206,10 +206,7 @@ export function getMarketBiasBoost(market: string, side: "LONG" | "SHORT"): numb
  * Should we warn about closing a position given market conditions?
  * Returns warning message or null.
  */
-export function getPositionWarning(
-  market: string,
-  side: "LONG" | "SHORT",
-): string | null {
+export function getPositionWarning(market: string, side: "LONG" | "SHORT"): string | null {
   const signal = getMarketSignal(market);
   if (!signal) return null;
 

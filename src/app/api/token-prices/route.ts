@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { logInfo, logError } from "@/lib/logger";
 import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, isValidSolanaAddress } from "@/lib/api-security";
+
+const TokenPricesBody = z.object({ wallet: z.string().min(32).max(50) });
 
 const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 
@@ -44,8 +47,17 @@ export async function POST(req: NextRequest) {
 
   const start = Date.now();
   try {
-    const { wallet } = await req.json();
-    if (!wallet || typeof wallet !== "string" || !isValidSolanaAddress(wallet)) {
+    const body = await req.json();
+    let wallet: string;
+    try {
+      ({ wallet } = TokenPricesBody.parse(body));
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+      }
+      throw err;
+    }
+    if (!isValidSolanaAddress(wallet)) {
       return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
     }
     logInfo("cache_miss", { wallet, data: { action: "fetch_start" } });
@@ -97,7 +109,7 @@ export async function POST(req: NextRequest) {
     for (const item of result.items ?? []) {
       const info = item.token_info ?? {};
       const rawSymbol = info.symbol || item.content?.metadata?.symbol || item.content?.metadata?.name || "";
-      const symbol = rawSymbol ? String(rawSymbol) : (item.id ? String(item.id).slice(0, 6) + "…" : "???");
+      const symbol = rawSymbol ? String(rawSymbol) : item.id ? String(item.id).slice(0, 6) + "…" : "???";
       const mint = String(item.id ?? "");
       const balance = Number(info.balance ?? 0);
       const decimals = Number(info.decimals ?? 0);
@@ -105,11 +117,11 @@ export async function POST(req: NextRequest) {
       const amount = decimals > 0 ? balance / Math.pow(10, decimals) : balance;
       const usdValue = amount * pricePerToken;
       const logoUri = String(
-        item.content?.links?.image
-        || item.content?.files?.[0]?.cdn_uri
-        || item.content?.files?.[0]?.uri
-        || info.image_uri
-        || ""
+        item.content?.links?.image ||
+          item.content?.files?.[0]?.cdn_uri ||
+          item.content?.files?.[0]?.uri ||
+          info.image_uri ||
+          "",
       );
 
       if (amount > 0) {
@@ -158,16 +170,15 @@ export async function POST(req: NextRequest) {
       // Always include FAF mint so we can price staked FAF too
       const mintIds = Array.from(new Set([solMint, FAF_MINT, ...allMints])).join(",");
       try {
-        const jupResp = await fetch(
-          `https://lite-api.jup.ag/price/v3?ids=${mintIds}`,
-          { signal: AbortSignal.timeout(5000) }
-        );
+        const jupResp = await fetch(`https://lite-api.jup.ag/price/v3?ids=${mintIds}`, {
+          signal: AbortSignal.timeout(5000),
+        });
         if (jupResp.ok) {
           const jupPrices = (await jupResp.json()) as Record<string, { usdPrice?: number }>;
           // Re-price SOL
           const solUsdPrice = Number(jupPrices[solMint]?.usdPrice ?? 0);
           if (solUsdPrice > 0) {
-            const diff = (solBalance * solUsdPrice) - solUsd;
+            const diff = solBalance * solUsdPrice - solUsd;
             solUsd = solBalance * solUsdPrice;
             totalUsd += diff;
           }
@@ -178,7 +189,7 @@ export async function POST(req: NextRequest) {
               const oldUsd = t.usdValue;
               t.pricePerToken = usdPrice;
               t.usdValue = t.amount * usdPrice;
-              totalUsd += (t.usdValue - oldUsd);
+              totalUsd += t.usdValue - oldUsd;
             }
           }
           // Wait for FAF stake info and price it with Jupiter FAF price
@@ -209,7 +220,12 @@ export async function POST(req: NextRequest) {
 
     logInfo("cache_miss", {
       wallet,
-      data: { action: "fetch_ok", tokens: tokens.length, total_usd: Math.round(totalUsd * 100) / 100, latency_ms: Date.now() - start },
+      data: {
+        action: "fetch_ok",
+        tokens: tokens.length,
+        total_usd: Math.round(totalUsd * 100) / 100,
+        latency_ms: Date.now() - start,
+      },
     });
     return NextResponse.json(walletTokens);
   } catch (err) {

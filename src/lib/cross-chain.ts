@@ -29,13 +29,37 @@ export interface ChainInfo {
 }
 
 export const SUPPORTED_CHAINS: Record<string, ChainInfo> = {
-  solana:    { id: "solana",    name: "Solana",    nativeToken: "SOL", explorerUrl: "https://solscan.io",     isActive: true },
-  ethereum:  { id: "ethereum",  name: "Ethereum",  nativeToken: "ETH", explorerUrl: "https://etherscan.io",   isActive: false },
-  bsc:       { id: "bsc",       name: "BNB Chain", nativeToken: "BNB", explorerUrl: "https://bscscan.com",    isActive: false },
-  polygon:   { id: "polygon",   name: "Polygon",   nativeToken: "MATIC", explorerUrl: "https://polygonscan.com", isActive: false },
-  arbitrum:  { id: "arbitrum",  name: "Arbitrum",  nativeToken: "ETH", explorerUrl: "https://arbiscan.io",    isActive: false },
-  base:      { id: "base",      name: "Base",      nativeToken: "ETH", explorerUrl: "https://basescan.org",   isActive: false },
-  avalanche: { id: "avalanche", name: "Avalanche", nativeToken: "AVAX", explorerUrl: "https://snowtrace.io",  isActive: false },
+  solana: { id: "solana", name: "Solana", nativeToken: "SOL", explorerUrl: "https://solscan.io", isActive: true },
+  ethereum: {
+    id: "ethereum",
+    name: "Ethereum",
+    nativeToken: "ETH",
+    explorerUrl: "https://etherscan.io",
+    isActive: false,
+  },
+  bsc: { id: "bsc", name: "BNB Chain", nativeToken: "BNB", explorerUrl: "https://bscscan.com", isActive: false },
+  polygon: {
+    id: "polygon",
+    name: "Polygon",
+    nativeToken: "MATIC",
+    explorerUrl: "https://polygonscan.com",
+    isActive: false,
+  },
+  arbitrum: {
+    id: "arbitrum",
+    name: "Arbitrum",
+    nativeToken: "ETH",
+    explorerUrl: "https://arbiscan.io",
+    isActive: false,
+  },
+  base: { id: "base", name: "Base", nativeToken: "ETH", explorerUrl: "https://basescan.org", isActive: false },
+  avalanche: {
+    id: "avalanche",
+    name: "Avalanche",
+    nativeToken: "AVAX",
+    explorerUrl: "https://snowtrace.io",
+    isActive: false,
+  },
 };
 
 export interface BridgeProvider {
@@ -72,13 +96,20 @@ export const BRIDGE_PROVIDERS: BridgeProvider[] = [
 
 // Chain aliases for natural language detection
 const CHAIN_ALIASES: Record<string, string> = {
-  sol: "solana", solana: "solana",
-  eth: "ethereum", ethereum: "ethereum",
-  bnb: "bsc", bsc: "bsc", "binance smart chain": "bsc",
-  matic: "polygon", polygon: "polygon",
-  arb: "arbitrum", arbitrum: "arbitrum",
+  sol: "solana",
+  solana: "solana",
+  eth: "ethereum",
+  ethereum: "ethereum",
+  bnb: "bsc",
+  bsc: "bsc",
+  "binance smart chain": "bsc",
+  matic: "polygon",
+  polygon: "polygon",
+  arb: "arbitrum",
+  arbitrum: "arbitrum",
   base: "base",
-  avax: "avalanche", avalanche: "avalanche",
+  avax: "avalanche",
+  avalanche: "avalanche",
 };
 
 /**
@@ -110,7 +141,7 @@ export function detectDestinationChain(input: string): ChainInfo | null {
  */
 export function findBridgeProviders(sourceChain: string, destChain: string): BridgeProvider[] {
   return BRIDGE_PROVIDERS.filter(
-    (p) => p.supportedChains.includes(sourceChain) && p.supportedChains.includes(destChain)
+    (p) => p.supportedChains.includes(sourceChain) && p.supportedChains.includes(destChain),
   );
 }
 
@@ -129,11 +160,7 @@ export interface CrossChainPreview {
  * Build a cross-chain transfer preview.
  * Returns null if route is not supported.
  */
-export function buildCrossChainPreview(
-  destChainId: string,
-  token: string,
-  amount: number,
-): CrossChainPreview | null {
+export function buildCrossChainPreview(destChainId: string, token: string, amount: number): CrossChainPreview | null {
   const sourceChain = SUPPORTED_CHAINS["solana"];
   const destChain = SUPPORTED_CHAINS[destChainId];
   if (!sourceChain || !destChain) return null;

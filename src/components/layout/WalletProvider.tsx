@@ -1,11 +1,7 @@
 "use client";
 
 import { useMemo, useEffect, type ReactNode } from "react";
-import {
-  ConnectionProvider,
-  WalletProvider as SolanaWalletProvider,
-  useWallet,
-} from "@solana/wallet-adapter-react";
+import { ConnectionProvider, WalletProvider as SolanaWalletProvider, useWallet } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
@@ -16,9 +12,7 @@ import { useFlashStore } from "@/store";
 // Use proxy endpoint to keep Helius API key server-side.
 // Fallback to public RPC if no proxy configured.
 const RPC_ENDPOINT =
-  typeof window !== "undefined"
-    ? `${window.location.origin}/api/rpc`
-    : "https://api.mainnet-beta.solana.com";
+  typeof window !== "undefined" ? `${window.location.origin}/api/rpc` : "https://api.mainnet-beta.solana.com";
 
 function WalletSync() {
   const { publicKey, connected } = useWallet();
@@ -35,15 +29,8 @@ function WalletSync() {
   return null;
 }
 
-export default function WalletProviderWrapper({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const wallets = useMemo(
-    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
-    []
-  );
+export default function WalletProviderWrapper({ children }: { children: ReactNode }) {
+  const wallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
 
   return (
     <ConnectionProvider endpoint={RPC_ENDPOINT}>

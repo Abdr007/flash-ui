@@ -14,11 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 // x-forwarded-for CAN be spoofed by clients — only use as fallback.
 
 export function getClientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-real-ip")?.trim() ??
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown"
-  );
+  return req.headers.get("x-real-ip")?.trim() ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 }
 
 // ============================================
@@ -59,6 +55,13 @@ export class RateLimiter {
     return true;
   }
 
+  getRemainingSeconds(key: string): number {
+    const entry = this.map.get(key);
+    if (!entry) return 0;
+    const remaining = Math.max(0, entry.resetAt - Date.now());
+    return Math.ceil(remaining / 1000);
+  }
+
   private cleanup() {
     if (this.map.size < 50) return;
     const now = Date.now();
@@ -74,10 +77,10 @@ export class RateLimiter {
   }
 }
 
-export function rateLimitResponse(): NextResponse {
+export function rateLimitResponse(retryAfterSeconds = 60): NextResponse {
   return NextResponse.json(
     { error: "Rate limit exceeded. Try again shortly." },
-    { status: 429 }
+    { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } },
   );
 }
 
@@ -88,10 +91,7 @@ export function rateLimitResponse(): NextResponse {
 export function checkBodySize(req: NextRequest, maxBytes: number): NextResponse | null {
   const contentLength = req.headers.get("content-length");
   if (contentLength && parseInt(contentLength, 10) > maxBytes) {
-    return NextResponse.json(
-      { error: "Request too large" },
-      { status: 413 }
-    );
+    return NextResponse.json({ error: "Request too large" }, { status: 413 });
   }
   return null;
 }
@@ -128,16 +128,10 @@ export function sanitizeLlmInput(input: string, maxLength = 500): string {
 // ============================================
 // Never leak stack traces, internal paths, or sensitive details.
 
-export function safeErrorResponse(
-  err: unknown,
-  fallbackMessage: string,
-  status = 500
-): NextResponse {
+export function safeErrorResponse(err: unknown, fallbackMessage: string, status = 500): NextResponse {
   // Only use known safe messages — never pass raw error.message to client
   // as it may contain internal details (file paths, SQL, config values).
-  const message = err instanceof Error && isSafeErrorMessage(err.message)
-    ? err.message
-    : fallbackMessage;
+  const message = err instanceof Error && isSafeErrorMessage(err.message) ? err.message : fallbackMessage;
 
   return NextResponse.json({ error: message }, { status });
 }
@@ -244,17 +238,13 @@ import { getAuthWallet } from "@/lib/wallet-auth";
  * STRICT MODE (default): Auth is REQUIRED. No token = 401.
  * PERMISSIVE MODE (strict=false): No token = allowed (backwards compat for read-only).
  */
-export function enforceWalletMatch(
-  req: NextRequest,
-  claimedWallet: string,
-  strict = true,
-): NextResponse | null {
+export function enforceWalletMatch(req: NextRequest, claimedWallet: string, strict = true): NextResponse | null {
   const authWallet = getAuthWallet(req);
   if (!authWallet) {
     if (strict) {
       return NextResponse.json(
         { error: "Authentication required. Sign a message with your wallet first." },
-        { status: 401 }
+        { status: 401 },
       );
     }
     return null; // Permissive mode for read-only endpoints
@@ -263,7 +253,7 @@ export function enforceWalletMatch(
   if (authWallet.toLowerCase() !== claimedWallet.toLowerCase()) {
     return NextResponse.json(
       { error: "Wallet mismatch: authenticated wallet does not match request" },
-      { status: 403 }
+      { status: 403 },
     );
   }
   return null;

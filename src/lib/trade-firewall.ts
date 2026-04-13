@@ -43,21 +43,23 @@ const MIN_LIQ_DISTANCE_FLOOR_PCT = 0.05;
 
 // ---- Firewall Schema (STRICT — rejects unknown fields) ----
 
-export const TradePreviewSchema = z.object({
-  market: z.string().min(1).max(20),
-  side: z.enum(["LONG", "SHORT"]),
-  collateral_usd: z.number().finite().positive(),
-  leverage: z.number().finite().positive(),
-  entry_price: z.number().finite().positive(),
-  liquidation_price: z.number().finite().positive(),
-  fees: z.number().finite().min(0),
-  position_size: z.number().finite().positive(),
-  slippage_bps: z.number().finite().min(0).max(500).optional().default(80),
-  fee_rate: z.number().finite().min(0).max(0.05).optional(),
-  degen: z.boolean().optional().default(false),
-  take_profit_price: z.number().finite().positive().optional(),
-  stop_loss_price: z.number().finite().positive().optional(),
-}).strict(); // [STRICT] Reject unknown fields — no AI-injected extras
+export const TradePreviewSchema = z
+  .object({
+    market: z.string().min(1).max(20),
+    side: z.enum(["LONG", "SHORT"]),
+    collateral_usd: z.number().finite().positive(),
+    leverage: z.number().finite().positive(),
+    entry_price: z.number().finite().positive(),
+    liquidation_price: z.number().finite().positive(),
+    fees: z.number().finite().min(0),
+    position_size: z.number().finite().positive(),
+    slippage_bps: z.number().finite().min(0).max(500).optional().default(80),
+    fee_rate: z.number().finite().min(0).max(0.05).optional(),
+    degen: z.boolean().optional().default(false),
+    take_profit_price: z.number().finite().positive().optional(),
+    stop_loss_price: z.number().finite().positive().optional(),
+  })
+  .strict(); // [STRICT] Reject unknown fields — no AI-injected extras
 
 export type TradePreview = z.infer<typeof TradePreviewSchema>;
 
@@ -85,11 +87,7 @@ function round2(n: number): number {
 
 // ---- Core Validation ----
 
-export function validateTrade(
-  raw: unknown,
-  _wallet: string,
-  positions: Position[],
-): FirewallResult {
+export function validateTrade(raw: unknown, _wallet: string, positions: Position[]): FirewallResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -103,9 +101,7 @@ export function validateTrade(
   if (!parsed.success) {
     return {
       valid: false,
-      errors: parsed.error.issues.map(
-        (i) => `${i.path.join(".")}: ${i.message}`,
-      ),
+      errors: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
       warnings: [],
     };
   }
@@ -166,9 +162,10 @@ export function validateTrade(
 
     // [E2] Liquidation distance checks — dynamic minimum that scales with
     // leverage so degen (200x+) trades aren't falsely blocked.
-    const liqDistPct = t.side === "LONG"
-      ? ((t.entry_price - t.liquidation_price) / t.entry_price) * 100
-      : ((t.liquidation_price - t.entry_price) / t.entry_price) * 100;
+    const liqDistPct =
+      t.side === "LONG"
+        ? ((t.entry_price - t.liquidation_price) / t.entry_price) * 100
+        : ((t.liquidation_price - t.entry_price) / t.entry_price) * 100;
 
     if (t.leverage >= 1) {
       // Structural minimum scales with leverage: we require the liq distance
@@ -178,10 +175,7 @@ export function validateTrade(
       // floor is 40%, at 100x 0.4%, at 500x 0.08% (clamped to the absolute
       // floor of 0.05% below that).
       const naturalDistPct = (1 / t.leverage) * 100;
-      const minAllowedDistPct = Math.max(
-        MIN_LIQ_DISTANCE_FLOOR_PCT,
-        naturalDistPct * 0.4,
-      );
+      const minAllowedDistPct = Math.max(MIN_LIQ_DISTANCE_FLOOR_PCT, naturalDistPct * 0.4);
 
       if (liqDistPct >= 0 && liqDistPct < minAllowedDistPct) {
         errors.push(
@@ -210,7 +204,9 @@ export function validateTrade(
   if (t.fees > 0 && t.position_size > 0) {
     const expectedFees = round2(t.position_size * (t.fee_rate ?? 0.0008));
     if (Math.abs(t.fees - expectedFees) > 0.02) {
-      warnings.push(`Fee calculation may have precision error: $${t.fees.toFixed(4)} vs expected $${expectedFees.toFixed(4)}`);
+      warnings.push(
+        `Fee calculation may have precision error: $${t.fees.toFixed(4)} vs expected $${expectedFees.toFixed(4)}`,
+      );
     }
   }
 
@@ -266,19 +262,21 @@ export function validateTrade(
 
 // ---- Close Preview Schema + Validation ----
 
-export const ClosePreviewSchema = z.object({
-  market: z.string().min(1).max(20),
-  side: z.enum(["LONG", "SHORT"]),
-  close_percent: z.number().finite().min(1).max(100),
-  estimated_pnl: z.number().finite(),
-  estimated_fees: z.number().finite().min(0),
-  exit_price: z.number().finite().positive(),
-  closing_size: z.number().finite().positive().optional(),
-  net_pnl: z.number().finite().optional(),
-  entry_price: z.number().finite().positive().optional(),
-  pubkey: z.string().optional(),
-  size_usd: z.number().finite().optional(),
-}).strict();
+export const ClosePreviewSchema = z
+  .object({
+    market: z.string().min(1).max(20),
+    side: z.enum(["LONG", "SHORT"]),
+    close_percent: z.number().finite().min(1).max(100),
+    estimated_pnl: z.number().finite(),
+    estimated_fees: z.number().finite().min(0),
+    exit_price: z.number().finite().positive(),
+    closing_size: z.number().finite().positive().optional(),
+    net_pnl: z.number().finite().optional(),
+    entry_price: z.number().finite().positive().optional(),
+    pubkey: z.string().optional(),
+    size_usd: z.number().finite().optional(),
+  })
+  .strict();
 
 export type ClosePreview = z.infer<typeof ClosePreviewSchema>;
 

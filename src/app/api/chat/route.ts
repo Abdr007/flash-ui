@@ -12,13 +12,7 @@
 //
 // No heavy logic in this file — delegate to tools.
 
-import {
-  streamText,
-  convertToModelMessages,
-  stepCountIs,
-  smoothStream,
-  type UIMessage,
-} from "ai";
+import { streamText, convertToModelMessages, stepCountIs, smoothStream, type UIMessage } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { google } from "@ai-sdk/google";
 
@@ -27,12 +21,8 @@ import { google } from "@ai-sdk/google";
 // Layer 3: main brain — ambiguous / multi-step reasoning
 // Fallback: Gemini if Anthropic key missing (zero-config degrade)
 const HAS_ANTHROPIC = !!process.env.ANTHROPIC_API_KEY;
-const LIGHT_MODEL = HAS_ANTHROPIC
-  ? anthropic("claude-haiku-4-5")
-  : google("gemini-2.5-flash");
-const HEAVY_MODEL = HAS_ANTHROPIC
-  ? anthropic("claude-sonnet-4-6")
-  : google("gemini-2.5-flash");
+const LIGHT_MODEL = HAS_ANTHROPIC ? anthropic("claude-haiku-4-5") : google("gemini-2.5-flash");
+const HEAVY_MODEL = HAS_ANTHROPIC ? anthropic("claude-sonnet-4-6") : google("gemini-2.5-flash");
 
 // Context window control — never send more than last N messages to model.
 // Fast paths already captured structured state; model only needs recency.
@@ -48,7 +38,7 @@ import { fetchAllPrices, fetchPositions } from "./flash-api";
 import { warmCache } from "./cache";
 import { buildTools } from "./tools";
 import { isReplay } from "@/lib/tool-dedup";
-import { logInfo, logError, setTraceId } from "@/lib/logger";
+import { logInfo, logError, setTraceId, generateTraceId } from "@/lib/logger";
 
 // ---- FAF Fast Path (deterministic, no AI needed) ----
 
@@ -60,48 +50,135 @@ interface FafCommand {
   params: Record<string, unknown>;
 }
 
-const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract?: (m: RegExpExecArray) => Record<string, unknown> }[] = [
+const FAF_PATTERNS: {
+  pattern: RegExp;
+  action: string;
+  toolName: string;
+  extract?: (m: RegExpExecArray) => Record<string, unknown>;
+}[] = [
   // ── Bare "faf" → go straight to dashboard (QuickReply handles action buttons) ──
   { pattern: /^faf$/i, action: "dashboard", toolName: "faf_dashboard" },
 
   // ── Dashboard (many natural forms) ──
   { pattern: /^faf\s+(status|dashboard|info)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^show\s+(?:my\s+)?faf/i, action: "dashboard", toolName: "faf_dashboard" },
-  { pattern: /^(?:my\s+)?faf\s+(?:staking|stake)\s*(?:status|info|dashboard)?$/i, action: "dashboard", toolName: "faf_dashboard" },
+  {
+    pattern: /^(?:my\s+)?faf\s+(?:staking|stake)\s*(?:status|info|dashboard)?$/i,
+    action: "dashboard",
+    toolName: "faf_dashboard",
+  },
   { pattern: /^(?:what(?:'s| is)\s+)?my\s+faf/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^faf\s+(rewards?|earnings?|balance)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^faf\s+(points?|voltage)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^how much (?:faf )?(?:do i have |have i )?stak/i, action: "dashboard", toolName: "faf_dashboard" },
 
   // ── Unstake (with amount) — MUST be before stake patterns (regex "stake" matches inside "unstake") ──
-  { pattern: /^(?:faf\s+)?unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /^unstake\s+(\d+(?:\.\d+)?)\s+faf/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /(?:want|wanna|like)\s+to\s+unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /unstake\s+(\d+(?:\.\d+)?)\s*(?:faf|tokens?)?/i, action: "unstake", toolName: "faf_unstake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  {
+    pattern: /^(?:faf\s+)?unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i,
+    action: "unstake",
+    toolName: "faf_unstake",
+    extract: (m) => ({ amount: parseFloat(m[1]) }),
+  },
+  {
+    pattern: /^unstake\s+(\d+(?:\.\d+)?)\s+faf/i,
+    action: "unstake",
+    toolName: "faf_unstake",
+    extract: (m) => ({ amount: parseFloat(m[1]) }),
+  },
+  {
+    pattern: /(?:want|wanna|like)\s+to\s+unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i,
+    action: "unstake",
+    toolName: "faf_unstake",
+    extract: (m) => ({ amount: parseFloat(m[1]) }),
+  },
+  {
+    pattern: /unstake\s+(\d+(?:\.\d+)?)\s*(?:faf|tokens?)?/i,
+    action: "unstake",
+    toolName: "faf_unstake",
+    extract: (m) => ({ amount: parseFloat(m[1]) }),
+  },
 
   // ── Unstake (no amount → prompt) ──
   { pattern: /^faf\s+unstake$/i, action: "unstake_prompt", toolName: "__prompt__" },
-  { pattern: /(?:want|wanna|like)\s+to\s+unstake\s+(?:my\s+)?(?:faf|tokens?)?\s*$/i, action: "unstake_prompt", toolName: "__prompt__" },
+  {
+    pattern: /(?:want|wanna|like)\s+to\s+unstake\s+(?:my\s+)?(?:faf|tokens?)?\s*$/i,
+    action: "unstake_prompt",
+    toolName: "__prompt__",
+  },
   { pattern: /^unstake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i, action: "unstake_prompt", toolName: "__prompt__" },
 
   // ── Stake (with amount — many natural forms) ──
-  { pattern: /^(?:faf\s+)?stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /^faf\s+stake\s+(\d+(?:\.\d+)?)/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /^stake\s+(\d+(?:\.\d+)?)\s+faf/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /(?:want|wanna|like)\s+to\s+(?!un)stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
-  { pattern: /(?<!un)stake\s+(\d+(?:\.\d+)?)\s*(?:faf|tokens?)?/i, action: "stake", toolName: "faf_stake", extract: (m) => ({ amount: parseFloat(m[1]) }) },
+  {
+    pattern: /^(?:faf\s+)?stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?$/i,
+    action: "stake",
+    toolName: "faf_stake",
+    extract: (m) => ({ amount: parseFloat(m[1]) }),
+  },
+  {
+    pattern: /^faf\s+stake\s+(\d+(?:\.\d+)?)/i,
+    action: "stake",
+    toolName: "faf_stake",
+    extract: (m) => ({ amount: parseFloat(m[1]) }),
+  },
+  {
+    pattern: /^stake\s+(\d+(?:\.\d+)?)\s+faf/i,
+    action: "stake",
+    toolName: "faf_stake",
+    extract: (m) => ({ amount: parseFloat(m[1]) }),
+  },
+  {
+    pattern: /(?:want|wanna|like)\s+to\s+(?!un)stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i,
+    action: "stake",
+    toolName: "faf_stake",
+    extract: (m) => ({ amount: parseFloat(m[1]) }),
+  },
+  {
+    pattern: /(?<!un)stake\s+(\d+(?:\.\d+)?)\s*(?:faf|tokens?)?/i,
+    action: "stake",
+    toolName: "faf_stake",
+    extract: (m) => ({ amount: parseFloat(m[1]) }),
+  },
 
   // ── Stake (no amount → prompt) ──
   { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "__prompt__" },
-  { pattern: /(?:want|wanna|like)\s+to\s+(?!un)stake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i, action: "stake_prompt", toolName: "__prompt__" },
+  {
+    pattern: /(?:want|wanna|like)\s+to\s+(?!un)stake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i,
+    action: "stake_prompt",
+    toolName: "__prompt__",
+  },
   { pattern: /^stake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i, action: "stake_prompt", toolName: "__prompt__" },
 
   // ── Claim (many natural forms) ──
-  { pattern: /^faf\s+claim(?:\s+(all|rewards?|revenue))?$/i, action: "claim", toolName: "faf_claim", extract: (m) => ({ claim_type: m[1]?.replace(/s$/, "") ?? "all" }) },
-  { pattern: /^claim\s+(?:my\s+)?(?:faf\s+)?(?:rewards?|revenue|earnings?)/i, action: "claim", toolName: "faf_claim", extract: () => ({ claim_type: "all" }) },
-  { pattern: /^claim\s+(?:my\s+)?faf$/i, action: "claim", toolName: "faf_claim", extract: () => ({ claim_type: "all" }) },
-  { pattern: /^(?:i\s+)?want\s+to\s+claim/i, action: "claim", toolName: "faf_claim", extract: () => ({ claim_type: "all" }) },
-  { pattern: /^collect\s+(?:my\s+)?(?:faf\s+)?rewards?/i, action: "claim", toolName: "faf_claim", extract: () => ({ claim_type: "all" }) },
+  {
+    pattern: /^faf\s+claim(?:\s+(all|rewards?|revenue))?$/i,
+    action: "claim",
+    toolName: "faf_claim",
+    extract: (m) => ({ claim_type: m[1]?.replace(/s$/, "") ?? "all" }),
+  },
+  {
+    pattern: /^claim\s+(?:my\s+)?(?:faf\s+)?(?:rewards?|revenue|earnings?)/i,
+    action: "claim",
+    toolName: "faf_claim",
+    extract: () => ({ claim_type: "all" }),
+  },
+  {
+    pattern: /^claim\s+(?:my\s+)?faf$/i,
+    action: "claim",
+    toolName: "faf_claim",
+    extract: () => ({ claim_type: "all" }),
+  },
+  {
+    pattern: /^(?:i\s+)?want\s+to\s+claim/i,
+    action: "claim",
+    toolName: "faf_claim",
+    extract: () => ({ claim_type: "all" }),
+  },
+  {
+    pattern: /^collect\s+(?:my\s+)?(?:faf\s+)?rewards?/i,
+    action: "claim",
+    toolName: "faf_claim",
+    extract: () => ({ claim_type: "all" }),
+  },
 
   // ── Tiers ──
   { pattern: /^faf\s+(tier|tiers|vip)$/i, action: "tier", toolName: "faf_tier" },
@@ -110,11 +187,25 @@ const FAF_PATTERNS: { pattern: RegExp; action: string; toolName: string; extract
 
   // ── Requests ──
   { pattern: /^faf\s+(requests?|pending|unstake\s+requests?)$/i, action: "requests", toolName: "faf_requests" },
-  { pattern: /^(?:show\s+)?(?:my\s+)?(?:unstake\s+)?(?:pending\s+)?requests?$/i, action: "requests", toolName: "faf_requests" },
+  {
+    pattern: /^(?:show\s+)?(?:my\s+)?(?:unstake\s+)?(?:pending\s+)?requests?$/i,
+    action: "requests",
+    toolName: "faf_requests",
+  },
 
   // ── Cancel ──
-  { pattern: /^faf\s+cancel\s+(\d+)$/i, action: "cancel", toolName: "faf_cancel_unstake", extract: (m) => ({ index: parseInt(m[1], 10) }) },
-  { pattern: /^cancel\s+(?:unstake\s+)?(?:request\s+)?#?(\d+)$/i, action: "cancel", toolName: "faf_cancel_unstake", extract: (m) => ({ index: parseInt(m[1], 10) }) },
+  {
+    pattern: /^faf\s+cancel\s+(\d+)$/i,
+    action: "cancel",
+    toolName: "faf_cancel_unstake",
+    extract: (m) => ({ index: parseInt(m[1], 10) }),
+  },
+  {
+    pattern: /^cancel\s+(?:unstake\s+)?(?:request\s+)?#?(\d+)$/i,
+    action: "cancel",
+    toolName: "faf_cancel_unstake",
+    extract: (m) => ({ index: parseInt(m[1], 10) }),
+  },
 ];
 
 function matchFafCommand(input: string): FafCommand | null {
@@ -190,9 +281,24 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       commandTemplate: "{0} {1} {2} {3}",
       steps: [
         { question: "Which direction?", options: ["long", "short"] },
-        { question: "Which market?", options: ["SOL", "BTC", "ETH"], allowCustom: true, customPlaceholder: "Enter market symbol..." },
-        { question: "What leverage?", options: ["2x", "5x", "10x", "20x"], allowCustom: true, customPlaceholder: "e.g. 15x" },
-        { question: "How much collateral (USD)?", options: ["$10", "$25", "$50", "$100"], allowCustom: true, customPlaceholder: "e.g. 200" },
+        {
+          question: "Which market?",
+          options: ["SOL", "BTC", "ETH"],
+          allowCustom: true,
+          customPlaceholder: "Enter market symbol...",
+        },
+        {
+          question: "What leverage?",
+          options: ["2x", "5x", "10x", "20x"],
+          allowCustom: true,
+          customPlaceholder: "e.g. 15x",
+        },
+        {
+          question: "How much collateral (USD)?",
+          options: ["$10", "$25", "$50", "$100"],
+          allowCustom: true,
+          customPlaceholder: "e.g. 200",
+        },
       ],
     },
   },
@@ -220,8 +326,17 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       intro: "Let's deposit into an earn pool. I'll guide you through it.",
       commandTemplate: "deposit {1} USDC into {0} pool",
       steps: [
-        { question: "Which pool would you like to deposit into?", options: ["Crypto", "DeFi", "Meme", "Gold"], allowCustom: false },
-        { question: "How much USDC to deposit?", options: ["$10", "$25", "$50", "$100"], allowCustom: true, customPlaceholder: "e.g. 200" },
+        {
+          question: "Which pool would you like to deposit into?",
+          options: ["Crypto", "DeFi", "Meme", "Gold"],
+          allowCustom: false,
+        },
+        {
+          question: "How much USDC to deposit?",
+          options: ["$10", "$25", "$50", "$100"],
+          allowCustom: true,
+          customPlaceholder: "e.g. 200",
+        },
       ],
     },
   },
@@ -234,8 +349,17 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       intro: "Let's withdraw from an earn pool. I'll guide you through it.",
       commandTemplate: "withdraw {1} from {0} pool",
       steps: [
-        { question: "Which pool would you like to withdraw from?", options: ["Crypto", "DeFi", "Meme", "Gold"], allowCustom: false },
-        { question: "How much to withdraw?", options: ["25%", "50%", "100%"], allowCustom: true, customPlaceholder: "e.g. 75%" },
+        {
+          question: "Which pool would you like to withdraw from?",
+          options: ["Crypto", "DeFi", "Meme", "Gold"],
+          allowCustom: false,
+        },
+        {
+          question: "How much to withdraw?",
+          options: ["25%", "50%", "100%"],
+          allowCustom: true,
+          customPlaceholder: "e.g. 75%",
+        },
       ],
     },
   },
@@ -248,9 +372,24 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       intro: "I'd be happy to help you transfer assets! To get started, I need a few details:",
       commandTemplate: "send {1} {0} to {2}",
       steps: [
-        { question: "Which token would you like to transfer?", options: ["SOL", "USDC", "JUP"], allowCustom: true, customPlaceholder: "Token symbol or mint address..." },
-        { question: "How much would you like to transfer?", options: ["0.1", "0.5", "1", "10"], allowCustom: true, customPlaceholder: "Enter amount..." },
-        { question: "What's the recipient's wallet address?", options: [], allowCustom: true, customPlaceholder: "Solana wallet address..." },
+        {
+          question: "Which token would you like to transfer?",
+          options: ["SOL", "USDC", "JUP"],
+          allowCustom: true,
+          customPlaceholder: "Token symbol or mint address...",
+        },
+        {
+          question: "How much would you like to transfer?",
+          options: ["0.1", "0.5", "1", "10"],
+          allowCustom: true,
+          customPlaceholder: "Enter amount...",
+        },
+        {
+          question: "What's the recipient's wallet address?",
+          options: [],
+          allowCustom: true,
+          customPlaceholder: "Solana wallet address...",
+        },
       ],
     },
   },
@@ -263,7 +402,11 @@ const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<
       options: [
         { label: "My positions", intent: "show my positions", description: "Open trades" },
         { label: "Wallet balances", intent: "show my wallet balances", description: "All tokens" },
-        { label: "Portfolio risk", intent: "analyze my portfolio risk with leverage concentration and liquidation distances", description: "Risk analysis" },
+        {
+          label: "Portfolio risk",
+          intent: "analyze my portfolio risk with leverage concentration and liquidation distances",
+          description: "Risk analysis",
+        },
         { label: "FAF staking", intent: "faf", description: "Staking dashboard" },
       ],
     },
@@ -306,7 +449,11 @@ function matchConversationalIntent(input: string): { toolName: string; data: Rec
 
     // Update title with context — only for trade wizard (not earn/transfer)
     const origTitle = String(data.title ?? "");
-    const isTradeWizard = origTitle.includes("market") || origTitle.includes("leverage") || origTitle.includes("collateral") || origTitle.includes("direction");
+    const isTradeWizard =
+      origTitle.includes("market") ||
+      origTitle.includes("leverage") ||
+      origTitle.includes("collateral") ||
+      origTitle.includes("direction");
     if (isTradeWizard) {
       if (side && !market) data.title = `Choose a market to ${side}`;
       if (side && market && !lev) data.title = `${side} ${market} — choose leverage`;
@@ -349,14 +496,18 @@ function matchDirectTool(input: string): DirectToolMatch | null {
   // "price of SOL", "SOL price", "what's SOL at", "how much is BTC", "price SOL", "btc?"
   let m: RegExpExecArray | null;
 
-  m = /^(?:price\s+(?:of\s+)?|what(?:'s| is)\s+(?:the\s+)?price\s+(?:of\s+)?|how\s+much\s+is\s+)(\w+)(?:\s+(?:price|at|worth|trading|cost))?[?\s]*$/i.exec(t);
+  m =
+    /^(?:price\s+(?:of\s+)?|what(?:'s| is)\s+(?:the\s+)?price\s+(?:of\s+)?|how\s+much\s+is\s+)(\w+)(?:\s+(?:price|at|worth|trading|cost))?[?\s]*$/i.exec(
+      t,
+    );
   if (m) return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
 
   m = /^(\w+)\s+price[?\s]*$/i.exec(t);
   if (m) return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
 
   m = /^(\w{2,10})\?$/i.exec(t);
-  if (m && DIRECT_MARKET_ALIASES[m[1].toLowerCase()]) return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
+  if (m && DIRECT_MARKET_ALIASES[m[1].toLowerCase()])
+    return { toolName: "get_price", params: { market: resolveMarket(m[1]) } };
 
   // ── All prices / markets ──
   if (/^(?:prices|all\s+prices|show\s+(?:all\s+)?prices|markets|all\s+markets|show\s+(?:all\s+)?markets)$/i.test(t)) {
@@ -364,17 +515,28 @@ function matchDirectTool(input: string): DirectToolMatch | null {
   }
 
   // ── Positions ──
-  if (/^(?:(?:show\s+)?(?:my\s+)?positions?|(?:my\s+)?open\s+(?:trades?|positions?)|(?:show\s+)?(?:my\s+)?trades?)$/i.test(t)) {
+  if (
+    /^(?:(?:show\s+)?(?:my\s+)?positions?|(?:my\s+)?open\s+(?:trades?|positions?)|(?:show\s+)?(?:my\s+)?trades?)$/i.test(
+      t,
+    )
+  ) {
     return { toolName: "get_positions", params: {} };
   }
 
   // ── Portfolio ──
-  if (/^(?:portfolio|(?:show\s+)?(?:my\s+)?portfolio|(?:my\s+)?(?:wallet\s+)?balance[s]?|(?:show\s+)?(?:my\s+)?balance[s]?|(?:what(?:'s| is| are)\s+)?(?:my\s+)?(?:token\s+)?balance[s]?)$/i.test(t)) {
+  if (
+    /^(?:portfolio|(?:show\s+)?(?:my\s+)?portfolio|(?:my\s+)?(?:wallet\s+)?balance[s]?|(?:show\s+)?(?:my\s+)?balance[s]?|(?:what(?:'s| is| are)\s+)?(?:my\s+)?(?:token\s+)?balance[s]?)$/i.test(
+      t,
+    )
+  ) {
     return { toolName: "get_portfolio", params: {} };
   }
 
   // ── Market info ──
-  m = /^(?:(?:market\s+)?info\s+(?:on\s+|for\s+)?|(?:show\s+)?(?:market\s+)?(?:info|details|stats)\s+(?:for\s+|on\s+)?)(\w+)$/i.exec(t);
+  m =
+    /^(?:(?:market\s+)?info\s+(?:on\s+|for\s+)?|(?:show\s+)?(?:market\s+)?(?:info|details|stats)\s+(?:for\s+|on\s+)?)(\w+)$/i.exec(
+      t,
+    );
   if (m) return { toolName: "get_market_info", params: { market: resolveMarket(m[1]) } };
 
   // ── Close position ──
@@ -383,10 +545,18 @@ function matchDirectTool(input: string): DirectToolMatch | null {
 
   // ── Transfer: "send 0.1 SOL to <address>" ──
   m = /^(?:send|transfer)\s+(\d+(?:\.\d+)?)\s+(\w+)\s+to\s+([1-9A-HJ-NP-Za-km-z]{32,44})$/i.exec(t);
-  if (m) return { toolName: "transfer_preview", params: { token: m[2].toUpperCase(), amount: parseFloat(m[1]), recipient: m[3] } };
+  if (m)
+    return {
+      toolName: "transfer_preview",
+      params: { token: m[2].toUpperCase(), amount: parseFloat(m[1]), recipient: m[3] },
+    };
 
   // ── Earn pools — fetch live data from Flash API ──
-  if (/^(?:(?:what\s+)?(?:earn\s+)?pools?|(?:show\s+)?(?:available\s+)?(?:earn\s+)?pools?|(?:earn|yield)\s+(?:pools?|options?)|show\s+earn\s+pools)/i.test(t)) {
+  if (
+    /^(?:(?:what\s+)?(?:earn\s+)?pools?|(?:show\s+)?(?:available\s+)?(?:earn\s+)?pools?|(?:earn|yield)\s+(?:pools?|options?)|show\s+earn\s+pools)/i.test(
+      t,
+    )
+  ) {
     return { toolName: "earn_pools", params: {} };
   }
 
@@ -399,12 +569,20 @@ function matchDirectTool(input: string): DirectToolMatch | null {
   if (m) return { toolName: "earn_withdraw", params: { pool: m[2].toLowerCase(), percent: parseFloat(m[1]) } };
 
   // ── Show earn positions ──
-  if (/^(?:(?:show\s+)?(?:my\s+)?earn(?:ing)?\s+(?:positions?|deposits?)|(?:my\s+)?(?:earn|yield)\s+(?:positions?|deposits?))$/i.test(t)) {
+  if (
+    /^(?:(?:show\s+)?(?:my\s+)?earn(?:ing)?\s+(?:positions?|deposits?)|(?:my\s+)?(?:earn|yield)\s+(?:positions?|deposits?))$/i.test(
+      t,
+    )
+  ) {
     return { toolName: "earn_positions", params: {} };
   }
 
   // ── Transfer history ──
-  if (/^(?:(?:show\s+)?(?:my\s+)?transfer(?:s|\s+history)?|(?:my\s+)?(?:spending|transaction)\s*(?:history|patterns?)?)$/i.test(t)) {
+  if (
+    /^(?:(?:show\s+)?(?:my\s+)?transfer(?:s|\s+history)?|(?:my\s+)?(?:spending|transaction)\s*(?:history|patterns?)?)$/i.test(
+      t,
+    )
+  ) {
     return { toolName: "transfer_history", params: {} };
   }
 
@@ -471,21 +649,20 @@ export async function POST(req: Request) {
   // 0. [B3] Body size guard
   const contentLength = req.headers.get("content-length");
   if (contentLength && parseInt(contentLength) > MAX_BODY_SIZE) {
-    return new Response(
-      JSON.stringify({ error: "Request too large" }),
-      { status: 413, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "Request too large" }), {
+      status: 413,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   // 1. IP rate limit (use trusted x-real-ip, fall back to x-forwarded-for)
   const ip =
-    req.headers.get("x-real-ip")?.trim() ??
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    req.headers.get("x-real-ip")?.trim() ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (!checkIpRateLimit(ip)) {
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+      status: 429,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   // 2. Parse request (with error handling for malformed JSON)
@@ -493,15 +670,15 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return new Response(
-      JSON.stringify({ error: "Invalid JSON body" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const messages: UIMessage[] = Array.isArray(body.messages) ? body.messages : [];
   const walletAddress: string = typeof body.wallet_address === "string" ? body.wallet_address : "";
-  const context = (typeof body.context === "object" && body.context !== null) ? body.context : {};
+  const context = typeof body.context === "object" && body.context !== null ? body.context : {};
 
   // Wallet impersonation check — if auth token is present, wallet must match
   if (walletAddress) {
@@ -511,18 +688,15 @@ export async function POST(req: Request) {
       const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
       const payload = verifyAuthToken(token);
       if (payload && payload.wallet.toLowerCase() !== walletAddress.toLowerCase()) {
-        return new Response(
-          JSON.stringify({ error: "Wallet mismatch: authenticated wallet does not match request" }),
-          { status: 403, headers: { "Content-Type": "application/json" } },
-        );
+        return new Response(JSON.stringify({ error: "Wallet mismatch: authenticated wallet does not match request" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        });
       }
     }
   }
 
-  const traceId: string =
-    typeof body.trace_id === "string"
-      ? body.trace_id
-      : `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const traceId: string = typeof body.trace_id === "string" ? body.trace_id : generateTraceId();
 
   setTraceId(traceId);
 
@@ -534,10 +708,10 @@ export async function POST(req: Request) {
       error: "Replay detected",
       data: { request_id: requestId },
     });
-    return new Response(
-      JSON.stringify({ error: "Duplicate request rejected" }),
-      { status: 409, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "Duplicate request rejected" }), {
+      status: 409,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   logInfo("ai_request", {
@@ -568,7 +742,7 @@ export async function POST(req: Request) {
   // Positions passed from context (already available from previous chat state).
   {
     const ctxPositions = Array.isArray((context as Record<string, unknown>).positions)
-      ? (context as Record<string, unknown>).positions as import("@/lib/types").Position[]
+      ? ((context as Record<string, unknown>).positions as import("@/lib/types").Position[])
       : [];
     const fast = tryFastPath(lastUserText, walletAddress, ctxPositions);
     if (fast.matched && fast.response) {
@@ -581,7 +755,10 @@ export async function POST(req: Request) {
   {
     const convMatch = matchConversationalIntent(lastUserText);
     if (convMatch) {
-      logInfo("fast_path", { wallet: walletAddress, data: { type: "conversational", input: lastUserText.slice(0, 40) } });
+      logInfo("fast_path", {
+        wallet: walletAddress,
+        data: { type: "conversational", input: lastUserText.slice(0, 40) },
+      });
       return createFafStreamResponse(convMatch.toolName, {
         status: "success",
         data: convMatch.data,
@@ -611,26 +788,38 @@ export async function POST(req: Request) {
       if (fafMatch.action === "hub") {
         return createFafTextResponse(
           "**FAF Staking Hub**\n\n" +
-          "`faf status` — Dashboard (staked, rewards, tier)\n" +
-          "`faf stake 1000` — Stake FAF tokens\n" +
-          "`faf claim` — Claim FAF rewards + USDC revenue\n" +
-          "`faf tiers` — View VIP tier levels\n" +
-          "`faf requests` — Pending unstake requests\n" +
-          "`faf unstake 500` — Unstake FAF tokens"
+            "`faf status` — Dashboard (staked, rewards, tier)\n" +
+            "`faf stake 1000` — Stake FAF tokens\n" +
+            "`faf claim` — Claim FAF rewards + USDC revenue\n" +
+            "`faf tiers` — View VIP tier levels\n" +
+            "`faf requests` — Pending unstake requests\n" +
+            "`faf unstake 500` — Unstake FAF tokens",
         );
       }
       if (fafMatch.action === "stake_prompt") {
         return createFafStreamResponse("faf_stake", {
           status: "success",
-          data: { type: "faf_amount_picker", action: "stake", question: "How much FAF do you want to stake?", amounts: [50, 100, 500, 1000, 5000] },
-          request_id: `faf_sp_${Date.now()}`, latency_ms: 0,
+          data: {
+            type: "faf_amount_picker",
+            action: "stake",
+            question: "How much FAF do you want to stake?",
+            amounts: [50, 100, 500, 1000, 5000],
+          },
+          request_id: `faf_sp_${Date.now()}`,
+          latency_ms: 0,
         });
       }
       if (fafMatch.action === "unstake_prompt") {
         return createFafStreamResponse("faf_unstake", {
           status: "success",
-          data: { type: "faf_amount_picker", action: "unstake", question: "How much FAF do you want to unstake?", amounts: [50, 100, 200, 305] },
-          request_id: `faf_up_${Date.now()}`, latency_ms: 0,
+          data: {
+            type: "faf_amount_picker",
+            action: "unstake",
+            question: "How much FAF do you want to unstake?",
+            amounts: [50, 100, 200, 305],
+          },
+          request_id: `faf_up_${Date.now()}`,
+          latency_ms: 0,
         });
       }
 
@@ -650,12 +839,16 @@ export async function POST(req: Request) {
     const t = lastUserText.trim();
     const directMatch = matchDirectTool(t);
     if (directMatch) {
-      logInfo("fast_path", { wallet: walletAddress, data: { type: "direct_tool", tool: directMatch.toolName, input: t.slice(0, 60) } });
+      logInfo("fast_path", {
+        wallet: walletAddress,
+        data: { type: "direct_tool", tool: directMatch.toolName, input: t.slice(0, 60) },
+      });
       try {
         const toolFn = tools[directMatch.toolName as keyof typeof tools];
         if (toolFn && "execute" in toolFn) {
-          const execFn = (toolFn as unknown as { execute: (params: Record<string, unknown>) => Promise<unknown> }).execute;
-          const result = await execFn(directMatch.params) as Record<string, unknown>;
+          const execFn = (toolFn as unknown as { execute: (params: Record<string, unknown>) => Promise<unknown> })
+            .execute;
+          const result = (await execFn(directMatch.params)) as Record<string, unknown>;
           if (result) {
             return createFafStreamResponse(directMatch.toolName, result);
           }
@@ -667,65 +860,61 @@ export async function POST(req: Request) {
   }
 
   // Simple greetings / casual messages — no tools needed
-  const greetingPattern = /^(h(ello|i|ey|owdy)|gm|good\s*(morning|evening|night)|yo|sup|what'?s?\s*up|thanks?|ty|ok|okay|sure|yes|no|yep|nah)\b/i;
+  const greetingPattern =
+    /^(h(ello|i|ey|owdy)|gm|good\s*(morning|evening|night)|yo|sup|what'?s?\s*up|thanks?|ty|ok|okay|sure|yes|no|yep|nah)\b/i;
   try {
+    // Trim context once — shared across all AI paths
+    const trimmed = trimMessages(messages);
+    const modelMessages = await convertToModelMessages(trimmed);
+    const systemPrompt = getSystemPrompt(context);
 
-  // Trim context once — shared across all AI paths
-  const trimmed = trimMessages(messages);
-  const modelMessages = await convertToModelMessages(trimmed);
-  const systemPrompt = getSystemPrompt(context);
+    // ─── LAYER 2a: Greeting (Haiku, no tools, ultra-short) ───
+    if (greetingPattern.test(lastUserText.trim())) {
+      const result = streamText({
+        model: LIGHT_MODEL,
+        system: systemPrompt,
+        messages: modelMessages,
+        experimental_transform: smoothStream(),
+        temperature: 0,
+        maxOutputTokens: 40,
+      });
+      return result.toUIMessageStreamResponse();
+    }
 
-  // ─── LAYER 2a: Greeting (Haiku, no tools, ultra-short) ───
-  if (greetingPattern.test(lastUserText.trim())) {
+    // ─── LAYER 2b: Parser-resolved intent (Haiku, tools, 1–2 steps) ───
+    if (!hybrid.aiNeeded && hybrid.parseResult && hybrid.parseResult.type !== "unknown") {
+      const result = streamText({
+        model: LIGHT_MODEL,
+        system: systemPrompt,
+        messages: modelMessages,
+        tools,
+        stopWhen: stepCountIs(3),
+        experimental_transform: smoothStream(),
+        temperature: 0,
+        maxOutputTokens: 160,
+      });
+      return result.toUIMessageStreamResponse();
+    }
+
+    // ─── LAYER 3: Full reasoning (Sonnet 4.6, multi-step tool use) ───
     const result = streamText({
-      model: LIGHT_MODEL,
-      system: systemPrompt,
-      messages: modelMessages,
-      experimental_transform: smoothStream(),
-      temperature: 0,
-      maxOutputTokens: 40,
-    });
-    return result.toUIMessageStreamResponse();
-  }
-
-  // ─── LAYER 2b: Parser-resolved intent (Haiku, tools, 1–2 steps) ───
-  if (
-    !hybrid.aiNeeded &&
-    hybrid.parseResult &&
-    hybrid.parseResult.type !== "unknown"
-  ) {
-    const result = streamText({
-      model: LIGHT_MODEL,
+      model: HEAVY_MODEL,
       system: systemPrompt,
       messages: modelMessages,
       tools,
-      stopWhen: stepCountIs(3),
+      stopWhen: stepCountIs(3), // Capped at 3 to limit LLM tool-call loops
       experimental_transform: smoothStream(),
       temperature: 0,
-      maxOutputTokens: 160,
+      maxOutputTokens: 320,
     });
+
     return result.toUIMessageStreamResponse();
-  }
-
-  // ─── LAYER 3: Full reasoning (Sonnet 4.6, multi-step tool use) ───
-  const result = streamText({
-    model: HEAVY_MODEL,
-    system: systemPrompt,
-    messages: modelMessages,
-    tools,
-    stopWhen: stepCountIs(3), // Capped at 3 to limit LLM tool-call loops
-    experimental_transform: smoothStream(),
-    temperature: 0,
-    maxOutputTokens: 320,
-  });
-
-  return result.toUIMessageStreamResponse();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "AI processing failed";
     logError("ai_request", { wallet: walletAddress, error: msg });
-    return new Response(
-      JSON.stringify({ error: msg }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: msg, trace_id: traceId }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

@@ -25,7 +25,11 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     try {
-      console.error(`[ErrorBoundary${this.props.name ? `:${this.props.name}` : ""}]`, error?.message, info?.componentStack?.slice(0, 500));
+      console.error(
+        `[ErrorBoundary${this.props.name ? `:${this.props.name}` : ""}]`,
+        error?.message,
+        info?.componentStack?.slice(0, 500),
+      );
     } catch {}
   }
 
@@ -50,20 +54,20 @@ export default class ErrorBoundary extends Component<Props, State> {
             <button
               onClick={this.handleRetry}
               className="px-4 py-2 text-[13px] font-medium rounded-lg cursor-pointer"
-              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
               Try Again
             </button>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 text-[13px] font-medium rounded-lg cursor-pointer"
-              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
               Reload Page
             </button>
           </div>
           {this.state.errorCount > 0 && (
-            <div className="text-[11px] text-text-tertiary">
-              Retry attempts: {this.state.errorCount}
-            </div>
+            <div className="text-[11px] text-text-tertiary">Retry attempts: {this.state.errorCount}</div>
           )}
         </div>
       );
@@ -73,10 +77,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 }
 
 /** Lightweight section boundary — renders null on crash instead of blank screen */
-export class SectionBoundary extends Component<
-  { children: ReactNode; fallback?: ReactNode },
-  { hasError: boolean }
-> {
+export class SectionBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode; fallback?: ReactNode }) {
     super(props);
     this.state = { hasError: false };
@@ -87,7 +88,9 @@ export class SectionBoundary extends Component<
   }
 
   componentDidCatch(error: Error) {
-    try { console.error("[SectionBoundary]", error?.message); } catch {}
+    try {
+      console.error("[SectionBoundary]", error?.message);
+    } catch {}
   }
 
   render() {

@@ -14,6 +14,7 @@
 //   POST: { action: "cancel_unstake", wallet, index } → unsigned tx
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import {
   Connection,
   PublicKey,
@@ -23,7 +24,14 @@ import {
   ComputeBudgetProgram,
 } from "@solana/web3.js";
 import type { Wallet } from "@coral-xyz/anchor";
-import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, safeErrorResponse, enforceWalletMatch } from "@/lib/api-security";
+import {
+  getClientIp,
+  RateLimiter,
+  rateLimitResponse,
+  checkBodySize,
+  safeErrorResponse,
+  enforceWalletMatch,
+} from "@/lib/api-security";
 
 const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 const COMPUTE_UNITS = 220_000;
@@ -32,6 +40,13 @@ const MAX_BODY_BYTES = 4_000;
 
 // Rate limit: 15 req/min per IP (staking is infrequent)
 const limiter = new RateLimiter(15);
+
+const FafPostBody = z.object({
+  action: z.enum(["stake", "unstake", "claim_rewards", "claim_revenue", "cancel_unstake"]),
+  wallet: z.string().min(32).max(50),
+  amount: z.number().positive().optional(),
+  index: z.number().int().min(0).optional(),
+});
 
 // Dummy wallet for read-only operations (SDK requires Wallet but we only read)
 function makeDummyWallet(pubkey: PublicKey): Wallet {
@@ -107,11 +122,15 @@ export async function POST(req: NextRequest) {
   if (sizeCheck) return sizeCheck;
 
   try {
-    const body = await req.json();
-    const { action, wallet, amount, index } = body;
-
-    if (!action || !wallet) {
-      return NextResponse.json({ error: "Missing action or wallet" }, { status: 400 });
+    const rawBody = await req.json();
+    let action: string, wallet: string, amount: number | undefined, index: number | undefined;
+    try {
+      ({ action, wallet, amount, index } = FafPostBody.parse(rawBody));
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+      }
+      throw err;
     }
 
     // Wallet impersonation check

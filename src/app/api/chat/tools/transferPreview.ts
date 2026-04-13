@@ -21,12 +21,7 @@ import { z } from "zod";
 import { tool } from "ai";
 import { PublicKey, Connection } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
-import {
-  type ToolResponse,
-  runTradeGuards,
-  logToolCall,
-  logToolResult,
-} from "./shared";
+import { type ToolResponse, runTradeGuards, logToolCall, logToolResult } from "./shared";
 
 /**
  * Detect which token program owns a mint by checking the account owner.
@@ -47,22 +42,22 @@ const ATA_CREATION_FEE_SOL = 0.00203928;
 // Well-known verified tokens (for display names + scam protection)
 // This is NOT a whitelist — unknown tokens are still supported with a warning
 const VERIFIED_TOKENS: Record<string, { name: string; mint: string }> = {
-  USDC:     { name: "USD Coin",       mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" },
-  USDT:     { name: "Tether",         mint: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB" },
-  JUP:      { name: "Jupiter",        mint: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN" },
-  BONK:     { name: "Bonk",           mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
-  PYTH:     { name: "Pyth Network",   mint: "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3" },
-  JTO:      { name: "Jito",           mint: "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL" },
-  RAY:      { name: "Raydium",        mint: "4k3Dyjzvzp8eMZFUyMu3m93aBqMPqGcLqGJCsYiJVvUe" },
-  WIF:      { name: "dogwifhat",      mint: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm" },
-  PENGU:    { name: "Pudgy Penguins", mint: "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv" },
-  W:        { name: "Wormhole",       mint: "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ" },
-  RNDR:     { name: "Render",         mint: "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof" },
-  HNT:      { name: "Helium",         mint: "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux" },
-  ORCA:     { name: "Orca",           mint: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE" },
-  MNDE:     { name: "Marinade",       mint: "MNDEFzGvMt87ueuHvVU9VcTqsAP5b3fTGPsHuuPA5ey" },
-  MSOL:     { name: "Marinade SOL",   mint: "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So" },
-  JITOSOL:  { name: "Jito SOL",       mint: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn" },
+  USDC: { name: "USD Coin", mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" },
+  USDT: { name: "Tether", mint: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB" },
+  JUP: { name: "Jupiter", mint: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN" },
+  BONK: { name: "Bonk", mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
+  PYTH: { name: "Pyth Network", mint: "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3" },
+  JTO: { name: "Jito", mint: "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL" },
+  RAY: { name: "Raydium", mint: "4k3Dyjzvzp8eMZFUyMu3m93aBqMPqGcLqGJCsYiJVvUe" },
+  WIF: { name: "dogwifhat", mint: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm" },
+  PENGU: { name: "Pudgy Penguins", mint: "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv" },
+  W: { name: "Wormhole", mint: "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ" },
+  RNDR: { name: "Render", mint: "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof" },
+  HNT: { name: "Helium", mint: "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux" },
+  ORCA: { name: "Orca", mint: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE" },
+  MNDE: { name: "Marinade", mint: "MNDEFzGvMt87ueuHvVU9VcTqsAP5b3fTGPsHuuPA5ey" },
+  MSOL: { name: "Marinade SOL", mint: "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So" },
+  JITOSOL: { name: "Jito SOL", mint: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn" },
 };
 
 export interface TransferPreviewData {
@@ -125,7 +120,6 @@ async function resolveToken(
   senderWallet: string,
   connection: Connection,
 ): Promise<{ token: ResolvedToken | null; error: string | null }> {
-
   // 1. Check if input is a valid mint address
   if (isValidPublicKey(input) && input.length >= 32) {
     try {
@@ -295,16 +289,14 @@ export function createTransferPreviewTool(wallet: string) {
       "Validates recipient, amount, balance, and mint on-chain. " +
       "Returns a preview card for user confirmation. Does NOT execute the transfer. " +
       "Call this when user wants to send/transfer tokens to another wallet.",
-    inputSchema: z.object({
-      token: z.string().describe("Token symbol (e.g. USDC, SOL) or mint address"),
-      amount: z.number().positive().describe("Amount to transfer (human-readable, not raw)"),
-      recipient: z.string().describe("Recipient wallet address (base58 public key)"),
-    }).strict(),
-    execute: async ({
-      token,
-      amount,
-      recipient,
-    }): Promise<ToolResponse<TransferPreviewData>> => {
+    inputSchema: z
+      .object({
+        token: z.string().describe("Token symbol (e.g. USDC, SOL) or mint address"),
+        amount: z.number().positive().describe("Amount to transfer (human-readable, not raw)"),
+        recipient: z.string().describe("Recipient wallet address (base58 public key)"),
+      })
+      .strict(),
+    execute: async ({ token, amount, recipient }): Promise<ToolResponse<TransferPreviewData>> => {
       const requestId = makeRequestId();
       const start = Date.now();
 
@@ -319,25 +311,31 @@ export function createTransferPreviewTool(wallet: string) {
       // ---- Validate recipient ----
       if (!isValidPublicKey(recipient)) {
         return {
-          status: "error", data: null,
+          status: "error",
+          data: null,
           error: `Invalid recipient address: "${recipient}". Must be a valid Solana public key (32-44 base58 characters).`,
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       }
 
       if (recipient === wallet) {
         return {
-          status: "error", data: null,
+          status: "error",
+          data: null,
           error: "Cannot transfer to yourself.",
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       }
 
       if (!Number.isFinite(amount) || amount <= 0) {
         return {
-          status: "error", data: null,
+          status: "error",
+          data: null,
           error: "Amount must be a positive number.",
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       }
 
@@ -354,9 +352,11 @@ export function createTransferPreviewTool(wallet: string) {
           const totalNeeded = amount + ESTIMATED_FEE_SOL + 0.001;
           if (senderBalance < totalNeeded) {
             return {
-              status: "error", data: null,
+              status: "error",
+              data: null,
               error: `Insufficient SOL. Have ${senderBalance.toFixed(4)} SOL, need ${totalNeeded.toFixed(4)} (${amount} + fees + rent reserve).`,
-              request_id: requestId, latency_ms: Date.now() - start,
+              request_id: requestId,
+              latency_ms: Date.now() - start,
             };
           }
         } catch {
@@ -369,20 +369,36 @@ export function createTransferPreviewTool(wallet: string) {
 
         const preview: TransferPreviewData = {
           type: "transfer_preview",
-          token: "SOL", token_name: "Solana",
-          amount, amount_display: `${amount} SOL`,
-          recipient, recipient_short: shortAddr(recipient),
-          sender: wallet, sender_short: shortAddr(wallet),
+          token: "SOL",
+          token_name: "Solana",
+          amount,
+          amount_display: `${amount} SOL`,
+          recipient,
+          recipient_short: shortAddr(recipient),
+          sender: wallet,
+          sender_short: shortAddr(wallet),
           estimated_fee_sol: ESTIMATED_FEE_SOL,
-          needs_ata: false, ata_fee_sol: 0, total_fee_sol: ESTIMATED_FEE_SOL,
-          mint: null, mint_short: null,
-          decimals: 9, is_native_sol: true, is_verified: true, is_token2022: false,
+          needs_ata: false,
+          ata_fee_sol: 0,
+          total_fee_sol: ESTIMATED_FEE_SOL,
+          mint: null,
+          mint_short: null,
+          decimals: 9,
+          is_native_sol: true,
+          is_verified: true,
+          is_token2022: false,
           sender_balance: senderBalance,
           warnings,
         };
 
         logToolResult("transfer_preview", requestId, wallet, Date.now() - start, "success", { token: "SOL", amount });
-        return { status: "success", data: preview, request_id: requestId, latency_ms: Date.now() - start, warnings: warnings.length > 0 ? warnings : undefined };
+        return {
+          status: "success",
+          data: preview,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
+          warnings: warnings.length > 0 ? warnings : undefined,
+        };
       }
 
       // ---- Universal SPL Token Resolution ----
@@ -390,18 +406,22 @@ export function createTransferPreviewTool(wallet: string) {
 
       if (!resolved || resolveErr) {
         return {
-          status: "error", data: null,
+          status: "error",
+          data: null,
           error: resolveErr ?? `Could not resolve token "${token}".`,
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       }
 
       // ---- Validate decimals (sanity) ----
       if (resolved.decimals > 18) {
         return {
-          status: "error", data: null,
+          status: "error",
+          data: null,
           error: `Token has unusual decimals (${resolved.decimals}). Transfer blocked for safety.`,
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       }
 
@@ -409,9 +429,11 @@ export function createTransferPreviewTool(wallet: string) {
       if (resolved.balance < amount) {
         const display = resolved.balance.toFixed(Math.min(resolved.decimals, 6));
         return {
-          status: "error", data: null,
+          status: "error",
+          data: null,
           error: `Insufficient ${resolved.symbol} balance. Have ${display}, need ${amount}.`,
-          request_id: requestId, latency_ms: Date.now() - start,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
         };
       }
 
@@ -423,7 +445,9 @@ export function createTransferPreviewTool(wallet: string) {
         const ataInfo = await connection.getAccountInfo(recipientAta);
         if (!ataInfo) {
           needsAta = true;
-          warnings.push(`Recipient doesn't have a ${resolved.symbol} account. One will be created (~${ATA_CREATION_FEE_SOL} SOL).`);
+          warnings.push(
+            `Recipient doesn't have a ${resolved.symbol} account. One will be created (~${ATA_CREATION_FEE_SOL} SOL).`,
+          );
         }
       } catch {
         warnings.push("Could not check recipient token account.");
@@ -447,8 +471,10 @@ export function createTransferPreviewTool(wallet: string) {
         token_name: resolved.name,
         amount,
         amount_display: `${amount} ${resolved.symbol}`,
-        recipient, recipient_short: shortAddr(recipient),
-        sender: wallet, sender_short: shortAddr(wallet),
+        recipient,
+        recipient_short: shortAddr(recipient),
+        sender: wallet,
+        sender_short: shortAddr(wallet),
         estimated_fee_sol: ESTIMATED_FEE_SOL,
         needs_ata: needsAta,
         ata_fee_sol: ataFee,
@@ -464,12 +490,17 @@ export function createTransferPreviewTool(wallet: string) {
       };
 
       logToolResult("transfer_preview", requestId, wallet, Date.now() - start, "success", {
-        token: resolved.symbol, mint: shortAddr(resolved.mint), amount, verified: resolved.isVerified,
+        token: resolved.symbol,
+        mint: shortAddr(resolved.mint),
+        amount,
+        verified: resolved.isVerified,
       });
 
       return {
-        status: "success", data: preview,
-        request_id: requestId, latency_ms: Date.now() - start,
+        status: "success",
+        data: preview,
+        request_id: requestId,
+        latency_ms: Date.now() - start,
         warnings: warnings.length > 0 ? warnings : undefined,
       };
     },

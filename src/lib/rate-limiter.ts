@@ -19,11 +19,7 @@ const EXEC_LIMIT_PER_MIN = 5;
 const COMMAND_LIMIT_PER_MIN = 20;
 const WINDOW_MS = 60_000;
 
-function check(
-  map: Map<string, RateEntry>,
-  key: string,
-  max: number
-): { allowed: boolean; remaining: number } {
+function check(map: Map<string, RateEntry>, key: string, max: number): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const entry = map.get(key);
 

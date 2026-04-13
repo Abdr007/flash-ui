@@ -14,8 +14,41 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Flash Terminal",
-  description: "Chat-first perpetual trading — powered by Flash.trade",
+  title: {
+    default: "Flash Terminal | AI-Powered Perpetual Trading",
+    template: "%s | Flash Terminal",
+  },
+  description:
+    "Chat-first perpetual trading terminal for SOL, BTC, ETH and 20+ markets on Solana. Instant execution, real-time PnL, AI-powered trade analysis.",
+  keywords: ["perpetual trading", "solana", "defi", "flash trade", "AI trading", "SOL", "BTC", "ETH"],
+  authors: [{ name: "Flash Trade" }],
+  creator: "Flash Trade",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    title: "Flash Terminal | AI-Powered Perpetual Trading",
+    description: "Chat-first perpetual trading on Solana. 20+ markets, instant execution, AI-powered analysis.",
+    siteName: "Flash Terminal",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Flash Terminal — AI-Powered Perpetual Trading",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Flash Terminal | AI-Powered Perpetual Trading",
+    description: "Chat-first perpetual trading on Solana. 20+ markets, instant execution.",
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: "/ft-mark.svg",
+    apple: "/ft-mark.svg",
+  },
+  metadataBase: new URL("https://app.flash.trade"),
 };
 
 export const viewport: Viewport = {

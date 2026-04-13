@@ -56,7 +56,9 @@ export function useWalletSign() {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             setTimeout(() => {
-              try { completeExecution(signature); } catch (e) {
+              try {
+                completeExecution(signature);
+              } catch (e) {
                 console.error("[useWalletSign] completeExecution error:", e);
               }
             }, 200);
@@ -67,7 +69,9 @@ export function useWalletSign() {
         const isRejection = msg.includes("User rejected") || msg.includes("rejected");
         requestAnimationFrame(() => {
           setTimeout(() => {
-            try { failExecution(isRejection ? "Transaction rejected by wallet." : msg); } catch {}
+            try {
+              failExecution(isRejection ? "Transaction rejected by wallet." : msg);
+            } catch {}
           }, 200);
         });
       } finally {
@@ -86,7 +90,9 @@ async function cleanTx(txBase64: string, walletAddress: string | null): Promise<
     body: JSON.stringify({ txBase64, payerKey: walletAddress }),
   });
   if (!resp.ok) throw new Error(`Clean-tx failed: ${resp.status}`);
-  const data = await resp.json().catch(() => { throw new Error("Invalid clean-tx response"); });
+  const data = await resp.json().catch(() => {
+    throw new Error("Invalid clean-tx response");
+  });
   if (data.error) throw new Error(data.error);
   if (!data.txBase64) throw new Error("No cleaned transaction returned");
   return data.txBase64;

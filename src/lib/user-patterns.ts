@@ -25,8 +25,8 @@ export interface UserAction {
   timestamp: number;
   hasTp?: boolean;
   hasSl?: boolean;
-  tpDistancePct?: number;  // TP distance from entry as %
-  slDistancePct?: number;  // SL distance from entry as %
+  tpDistancePct?: number; // TP distance from entry as %
+  slDistancePct?: number; // SL distance from entry as %
 }
 
 export interface UserPatterns {
@@ -36,15 +36,15 @@ export interface UserPatterns {
   lastActions: UserAction[];
   totalTrades: number;
   // ---- TP/SL behavior ----
-  tpUsageRate: number;      // 0-1: how often user sets TP
-  slUsageRate: number;      // 0-1: how often user sets SL
+  tpUsageRate: number; // 0-1: how often user sets TP
+  slUsageRate: number; // 0-1: how often user sets SL
   avgTpDistancePct: number; // average TP distance from entry (%)
   avgSlDistancePct: number; // average SL distance from entry (%)
-  tpSlSampleCount: number;  // number of trades used for TP/SL averaging
+  tpSlSampleCount: number; // number of trades used for TP/SL averaging
   // ---- Streaks & progression ----
-  slStreak: number;         // consecutive trades WITH SL set
-  bestSlStreak: number;     // all-time best SL streak
-  sessionTrades: number;    // trades in current session (since last page load)
+  slStreak: number; // consecutive trades WITH SL set
+  bestSlStreak: number; // all-time best SL streak
+  sessionTrades: number; // trades in current session (since last page load)
   // ---- Earn behavior ----
   earnDeposits: number;
   earnWithdraws: number;
@@ -54,20 +54,20 @@ export interface UserPatterns {
   earnLastSlippageError: number;
   // ---- Outcome tracking ----
   outcomes: {
-    totalClosed: number;       // positions closed
-    profitable: number;        // closed in profit
-    withSlSet: number;         // closed with SL was set on open
-    profitableWithSl: number;  // profitable closes that had SL
-    avgPnlPct: number;         // rolling avg PnL % on close
-    winRate: number;           // profitable / totalClosed (0-1)
-    slWinRate: number;         // profitableWithSl / withSlSet (0-1)
+    totalClosed: number; // positions closed
+    profitable: number; // closed in profit
+    withSlSet: number; // closed with SL was set on open
+    profitableWithSl: number; // profitable closes that had SL
+    avgPnlPct: number; // rolling avg PnL % on close
+    winRate: number; // profitable / totalClosed (0-1)
+    slWinRate: number; // profitableWithSl / withSlSet (0-1)
   };
   // ---- Suggestion effectiveness ----
   suggestions: {
-    shown: number;             // total suggestions displayed
-    accepted: number;          // suggestions the user clicked
-    acceptRate: number;        // accepted / shown (0-1)
-    lastShownId: string;       // dedup: don't count same suggestion twice
+    shown: number; // total suggestions displayed
+    accepted: number; // suggestions the user clicked
+    acceptRate: number; // accepted / shown (0-1)
+    lastShownId: string; // dedup: don't count same suggestion twice
   };
 }
 
@@ -86,8 +86,8 @@ function defaultPatterns(): UserPatterns {
     totalTrades: 0,
     tpUsageRate: 0,
     slUsageRate: 0,
-    avgTpDistancePct: 10,  // default 10% TP
-    avgSlDistancePct: 5,   // default 5% SL
+    avgTpDistancePct: 10, // default 10% TP
+    avgSlDistancePct: 5, // default 5% SL
     tpSlSampleCount: 0,
     slStreak: 0,
     bestSlStreak: 0,
@@ -124,9 +124,8 @@ export function getUserPatterns(): UserPatterns {
   if (_cached) return _cached;
 
   try {
-    const raw = typeof window !== "undefined"
-      ? (localStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(STORAGE_KEY))
-      : null;
+    const raw =
+      typeof window !== "undefined" ? (localStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(STORAGE_KEY)) : null;
     if (raw) {
       const parsed = JSON.parse(raw) as UserPatterns;
       // Validate structure + migrate: add missing fields from default
@@ -373,10 +372,18 @@ export function getPostTradeInsight(action: UserAction): TradeInsight | null {
   // ---- Streaks ----
   if (action.hasSl && p.slStreak >= 3) {
     if (p.slStreak === p.bestSlStreak && p.slStreak >= 5) {
-      return { message: `New record! ${p.slStreak} trades in a row with SL`, type: "streak", color: "var(--color-accent-lime)" };
+      return {
+        message: `New record! ${p.slStreak} trades in a row with SL`,
+        type: "streak",
+        color: "var(--color-accent-lime)",
+      };
     }
     if (p.slStreak === 3 || p.slStreak === 5 || p.slStreak === 10) {
-      return { message: `${p.slStreak}-trade SL streak — disciplined trading`, type: "streak", color: "var(--color-accent-long)" };
+      return {
+        message: `${p.slStreak}-trade SL streak — disciplined trading`,
+        type: "streak",
+        color: "var(--color-accent-long)",
+      };
     }
   }
 
@@ -385,10 +392,18 @@ export function getPostTradeInsight(action: UserAction): TradeInsight | null {
     return { message: "First trade executed!", type: "milestone", color: "var(--color-accent-lime)" };
   }
   if (p.totalTrades === 5) {
-    return { message: "5 trades complete — you're getting the hang of it", type: "milestone", color: "var(--color-accent-blue)" };
+    return {
+      message: "5 trades complete — you're getting the hang of it",
+      type: "milestone",
+      color: "var(--color-accent-blue)",
+    };
   }
   if (p.totalTrades === 10) {
-    return { message: "10 trades — learning system adapting to your style", type: "milestone", color: "var(--color-accent-purple)" };
+    return {
+      message: "10 trades — learning system adapting to your style",
+      type: "milestone",
+      color: "var(--color-accent-purple)",
+    };
   }
   if (p.totalTrades === 25) {
     return { message: "25 trades — experienced trader detected", type: "milestone", color: "var(--color-accent-lime)" };
@@ -400,10 +415,18 @@ export function getPostTradeInsight(action: UserAction): TradeInsight | null {
   // ---- Risk tips (non-intrusive, only every ~5 trades) ----
   if (p.sessionTrades % 5 === 0 && p.sessionTrades > 0) {
     if (!action.hasSl && p.slUsageRate < 0.3 && p.totalTrades >= 5) {
-      return { message: "Tip: setting SL on every trade protects capital", type: "tip", color: "var(--color-accent-warn)" };
+      return {
+        message: "Tip: setting SL on every trade protects capital",
+        type: "tip",
+        color: "var(--color-accent-warn)",
+      };
     }
     if (p.avgLeverage > 15 && p.totalTrades >= 5) {
-      return { message: `Avg leverage ${p.avgLeverage.toFixed(0)}x — consider lowering for consistency`, type: "tip", color: "var(--color-accent-warn)" };
+      return {
+        message: `Avg leverage ${p.avgLeverage.toFixed(0)}x — consider lowering for consistency`,
+        type: "tip",
+        color: "var(--color-accent-warn)",
+      };
     }
   }
 
@@ -411,7 +434,11 @@ export function getPostTradeInsight(action: UserAction): TradeInsight | null {
   if (p.totalTrades >= 10 && p.totalTrades % 10 === 0) {
     const profile = getRiskProfile();
     const profileLabel = { aggressive: "Aggressive", moderate: "Balanced", conservative: "Conservative" }[profile];
-    return { message: `Trading profile: ${profileLabel} · Avg ${p.avgLeverage.toFixed(1)}x · SL rate ${Math.round(p.slUsageRate * 100)}%`, type: "progress", color: "var(--color-text-secondary)" };
+    return {
+      message: `Trading profile: ${profileLabel} · Avg ${p.avgLeverage.toFixed(1)}x · SL rate ${Math.round(p.slUsageRate * 100)}%`,
+      type: "progress",
+      color: "var(--color-text-secondary)",
+    };
   }
 
   return null;
@@ -445,10 +472,13 @@ export function recordEarnSuccess(pool: string, amountUsd: number, action: "depo
 /** Record an earn error for adaptive suggestions */
 export function recordEarnError(errorType: string): void {
   const p = getUserPatterns();
-  const key = errorType.toLowerCase().includes("slippage") ? "slippage"
-    : errorType.toLowerCase().includes("insufficient") ? "balance"
-    : errorType.toLowerCase().includes("timeout") ? "timeout"
-    : "other";
+  const key = errorType.toLowerCase().includes("slippage")
+    ? "slippage"
+    : errorType.toLowerCase().includes("insufficient")
+      ? "balance"
+      : errorType.toLowerCase().includes("timeout")
+        ? "timeout"
+        : "other";
   p.earnErrors[key] = (p.earnErrors[key] ?? 0) + 1;
   if (key === "slippage") p.earnLastSlippageError = Date.now();
   persist(p);
@@ -522,13 +552,13 @@ export function getUserConfidence(): UserConfidence {
 export interface UnifiedProfile {
   confidence: UserConfidence;
   riskProfile: "aggressive" | "moderate" | "conservative";
-  totalActivity: number;       // trades + earn actions
-  isEarner: boolean;           // has used earn
-  isTrader: boolean;           // has used trading
-  isDualUser: boolean;         // uses both
-  errorProne: boolean;         // >3 total errors
-  recentErrors: boolean;       // errors in last hour
-  prefersDiscipline: boolean;  // high SL usage
+  totalActivity: number; // trades + earn actions
+  isEarner: boolean; // has used earn
+  isTrader: boolean; // has used trading
+  isDualUser: boolean; // uses both
+  errorProne: boolean; // >3 total errors
+  recentErrors: boolean; // errors in last hour
+  prefersDiscipline: boolean; // high SL usage
 }
 
 /** Build a unified view of the user across all features */
@@ -640,8 +670,7 @@ export function recordSuggestionShown(suggestionId: string): void {
   if (p.suggestions.lastShownId === suggestionId) return; // Dedup
   p.suggestions.shown++;
   p.suggestions.lastShownId = suggestionId;
-  p.suggestions.acceptRate = p.suggestions.shown > 0
-    ? p.suggestions.accepted / p.suggestions.shown : 0;
+  p.suggestions.acceptRate = p.suggestions.shown > 0 ? p.suggestions.accepted / p.suggestions.shown : 0;
   persist(p);
 }
 
@@ -649,8 +678,7 @@ export function recordSuggestionShown(suggestionId: string): void {
 export function recordSuggestionAccepted(): void {
   const p = getUserPatterns();
   p.suggestions.accepted++;
-  p.suggestions.acceptRate = p.suggestions.shown > 0
-    ? p.suggestions.accepted / p.suggestions.shown : 0;
+  p.suggestions.acceptRate = p.suggestions.shown > 0 ? p.suggestions.accepted / p.suggestions.shown : 0;
   persist(p);
 }
 

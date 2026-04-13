@@ -19,22 +19,22 @@ export const UNSTAKE_UNLOCK_SECONDS = 90 * 24 * 3600; // 90 days
 
 // VIP tier thresholds
 export const VIP_TIERS = [
-  { level: 0, name: "None",    fafRequired: 0,         feeDiscount: 0,    referralRebate: 2 },
-  { level: 1, name: "Level 1", fafRequired: 20_000,    feeDiscount: 2.5,  referralRebate: 2.5 },
-  { level: 2, name: "Level 2", fafRequired: 40_000,    feeDiscount: 3.5,  referralRebate: 3 },
-  { level: 3, name: "Level 3", fafRequired: 100_000,   feeDiscount: 5,    referralRebate: 4 },
-  { level: 4, name: "Level 4", fafRequired: 200_000,   feeDiscount: 7,    referralRebate: 5.5 },
-  { level: 5, name: "Level 5", fafRequired: 1_000_000, feeDiscount: 9.5,  referralRebate: 7.5 },
-  { level: 6, name: "Level 6", fafRequired: 2_000_000, feeDiscount: 12,   referralRebate: 10 },
+  { level: 0, name: "None", fafRequired: 0, feeDiscount: 0, referralRebate: 2 },
+  { level: 1, name: "Level 1", fafRequired: 20_000, feeDiscount: 2.5, referralRebate: 2.5 },
+  { level: 2, name: "Level 2", fafRequired: 40_000, feeDiscount: 3.5, referralRebate: 3 },
+  { level: 3, name: "Level 3", fafRequired: 100_000, feeDiscount: 5, referralRebate: 4 },
+  { level: 4, name: "Level 4", fafRequired: 200_000, feeDiscount: 7, referralRebate: 5.5 },
+  { level: 5, name: "Level 5", fafRequired: 1_000_000, feeDiscount: 9.5, referralRebate: 7.5 },
+  { level: 6, name: "Level 6", fafRequired: 2_000_000, feeDiscount: 12, referralRebate: 10 },
 ];
 
 export const VOLTAGE_TIERS = [
-  { name: "Rookie",      multiplier: 1.0 },
-  { name: "Degenerate",  multiplier: 1.2 },
+  { name: "Rookie", multiplier: 1.0 },
+  { name: "Degenerate", multiplier: 1.2 },
   { name: "Flow Master", multiplier: 1.4 },
-  { name: "Ape Trade",   multiplier: 1.6 },
-  { name: "Perp King",   multiplier: 1.8 },
-  { name: "Giga Chad",   multiplier: 2.0 },
+  { name: "Ape Trade", multiplier: 1.6 },
+  { name: "Perp King", multiplier: 1.8 },
+  { name: "Giga Chad", multiplier: 2.0 },
 ];
 
 // ---- Types ----
@@ -49,7 +49,7 @@ export interface FafStakeInfo {
   pendingRebateUsdc: number;
   withdrawRequestCount: number;
   tradeCounter: number;
-  nextTier: typeof VIP_TIERS[number] | null;
+  nextTier: (typeof VIP_TIERS)[number] | null;
   amountToNextTier: number;
 }
 
@@ -70,7 +70,6 @@ export interface FafInstructionResult {
 // ---- SDK Client ----
 
 const DEFAULT_POOL = "Crypto.1"; // FAF staking uses Crypto.1 pool
-
 
 // No module-level cache — in serverless, cached clients hold stale Connection objects.
 // PerpetualsClient init is fast (no RPC calls), so create fresh per request.
@@ -110,14 +109,14 @@ function bnToUi(bn: { toNumber?: () => number; toString?: () => string } | null 
 
 // ---- Tier Calculation ----
 
-export function getVipTier(stakedFaf: number): typeof VIP_TIERS[number] {
+export function getVipTier(stakedFaf: number): (typeof VIP_TIERS)[number] {
   for (let i = VIP_TIERS.length - 1; i >= 0; i--) {
     if (stakedFaf >= VIP_TIERS[i].fafRequired) return VIP_TIERS[i];
   }
   return VIP_TIERS[0];
 }
 
-export function getNextTier(stakedFaf: number): { tier: typeof VIP_TIERS[number]; amountNeeded: number } | null {
+export function getNextTier(stakedFaf: number): { tier: (typeof VIP_TIERS)[number]; amountNeeded: number } | null {
   const current = getVipTier(stakedFaf);
   const nextIdx = current.level + 1;
   if (nextIdx >= VIP_TIERS.length) return null;
@@ -182,14 +181,15 @@ export async function getFafUnstakeRequests(
     .map((req, index) => {
       const locked = bnToUi(req.lockedAmount);
       const withdrawable = bnToUi(req.withdrawableAmount);
-      const timeRemaining = safe(typeof req.timeRemaining?.toNumber === "function"
-        ? req.timeRemaining.toNumber()
-        : Number(String(req.timeRemaining ?? 0)));
+      const timeRemaining = safe(
+        typeof req.timeRemaining?.toNumber === "function"
+          ? req.timeRemaining.toNumber()
+          : Number(String(req.timeRemaining ?? 0)),
+      );
 
       const elapsed = UNSTAKE_UNLOCK_SECONDS - timeRemaining;
-      const progress = UNSTAKE_UNLOCK_SECONDS > 0
-        ? Math.min(100, Math.max(0, (elapsed / UNSTAKE_UNLOCK_SECONDS) * 100))
-        : 100;
+      const progress =
+        UNSTAKE_UNLOCK_SECONDS > 0 ? Math.min(100, Math.max(0, (elapsed / UNSTAKE_UNLOCK_SECONDS) * 100)) : 100;
 
       const unlockDate = new Date(Date.now() + timeRemaining * 1000);
 
@@ -200,7 +200,9 @@ export async function getFafUnstakeRequests(
         timeRemainingSeconds: timeRemaining,
         progressPercent: Math.round(progress),
         estimatedUnlockDate: unlockDate.toLocaleDateString("en-US", {
-          month: "short", day: "numeric", year: "numeric",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
         }),
       };
     })
@@ -219,9 +221,7 @@ export async function buildStakeInstructions(
   const poolConfig = getPoolConfig();
   const nativeAmount = new BN(Math.round(amountUi * Math.pow(10, FAF_DECIMALS)));
 
-  const result = await client.depositTokenStake(
-    userPubkey, userPubkey, nativeAmount, poolConfig,
-  );
+  const result = await client.depositTokenStake(userPubkey, userPubkey, nativeAmount, poolConfig);
 
   return {
     instructions: result.instructions as TransactionInstruction[],
@@ -239,9 +239,7 @@ export async function buildUnstakeInstructions(
   const poolConfig = getPoolConfig();
   const nativeAmount = new BN(Math.round(amountUi * Math.pow(10, FAF_DECIMALS)));
 
-  const result = await client.unstakeTokenRequest(
-    userPubkey, nativeAmount, poolConfig,
-  );
+  const result = await client.unstakeTokenRequest(userPubkey, nativeAmount, poolConfig);
 
   return {
     instructions: result.instructions as TransactionInstruction[],
@@ -290,9 +288,7 @@ export async function buildCancelUnstakeInstructions(
   const client = getClient(connection, wallet);
   const poolConfig = getPoolConfig();
 
-  const result = await client.cancelUnstakeTokenRequest(
-    userPubkey, requestIndex, poolConfig,
-  );
+  const result = await client.cancelUnstakeTokenRequest(userPubkey, requestIndex, poolConfig);
 
   return {
     instructions: result.instructions as TransactionInstruction[],

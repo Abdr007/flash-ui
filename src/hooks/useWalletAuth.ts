@@ -76,13 +76,16 @@ export function useWalletAuth() {
       // Store in memory
       authToken = token;
       authWallet = walletAddress;
-      authExpiry = Date.now() + (expires_in * 1000) - 60_000; // Refresh 1 min early
+      authExpiry = Date.now() + expires_in * 1000 - 60_000; // Refresh 1 min early
 
       // Schedule auto-refresh
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = setTimeout(() => {
-        authenticate().catch(() => clearAuth());
-      }, Math.max((expires_in - 120) * 1000, 60_000)); // Refresh 2 min before expiry
+      refreshTimerRef.current = setTimeout(
+        () => {
+          authenticate().catch(() => clearAuth());
+        },
+        Math.max((expires_in - 120) * 1000, 60_000),
+      ); // Refresh 2 min before expiry
 
       return true;
     } catch {

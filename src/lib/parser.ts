@@ -16,12 +16,7 @@
 //   SET_SL          SET_TP           CANCEL            QUERY
 
 import type { Side, TradeObject, ParsedIntent } from "./types";
-import {
-  MARKET_ALIASES,
-  MARKETS,
-  DEFAULT_LEVERAGE,
-  DEFAULT_SLIPPAGE_BPS,
-} from "./constants";
+import { MARKET_ALIASES, MARKETS, DEFAULT_LEVERAGE, DEFAULT_SLIPPAGE_BPS } from "./constants";
 import { getTypicalLeverage } from "./user-patterns";
 import { parseEarnCommand } from "./earn-parser";
 
@@ -79,10 +74,7 @@ function extractMarket(input: string): string | null {
 }
 
 function extractCollateral(input: string): number | null {
-  const patterns = [
-    /\$\s*(\d+(?:\.\d+)?)/,
-    /(\d+(?:\.\d+)?)\s*(?:usd|usdc|dollars?)\b/i,
-  ];
+  const patterns = [/\$\s*(\d+(?:\.\d+)?)/, /(\d+(?:\.\d+)?)\s*(?:usd|usdc|dollars?)\b/i];
   for (const p of patterns) {
     const m = input.match(p);
     if (m) {
@@ -132,9 +124,7 @@ function extractPercent(input: string, keyword: string): number | null {
 }
 
 function extractPrice(input: string, keyword: string): number | null {
-  const patterns = [
-    new RegExp(`${keyword}\\s+(?:at\\s+)?\\$?(\\d+(?:\\.\\d+)?)`, "i"),
-  ];
+  const patterns = [new RegExp(`${keyword}\\s+(?:at\\s+)?\\$?(\\d+(?:\\.\\d+)?)`, "i")];
   for (const p of patterns) {
     const m = input.match(p);
     if (m) {
@@ -176,7 +166,8 @@ function extractRelativeOp(input: string): RelativeOp | null {
 
   // "increase size/leverage" (default: +50%)
   if (/\bincrease\s*(?:the\s+)?lever/i.test(lower)) return { field: "leverage", multiplier: 1.5 };
-  if (/\bincrease\s*(?:the\s+)?(?:size|collateral|position)/i.test(lower)) return { field: "collateral", multiplier: 1.5 };
+  if (/\bincrease\s*(?:the\s+)?(?:size|collateral|position)/i.test(lower))
+    return { field: "collateral", multiplier: 1.5 };
   if (/^increase$/i.test(lower.trim())) return { field: "collateral", multiplier: 1.5 };
 
   // "decrease" (default: -50%)
@@ -288,7 +279,10 @@ function parseSingleIntent(input: string): ParseResult {
 
   // ---- QUERY (only if no trade side keyword present) ----
   const hasTradeKeyword = /\b(long|short|buy|sell)\b/i.test(lower);
-  if (!hasTradeKeyword && /\b(show\s+)?(my\s+)?(price|positions?|portfolio|balance|status|help|all\s*prices?|markets?)\b/i.test(lower)) {
+  if (
+    !hasTradeKeyword &&
+    /\b(show\s+)?(my\s+)?(price|positions?|portfolio|balance|status|help|all\s*prices?|markets?)\b/i.test(lower)
+  ) {
     return {
       type: "query",
       intent: { type: "QUERY", market: extractMarket(trimmed) ?? undefined, raw: trimmed },
@@ -367,7 +361,12 @@ function parseSingleIntent(input: string): ParseResult {
   if (reducePct && /\b(reduce|decrease|cut|half)\b/i.test(lower)) {
     return {
       type: "reduce",
-      intent: { type: "REDUCE_POSITION", market: extractMarket(trimmed) ?? undefined, reduce_percent: reducePct, raw: trimmed },
+      intent: {
+        type: "REDUCE_POSITION",
+        market: extractMarket(trimmed) ?? undefined,
+        reduce_percent: reducePct,
+        raw: trimmed,
+      },
     };
   }
 
@@ -394,7 +393,12 @@ function parseSingleIntent(input: string): ParseResult {
     if (collateral || leverage) {
       return {
         type: "modify",
-        intent: { type: "MODIFY_TRADE", collateral_usd: collateral ?? undefined, leverage: leverage ?? undefined, raw: trimmed },
+        intent: {
+          type: "MODIFY_TRADE",
+          collateral_usd: collateral ?? undefined,
+          leverage: leverage ?? undefined,
+          raw: trimmed,
+        },
       };
     }
     const bareMatch = trimmed.match(/(?:make\s*it|change\s*(?:to)?|set\s*(?:to)?)\s+(\d+(?:\.\d+)?)/i);
@@ -459,7 +463,7 @@ function parseSingleIntent(input: string): ParseResult {
   // Use learned leverage if user has enough history, else fall back to pool default
   const learnedLev = getTypicalLeverage();
   const pool = market ? MARKETS[market]?.pool : undefined;
-  const poolDefault = pool ? DEFAULT_LEVERAGE[pool] ?? 5 : 5;
+  const poolDefault = pool ? (DEFAULT_LEVERAGE[pool] ?? 5) : 5;
   const defaultLev = learnedLev > 0 ? learnedLev : poolDefault;
 
   const trade: TradeObject = {
@@ -647,7 +651,7 @@ export function applyModification(trade: TradeObject, intent: ParsedIntent): Tra
 export function checkCloseAmbiguity(
   market: string,
   side: Side | undefined,
-  positions: { market: string; side: Side }[]
+  positions: { market: string; side: Side }[],
 ): string | null {
   if (side) return null; // Side explicitly specified
 

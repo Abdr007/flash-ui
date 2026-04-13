@@ -83,9 +83,7 @@ export function resolveIntent(userMessage: string): HybridResult {
  * Build a concise AI response for a parser-resolved trade intent.
  * Used when parser handles the intent and AI just needs to format the response.
  */
-export function formatParserResponse(
-  result: ReturnType<typeof parseCommand>,
-): string | null {
+export function formatParserResponse(result: ReturnType<typeof parseCommand>): string | null {
   if (!result.intent) return null;
 
   const { market, side, collateral_usd, leverage } = result.intent;
@@ -94,8 +92,7 @@ export function formatParserResponse(
     case "trade": {
       if (market && side && collateral_usd && leverage) {
         return (
-          `Got it — building a ${side} ${market} position: ` +
-          `$${collateral_usd} collateral at ${leverage}x leverage.`
+          `Got it — building a ${side} ${market} position: ` + `$${collateral_usd} collateral at ${leverage}x leverage.`
         );
       }
       return null; // Incomplete — AI should handle

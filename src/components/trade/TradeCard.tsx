@@ -8,14 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import type { TradeObject, Side } from "@/lib/types";
 import { useFlashStore } from "@/store";
 import { useNumberSpring } from "@/hooks/useSpring";
-import {
-  formatPrice,
-  formatUsd,
-  formatLeverage,
-  formatPercent,
-  liqDistancePct,
-  safe,
-} from "@/lib/format";
+import { formatPrice, formatUsd, formatLeverage, formatPercent, liqDistancePct, safe } from "@/lib/format";
 import { HIGH_LEVERAGE_THRESHOLD } from "@/lib/constants";
 import { getTradeConfidence, type TradeConfidence } from "@/lib/predictive-actions";
 
@@ -33,14 +26,20 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
   const isSuccess = trade.status === "SUCCESS";
   const highLev = (trade.leverage ?? 0) >= HIGH_LEVERAGE_THRESHOLD;
 
-  const liqDist = trade.entry_price && trade.liquidation_price
-    ? liqDistancePct(trade.entry_price, trade.liquidation_price, trade.action)
-    : 0;
+  const liqDist =
+    trade.entry_price && trade.liquidation_price
+      ? liqDistancePct(trade.entry_price, trade.liquidation_price, trade.action)
+      : 0;
 
   const springLiqDist = useNumberSpring(liqDist);
 
   const confidence: TradeConfidence | null =
-    trade.leverage && trade.collateral_usd && trade.entry_price && trade.liquidation_price && trade.fees && trade.position_size
+    trade.leverage &&
+    trade.collateral_usd &&
+    trade.entry_price &&
+    trade.liquidation_price &&
+    trade.fees &&
+    trade.position_size
       ? getTradeConfidence({
           leverage: trade.leverage,
           collateral_usd: trade.collateral_usd,
@@ -71,8 +70,10 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
             <span className="text-[15px] font-semibold text-text-primary tracking-tight">
               {trade.market ? `${trade.market}-PERP` : "—"}
             </span>
-            <span className="text-[11px] font-bold tracking-wider px-2.5 py-0.5 rounded-full"
-              style={{ color: accent, background: isLong ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
+            <span
+              className="text-[11px] font-bold tracking-wider px-2.5 py-0.5 rounded-full"
+              style={{ color: accent, background: isLong ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}
+            >
               {trade.action}
             </span>
           </div>
@@ -98,9 +99,20 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
         {/* Secondary Grid */}
         <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
           <Cell label="Size" value={formatUsd(trade.position_size)} />
-          <Cell label="Leverage" value={trade.leverage ? formatLeverage(trade.leverage) : "—"} color={highLev ? "var(--color-accent-warn)" : undefined} />
+          <Cell
+            label="Leverage"
+            value={trade.leverage ? formatLeverage(trade.leverage) : "—"}
+            color={highLev ? "var(--color-accent-warn)" : undefined}
+          />
           <Cell label="Collateral" value={trade.collateral_usd ? formatUsd(trade.collateral_usd) : "—"} />
-          <Cell label="Fees" value={trade.fees != null && trade.fee_rate != null ? `${formatUsd(trade.fees)} (${formatPercent(trade.fee_rate)})` : "—"} />
+          <Cell
+            label="Fees"
+            value={
+              trade.fees != null && trade.fee_rate != null
+                ? `${formatUsd(trade.fees)} (${formatPercent(trade.fee_rate)})`
+                : "—"
+            }
+          />
         </div>
 
         {/* TP/SL editable inputs (only while the card is being composed) */}
@@ -111,7 +123,9 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
             entryPrice={trade.entry_price}
             takeProfit={trade.take_profit_price ?? null}
             stopLoss={trade.stop_loss_price ?? null}
-            onChange={(triggers) => { void setTriggers(trade.id, triggers); }}
+            onChange={(triggers) => {
+              void setTriggers(trade.id, triggers);
+            }}
           />
         )}
 
@@ -119,15 +133,29 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
         {(trade.take_profit_price || trade.stop_loss_price) && (
           <div className="flex items-center gap-3 px-5 py-2.5 border-t border-border-subtle">
             {trade.take_profit_price && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: "rgba(16,185,129,0.08)" }}>
-                <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent-long)" }}>TP</span>
-                <span className="text-[12px] num font-medium" style={{ color: "var(--color-accent-long)" }}>{formatPrice(trade.take_profit_price)}</span>
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                style={{ background: "rgba(16,185,129,0.08)" }}
+              >
+                <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent-long)" }}>
+                  TP
+                </span>
+                <span className="text-[12px] num font-medium" style={{ color: "var(--color-accent-long)" }}>
+                  {formatPrice(trade.take_profit_price)}
+                </span>
               </div>
             )}
             {trade.stop_loss_price && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: "rgba(239,68,68,0.08)" }}>
-                <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent-short)" }}>SL</span>
-                <span className="text-[12px] num font-medium" style={{ color: "var(--color-accent-short)" }}>{formatPrice(trade.stop_loss_price)}</span>
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                style={{ background: "rgba(239,68,68,0.08)" }}
+              >
+                <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent-short)" }}>
+                  SL
+                </span>
+                <span className="text-[12px] num font-medium" style={{ color: "var(--color-accent-short)" }}>
+                  {formatPrice(trade.stop_loss_price)}
+                </span>
               </div>
             )}
           </div>
@@ -138,26 +166,45 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
           <div className="px-5 py-3 border-t border-border-subtle">
             <div className="flex justify-between text-[12px] mb-2">
               <span className="text-text-tertiary">Distance to liquidation</span>
-              <span className="num font-medium"
-                style={{ color: liqDist < 10 ? "var(--color-accent-short)" : liqDist < 20 ? "var(--color-accent-warn)" : "var(--color-accent-long)" }}>
+              <span
+                className="num font-medium"
+                style={{
+                  color:
+                    liqDist < 10
+                      ? "var(--color-accent-short)"
+                      : liqDist < 20
+                        ? "var(--color-accent-warn)"
+                        : "var(--color-accent-long)",
+                }}
+              >
                 {safe(liqDist).toFixed(1)}%
               </span>
             </div>
             <div className="w-full h-1.5 bg-border-subtle rounded-full overflow-hidden">
-              <div className="h-full rounded-full" style={{
-                width: `${Math.min(springLiqDist, 100)}%`,
-                background: liqDist < 10 ? "var(--color-accent-short)" : liqDist < 20 ? "var(--color-accent-warn)" : "var(--color-accent-long)",
-                boxShadow: `0 0 8px ${liqDist < 10 ? "rgba(255,77,77,0.3)" : liqDist < 20 ? "rgba(245,166,35,0.3)" : "rgba(0,210,106,0.3)"}`,
-                transition: "background-color 300ms ease-out, box-shadow 300ms ease-out",
-              }} />
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.min(springLiqDist, 100)}%`,
+                  background:
+                    liqDist < 10
+                      ? "var(--color-accent-short)"
+                      : liqDist < 20
+                        ? "var(--color-accent-warn)"
+                        : "var(--color-accent-long)",
+                  boxShadow: `0 0 8px ${liqDist < 10 ? "rgba(255,77,77,0.3)" : liqDist < 20 ? "rgba(245,166,35,0.3)" : "rgba(0,210,106,0.3)"}`,
+                  transition: "background-color 300ms ease-out, box-shadow 300ms ease-out",
+                }}
+              />
             </div>
           </div>
         )}
 
         {/* High Leverage Warning */}
         {highLev && isReady && (
-          <div className="px-5 py-2.5 text-[12px] border-t border-border-subtle flex items-center gap-2"
-            style={{ color: "var(--color-accent-warn)", background: "rgba(245,158,11,0.04)" }}>
+          <div
+            className="px-5 py-2.5 text-[12px] border-t border-border-subtle flex items-center gap-2"
+            style={{ color: "var(--color-accent-warn)", background: "rgba(245,158,11,0.04)" }}
+          >
             <span>⚠</span>
             <span>High leverage — {safe(liqDist).toFixed(1)}% to liquidation</span>
           </div>
@@ -167,7 +214,9 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
         {confidence && confidence.level !== "high" && confidence.factors.length > 0 && isReady && (
           <div className="px-5 py-2.5 border-t border-border-subtle">
             {confidence.factors.map((f, i) => (
-              <div key={i} className="text-[12px] text-text-tertiary leading-relaxed">· {f}</div>
+              <div key={i} className="text-[12px] text-text-tertiary leading-relaxed">
+                · {f}
+              </div>
             ))}
           </div>
         )}
@@ -202,12 +251,14 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
         {/* Executing / Signing */}
         {isExecuting && (
           <div className="px-5 py-4 border-t border-border-subtle flex items-center gap-3">
-            <div className="w-4 h-4 border-2 border-t-transparent rounded-full"
+            <div
+              className="w-4 h-4 border-2 border-t-transparent rounded-full"
               style={{
                 borderColor: `${accent} transparent ${accent} ${accent}`,
                 animation: "spin 0.7s linear infinite",
                 filter: `drop-shadow(0 0 6px ${accent})`,
-              }} />
+              }}
+            />
             <div className="flex flex-col">
               <span className="text-[13px] text-text-primary">
                 {trade.status === "SIGNING" ? "Waiting for wallet..." : "Building transaction..."}
@@ -221,13 +272,23 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
 
         {/* Success */}
         {isSuccess && (
-          <div className="px-5 py-3 border-t flex items-center gap-2.5"
-            style={{ borderColor: `${accent}30`, background: `${accent}06` }}>
-            <span className="text-[14px]" style={{ color: accent }}>✓</span>
-            <span className="text-[13px] font-medium" style={{ color: accent }}>Executed</span>
+          <div
+            className="px-5 py-3 border-t flex items-center gap-2.5"
+            style={{ borderColor: `${accent}30`, background: `${accent}06` }}
+          >
+            <span className="text-[14px]" style={{ color: accent }}>
+              ✓
+            </span>
+            <span className="text-[13px] font-medium" style={{ color: accent }}>
+              Executed
+            </span>
             {trade.tx_signature && (
-              <a href={`https://solscan.io/tx/${trade.tx_signature}`} target="_blank" rel="noopener noreferrer"
-                className="text-[12px] text-text-tertiary ml-auto hover:text-text-primary underline">
+              <a
+                href={`https://solscan.io/tx/${trade.tx_signature}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[12px] text-text-tertiary ml-auto hover:text-text-primary underline"
+              >
                 View on Solscan →
               </a>
             )}
@@ -239,10 +300,16 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
           <div className="px-5 py-3 border-t border-border-subtle">
             <div className="text-[13px] text-accent-short leading-relaxed">{trade.error}</div>
             <div className="flex items-center gap-3 mt-2.5">
-              <button onClick={cancelTrade} className="text-[12px] text-text-tertiary hover:text-text-secondary cursor-pointer transition-colors">
+              <button
+                onClick={cancelTrade}
+                className="text-[12px] text-text-tertiary hover:text-text-secondary cursor-pointer transition-colors"
+              >
                 Dismiss
               </button>
-              <button onClick={confirmTrade} className="text-[12px] text-accent-blue hover:text-text-primary cursor-pointer transition-colors">
+              <button
+                onClick={confirmTrade}
+                className="text-[12px] text-accent-blue hover:text-text-primary cursor-pointer transition-colors"
+              >
                 Retry
               </button>
             </div>
@@ -263,10 +330,11 @@ function ConfidenceBadge({ confidence }: { confidence: TradeConfidence }) {
   }[confidence.level];
 
   return (
-    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-      style={{ background: `${config.color}12` }}>
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: `${config.color}12` }}>
       <div className="w-1.5 h-1.5 rounded-full breathe" style={{ background: config.color }} />
-      <span className="text-[11px] font-semibold" style={{ color: config.color }}>{config.label}</span>
+      <span className="text-[11px] font-semibold" style={{ color: config.color }}>
+        {config.label}
+      </span>
     </div>
   );
 }
@@ -277,7 +345,9 @@ function Cell({ label, value, color }: { label: string; value: string; color?: s
   return (
     <div className="bg-bg-card px-5 py-3">
       <div className="text-[11px] text-text-tertiary mb-0.5">{label}</div>
-      <div className="num text-[15px] font-medium" style={{ color: color ?? "var(--color-text-primary)" }}>{value}</div>
+      <div className="num text-[15px] font-medium" style={{ color: color ?? "var(--color-text-primary)" }}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -318,20 +388,19 @@ function TpSlInputs({
   }
 
   // Derived placeholders during render (no effect, no state)
-  const tpHint = entryPrice != null
-    ? (side === "LONG" ? entryPrice * 1.1 : entryPrice * 0.9)
-    : null;
-  const slHint = entryPrice != null
-    ? (side === "LONG" ? entryPrice * 0.95 : entryPrice * 1.05)
-    : null;
+  const tpHint = entryPrice != null ? (side === "LONG" ? entryPrice * 1.1 : entryPrice * 0.9) : null;
+  const slHint = entryPrice != null ? (side === "LONG" ? entryPrice * 0.95 : entryPrice * 1.05) : null;
 
   const tpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => () => {
-    if (tpTimer.current) clearTimeout(tpTimer.current);
-    if (slTimer.current) clearTimeout(slTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (tpTimer.current) clearTimeout(tpTimer.current);
+      if (slTimer.current) clearTimeout(slTimer.current);
+    },
+    [],
+  );
 
   const schedule = (kind: "tp" | "sl", raw: string) => {
     const timerRef = kind === "tp" ? tpTimer : slTimer;
@@ -349,8 +418,10 @@ function TpSlInputs({
   };
 
   return (
-    <div className="grid grid-cols-2 gap-px border-t border-border-subtle"
-      style={{ background: "var(--color-border-subtle)" }}>
+    <div
+      className="grid grid-cols-2 gap-px border-t border-border-subtle"
+      style={{ background: "var(--color-border-subtle)" }}
+    >
       <div className="bg-bg-card px-5 py-3">
         <label className="text-[11px] text-text-tertiary mb-0.5 block" htmlFor={`tp-${tradeId}`}>
           Take Profit
@@ -364,7 +435,10 @@ function TpSlInputs({
             spellCheck={false}
             value={tpDraft}
             placeholder={tpHint != null ? tpHint.toFixed(2) : "—"}
-            onChange={(e) => { setTpDraft(e.target.value); schedule("tp", e.target.value); }}
+            onChange={(e) => {
+              setTpDraft(e.target.value);
+              schedule("tp", e.target.value);
+            }}
             className="num text-[15px] font-medium bg-transparent outline-none w-full text-text-primary placeholder:text-text-tertiary"
           />
         </div>
@@ -382,7 +456,10 @@ function TpSlInputs({
             spellCheck={false}
             value={slDraft}
             placeholder={slHint != null ? slHint.toFixed(2) : "—"}
-            onChange={(e) => { setSlDraft(e.target.value); schedule("sl", e.target.value); }}
+            onChange={(e) => {
+              setSlDraft(e.target.value);
+              schedule("sl", e.target.value);
+            }}
             className="num text-[15px] font-medium bg-transparent outline-none w-full text-text-primary placeholder:text-text-tertiary"
           />
         </div>

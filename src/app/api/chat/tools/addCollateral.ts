@@ -14,7 +14,10 @@ import { runTradeGuards, resolveMarket, logToolCall, logToolResult } from "./sha
 
 // Fetch accurate preview from Flash API transaction-builder
 async function fetchCollateralPreview(
-  positionKey: string, amount: string, market: string, owner: string
+  positionKey: string,
+  amount: string,
+  market: string,
+  owner: string,
 ): Promise<{ newCollateralUsd: string; newLeverage: string; newLiquidationPrice: string } | null> {
   try {
     const url = `${process.env.NEXT_PUBLIC_FLASH_API_URL || "https://flashapi.trade"}/transaction-builder/add-collateral`;
@@ -37,16 +40,14 @@ export function createAddCollateralTool(wallet: string) {
   return tool({
     description:
       "Add collateral (USD) to an existing open position to reduce leverage and move liquidation price further away. Use when user says 'add collateral', 'add $X to my position', 'reduce leverage on', etc.",
-    inputSchema: z.object({
-      market: z.string().describe("Market symbol (e.g., SOL, BTC, ETH)"),
-      side: z.enum(["LONG", "SHORT"]).describe("Position side"),
-      amount_usd: z.number().min(1).describe("Amount of collateral to add in USD"),
-    }).strict(),
-    execute: async ({
-      market,
-      side,
-      amount_usd,
-    }): Promise<ToolResponse<unknown>> => {
+    inputSchema: z
+      .object({
+        market: z.string().describe("Market symbol (e.g., SOL, BTC, ETH)"),
+        side: z.enum(["LONG", "SHORT"]).describe("Position side"),
+        amount_usd: z.number().min(1).describe("Amount of collateral to add in USD"),
+      })
+      .strict(),
+    execute: async ({ market, side, amount_usd }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 
       try {
@@ -59,22 +60,23 @@ export function createAddCollateralTool(wallet: string) {
 
         const resolved = resolveMarket(market);
         if (!resolved) {
-          return { status: "error", data: null, error: `Unknown market: ${market}`, request_id: requestId, latency_ms: 0 };
+          return {
+            status: "error",
+            data: null,
+            error: `Unknown market: ${market}`,
+            request_id: requestId,
+            latency_ms: 0,
+          };
         }
 
         logToolCall("add_collateral", requestId, wallet, { market: resolved, side, amount_usd });
 
         const { result, latency_ms } = await withLatency(async () => {
-          const [positions, priceData] = await Promise.all([
-            fetchPositions(wallet),
-            fetchPrice(resolved),
-          ]);
+          const [positions, priceData] = await Promise.all([fetchPositions(wallet), fetchPrice(resolved)]);
           return { positions, priceData };
         });
 
-        const position = result.positions.find(
-          (p) => p.market === resolved && p.side === side,
-        );
+        const position = result.positions.find((p) => p.market === resolved && p.side === side);
 
         if (!position) {
           return {
@@ -94,7 +96,7 @@ export function createAddCollateralTool(wallet: string) {
 
         // Convert USD amount to token amount using current price
         const currentPrice = result.priceData?.price ?? position.mark_price;
-        const tokenAmount = currentPrice > 0 ? (amount_usd / currentPrice) : 0;
+        const tokenAmount = currentPrice > 0 ? amount_usd / currentPrice : 0;
 
         if (tokenAmount <= 0) {
           return {
@@ -109,33 +111,36 @@ export function createAddCollateralTool(wallet: string) {
         // Use Flash API for accurate preview (includes fees, funding, PnL)
         // depositAmountUi expects TOKEN amount, not USD
         const apiPreview = await fetchCollateralPreview(
-          position.pubkey, tokenAmount.toFixed(6), collateralToken, wallet
+          position.pubkey,
+          tokenAmount.toFixed(6),
+          collateralToken,
+          wallet,
         );
 
-        const newCollateral = apiPreview
-          ? parseFloat(apiPreview.newCollateralUsd)
-          : currentCollateral + amount_usd;
+        const newCollateral = apiPreview ? parseFloat(apiPreview.newCollateralUsd) : currentCollateral + amount_usd;
         const newLeverage = apiPreview
           ? parseFloat(apiPreview.newLeverage)
           : position.size_usd / (currentCollateral + amount_usd);
         const mmr = Math.min(0.005, 0.5 / newLeverage);
         const newLiqPrice = apiPreview
           ? parseFloat(apiPreview.newLiquidationPrice)
-          : (side === "LONG"
+          : side === "LONG"
             ? position.entry_price * (1 - 1 / newLeverage + mmr)
-            : position.entry_price * (1 + 1 / newLeverage - mmr));
+            : position.entry_price * (1 + 1 / newLeverage - mmr);
 
         const markPrice = result.priceData?.price ?? position.mark_price;
-        const currentLiqDistance = markPrice > 0
-          ? (side === "LONG"
-            ? ((markPrice - position.liquidation_price) / markPrice) * 100
-            : ((position.liquidation_price - markPrice) / markPrice) * 100)
-          : 0;
-        const newLiqDistance = markPrice > 0
-          ? (side === "LONG"
-            ? ((markPrice - newLiqPrice) / markPrice) * 100
-            : ((newLiqPrice - markPrice) / markPrice) * 100)
-          : 0;
+        const currentLiqDistance =
+          markPrice > 0
+            ? side === "LONG"
+              ? ((markPrice - position.liquidation_price) / markPrice) * 100
+              : ((position.liquidation_price - markPrice) / markPrice) * 100
+            : 0;
+        const newLiqDistance =
+          markPrice > 0
+            ? side === "LONG"
+              ? ((markPrice - newLiqPrice) / markPrice) * 100
+              : ((newLiqPrice - markPrice) / markPrice) * 100
+            : 0;
 
         logToolResult("add_collateral", requestId, wallet, latency_ms, "success");
 

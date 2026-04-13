@@ -63,7 +63,10 @@ export default function InputBar() {
         ref={inputRef}
         type="text"
         value={input}
-        onChange={(e) => { setInput(e.target.value); setHistoryIdx(-1); }}
+        onChange={(e) => {
+          setInput(e.target.value);
+          setHistoryIdx(-1);
+        }}
         onKeyDown={handleKeyDown}
         placeholder={isLocked ? "waiting..." : "command"}
         className="flex-1 bg-transparent border-none outline-none text-[13px] text-text-primary placeholder:text-text-tertiary font-mono"
@@ -73,7 +76,10 @@ export default function InputBar() {
         spellCheck={false}
       />
       {isLocked && (
-        <span className="w-2 h-2 border border-text-tertiary border-t-transparent rounded-full" style={{ animation: "spin 0.8s linear infinite" }} />
+        <span
+          className="w-2 h-2 border border-text-tertiary border-t-transparent rounded-full"
+          style={{ animation: "spin 0.8s linear infinite" }}
+        />
       )}
     </div>
   );

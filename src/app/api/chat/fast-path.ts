@@ -33,7 +33,9 @@ function triggerBackgroundRefresh(): void {
   import("./flash-api")
     .then(({ fetchAllPrices }) => fetchAllPrices())
     .catch(() => {})
-    .finally(() => { _refreshPending = false; });
+    .finally(() => {
+      _refreshPending = false;
+    });
 }
 
 // ---- Micro-burst dedup (prevents duplicate trade previews on rapid clicks) ----
@@ -64,21 +66,21 @@ function recordHit(input: string): void {
 // Groups: 1=side, 2=market, 3=collateral, 4=leverage, 5=tp1, 6=sl1, 7=tp2, 8=sl2
 const FAST_TRADE_RE = new RegExp(
   "^(long|short)\\s+(\\w+)\\s+[$]?(\\d+(?:\\.\\d+)?)\\s+(\\d+(?:\\.\\d+)?)x" +
-  "(?:\\s+market)?" +
-  "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
-  "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?" +
-  "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
-  "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?$",
-  "i"
+    "(?:\\s+market)?" +
+    "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
+    "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?" +
+    "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
+    "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?$",
+  "i",
 );
 
 // Format B: long SOL 5x $25 (leverage before amount — common user pattern)
 // Groups: 1=side, 2=market, 3=leverage, 4=collateral
 const FAST_TRADE_RE_B = new RegExp(
   "^(long|short)\\s+(\\w+)\\s+(\\d+(?:\\.\\d+)?)x\\s+[$]?(\\d+(?:\\.\\d+)?)" +
-  "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
-  "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?$",
-  "i"
+    "(?:\\s+tp\\s+(\\d+(?:\\.\\d+)?))?" +
+    "(?:\\s+sl\\s+(\\d+(?:\\.\\d+)?))?$",
+  "i",
 );
 
 // ---- Metrics (module-level, non-blocking) ----
@@ -171,10 +173,10 @@ function parse(input: string): ParsedTrade | null {
 // FRESH:        distance 0.1% – 500%
 // STALE:        distance 1.0% – 450%  (tighter = safer with old data)
 
-const DIST_MAX_FRESH = 5.0;     // 500%
-const DIST_MIN_FRESH = 0.001;   // 0.1%
-const DIST_MAX_STALE = 4.5;     // 450%
-const DIST_MIN_STALE = 0.01;    // 1.0%
+const DIST_MAX_FRESH = 5.0; // 500%
+const DIST_MIN_FRESH = 0.001; // 0.1%
+const DIST_MAX_STALE = 4.5; // 450%
+const DIST_MIN_STALE = 0.01; // 1.0%
 
 function validate(
   trade: ParsedTrade,
@@ -183,7 +185,6 @@ function validate(
   positions: Position[],
   wallet: string,
 ): { valid: boolean; preview?: Record<string, unknown>; warnings?: string[] } {
-
   const distMax = priceFresh ? DIST_MAX_FRESH : DIST_MAX_STALE;
   const distMin = priceFresh ? DIST_MIN_FRESH : DIST_MIN_STALE;
 
@@ -208,9 +209,10 @@ function validate(
   const MAINTENANCE_MARGIN_RATE = 0.005; // 0.5%
   const collateralAfterFees = trade.collateral - fees;
   const marginRatio = positionSize > 0 ? collateralAfterFees / positionSize : 0;
-  const liquidationPrice = trade.side === "LONG"
-    ? entryPrice * (1 - marginRatio + MAINTENANCE_MARGIN_RATE)
-    : entryPrice * (1 + marginRatio - MAINTENANCE_MARGIN_RATE);
+  const liquidationPrice =
+    trade.side === "LONG"
+      ? entryPrice * (1 - marginRatio + MAINTENANCE_MARGIN_RATE)
+      : entryPrice * (1 + marginRatio - MAINTENANCE_MARGIN_RATE);
 
   if (!Number.isFinite(liquidationPrice) || liquidationPrice <= 0) return { valid: false };
 
@@ -296,21 +298,26 @@ function buildResponse(
  * - Returns { matched: false } on any failure — caller falls back to AI
  * - NEVER throws, NEVER blocks on network
  */
-export function tryFastPath(
-  input: string,
-  walletAddress: string,
-  positions: Position[],
-): FastPathResult {
+export function tryFastPath(input: string, walletAddress: string, positions: Position[]): FastPathResult {
   try {
     const trimmed = input.trim();
-    if (!trimmed) { metrics.misses++; return { matched: false }; }
+    if (!trimmed) {
+      metrics.misses++;
+      return { matched: false };
+    }
 
     // PHASE 0: Micro-burst dedup — reject identical input within 500ms window
-    if (isDuplicate(trimmed)) { metrics.misses++; return { matched: false }; }
+    if (isDuplicate(trimmed)) {
+      metrics.misses++;
+      return { matched: false };
+    }
 
     // PHASE 1: Parse
     const trade = parse(trimmed);
-    if (!trade) { metrics.misses++; return { matched: false }; }
+    if (!trade) {
+      metrics.misses++;
+      return { matched: false };
+    }
 
     // PHASE 2: Get cached price (SYNCHRONOUS — no network)
     const cached = getCachedPrice(trade.market);
@@ -355,9 +362,7 @@ export function getMetrics() {
       successRate: total > 0 ? fp.hits / total : 0,
       fallbackRate: total > 0 ? (fp.misses + fp.fallbacks) / total : 0,
       validationRejectRate: total > 0 ? fp.validationFailures / total : 0,
-      cacheHitRate: (pc.hits + pc.stale) > 0
-        ? (pc.hits + pc.stale) / (pc.hits + pc.stale + pc.misses + pc.expired)
-        : 0,
+      cacheHitRate: pc.hits + pc.stale > 0 ? (pc.hits + pc.stale) / (pc.hits + pc.stale + pc.misses + pc.expired) : 0,
     },
   };
 }

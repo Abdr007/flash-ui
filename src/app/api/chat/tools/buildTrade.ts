@@ -49,35 +49,30 @@ export function createBuildTradeTool(wallet: string) {
       "Set degen:true when the user says 'degen', 'max leverage', 'ape', or 'send it' — on SOL/BTC/ETH " +
       "it unlocks the 500x tier; on every other market it is a harmless no-op. " +
       "Example: 'long SOL 500x $100 degen' or 'long EUR 500x $100'.",
-    inputSchema: z.object({
-      market: z.string().describe("Market symbol (e.g., SOL, BTC, MET, EUR)"),
-      side: z.enum(["LONG", "SHORT"]).describe("Trade direction"),
-      collateral_usd: z
-        .number()
-        .min(MIN_COLLATERAL)
-        .describe("Collateral in USD"),
-      leverage: z
-        .number()
-        .min(1)
-        .max(MAX_LEVERAGE)
-        .describe("Leverage multiplier"),
-      degen: z
-        .boolean()
-        .optional()
-        .describe(
-          "Enable degen mode for higher leverage. Only supported on Crypto.1, Virtual.1, and Governance.1 pools. Set to true when the user says 'degen', 'max leverage', or explicitly asks for degen mode.",
-        ),
-      take_profit_price: z
-        .number()
-        .positive()
-        .optional()
-        .describe("Take profit price — must be above entry for LONG, below for SHORT"),
-      stop_loss_price: z
-        .number()
-        .positive()
-        .optional()
-        .describe("Stop loss price — must be below entry for LONG, above for SHORT"),
-    }).strict(),
+    inputSchema: z
+      .object({
+        market: z.string().describe("Market symbol (e.g., SOL, BTC, MET, EUR)"),
+        side: z.enum(["LONG", "SHORT"]).describe("Trade direction"),
+        collateral_usd: z.number().min(MIN_COLLATERAL).describe("Collateral in USD"),
+        leverage: z.number().min(1).max(MAX_LEVERAGE).describe("Leverage multiplier"),
+        degen: z
+          .boolean()
+          .optional()
+          .describe(
+            "Enable degen mode for higher leverage. Only supported on Crypto.1, Virtual.1, and Governance.1 pools. Set to true when the user says 'degen', 'max leverage', or explicitly asks for degen mode.",
+          ),
+        take_profit_price: z
+          .number()
+          .positive()
+          .optional()
+          .describe("Take profit price — must be above entry for LONG, below for SHORT"),
+        stop_loss_price: z
+          .number()
+          .positive()
+          .optional()
+          .describe("Stop loss price — must be below entry for LONG, above for SHORT"),
+      })
+      .strict(),
     execute: async ({
       market,
       side,
@@ -146,19 +141,16 @@ export function createBuildTradeTool(wallet: string) {
         });
 
         // ---- STEP 5: Fetch data with TIMEOUT (2s max) ----
-        const { result: fetchResult, timedOut } = await withToolTimeout(
-          async () => {
-            const { result: r, latency_ms: l } = await withLatency(async () => {
-              const [priceData, positions] = await Promise.all([
-                fetchPrice(resolved),
-                wallet ? fetchPositions(wallet) : Promise.resolve([]),
-              ]);
-              return { priceData, positions };
-            });
-            return { ...r, latency_ms: l };
-          },
-          null,
-        );
+        const { result: fetchResult, timedOut } = await withToolTimeout(async () => {
+          const { result: r, latency_ms: l } = await withLatency(async () => {
+            const [priceData, positions] = await Promise.all([
+              fetchPrice(resolved),
+              wallet ? fetchPositions(wallet) : Promise.resolve([]),
+            ]);
+            return { priceData, positions };
+          });
+          return { ...r, latency_ms: l };
+        }, null);
 
         if (timedOut || !fetchResult) {
           return {
@@ -211,41 +203,89 @@ export function createBuildTradeTool(wallet: string) {
         // leverage, capped at the Flash Trade base 0.5% MMR at normal lev.
         // At 100x: MMR=0.005, dist=0.5%. At 500x: MMR=0.001, dist=0.1%.
         const fallbackMmr = Math.min(0.005, 0.5 / leverage);
-        const liquidation_price = preview?.liquidation_price ?? (
-          side === "LONG"
+        const liquidation_price =
+          preview?.liquidation_price ??
+          (side === "LONG"
             ? entry_price * (1 - 1 / leverage + fallbackMmr)
-            : entry_price * (1 + 1 / leverage - fallbackMmr)
-        );
+            : entry_price * (1 + 1 / leverage - fallbackMmr));
 
         // ---- STEP 6b: Validate TP/SL — dynamic range + direction ----
         if (take_profit_price != null) {
           const dist = Math.abs(take_profit_price - entry_price) / entry_price;
           if (dist > 5.0) {
-            return { status: "error", data: null, error: `Take profit $${take_profit_price} is >500% from market — unrealistic`, request_id: requestId, latency_ms };
+            return {
+              status: "error",
+              data: null,
+              error: `Take profit $${take_profit_price} is >500% from market — unrealistic`,
+              request_id: requestId,
+              latency_ms,
+            };
           }
           if (dist < 0.001) {
-            return { status: "error", data: null, error: `Take profit $${take_profit_price} is <0.1% from entry — too tight`, request_id: requestId, latency_ms };
+            return {
+              status: "error",
+              data: null,
+              error: `Take profit $${take_profit_price} is <0.1% from entry — too tight`,
+              request_id: requestId,
+              latency_ms,
+            };
           }
           if (side === "LONG" && take_profit_price <= entry_price) {
-            return { status: "error", data: null, error: `Take profit ($${take_profit_price}) must be above entry ($${entry_price.toFixed(2)}) for LONG`, request_id: requestId, latency_ms };
+            return {
+              status: "error",
+              data: null,
+              error: `Take profit ($${take_profit_price}) must be above entry ($${entry_price.toFixed(2)}) for LONG`,
+              request_id: requestId,
+              latency_ms,
+            };
           }
           if (side === "SHORT" && take_profit_price >= entry_price) {
-            return { status: "error", data: null, error: `Take profit ($${take_profit_price}) must be below entry ($${entry_price.toFixed(2)}) for SHORT`, request_id: requestId, latency_ms };
+            return {
+              status: "error",
+              data: null,
+              error: `Take profit ($${take_profit_price}) must be below entry ($${entry_price.toFixed(2)}) for SHORT`,
+              request_id: requestId,
+              latency_ms,
+            };
           }
         }
         if (stop_loss_price != null) {
           const dist = Math.abs(stop_loss_price - entry_price) / entry_price;
           if (dist > 5.0) {
-            return { status: "error", data: null, error: `Stop loss $${stop_loss_price} is >500% from market — unrealistic`, request_id: requestId, latency_ms };
+            return {
+              status: "error",
+              data: null,
+              error: `Stop loss $${stop_loss_price} is >500% from market — unrealistic`,
+              request_id: requestId,
+              latency_ms,
+            };
           }
           if (dist < 0.001) {
-            return { status: "error", data: null, error: `Stop loss $${stop_loss_price} is <0.1% from entry — too tight`, request_id: requestId, latency_ms };
+            return {
+              status: "error",
+              data: null,
+              error: `Stop loss $${stop_loss_price} is <0.1% from entry — too tight`,
+              request_id: requestId,
+              latency_ms,
+            };
           }
           if (side === "LONG" && stop_loss_price >= entry_price) {
-            return { status: "error", data: null, error: `Stop loss ($${stop_loss_price}) must be below entry ($${entry_price.toFixed(2)}) for LONG`, request_id: requestId, latency_ms };
+            return {
+              status: "error",
+              data: null,
+              error: `Stop loss ($${stop_loss_price}) must be below entry ($${entry_price.toFixed(2)}) for LONG`,
+              request_id: requestId,
+              latency_ms,
+            };
           }
           if (side === "SHORT" && stop_loss_price <= entry_price) {
-            return { status: "error", data: null, error: `Stop loss ($${stop_loss_price}) must be above entry ($${entry_price.toFixed(2)}) for SHORT`, request_id: requestId, latency_ms };
+            return {
+              status: "error",
+              data: null,
+              error: `Stop loss ($${stop_loss_price}) must be above entry ($${entry_price.toFixed(2)}) for SHORT`,
+              request_id: requestId,
+              latency_ms,
+            };
           }
         }
 
@@ -266,22 +306,10 @@ export function createBuildTradeTool(wallet: string) {
         };
 
         // ---- STEP 7: Firewall validation ----
-        const firewall = enforceFirewall(
-          "build_trade",
-          tradePreview,
-          wallet,
-          fetchedPositions,
-        );
+        const firewall = enforceFirewall("build_trade", tradePreview, wallet, fetchedPositions);
 
         // ---- STEP 8: Log firewall result (ALWAYS — pass or block) ----
-        logFirewallResult(
-          "build_trade",
-          requestId,
-          wallet,
-          firewall.blocked,
-          firewall.errors,
-          firewall.warnings,
-        );
+        logFirewallResult("build_trade", requestId, wallet, firewall.blocked, firewall.errors, firewall.warnings);
 
         if (firewall.blocked) {
           return {

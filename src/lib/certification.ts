@@ -32,7 +32,7 @@ const LATENCY_WARN_MS = 2000;
  */
 export function evaluateCertification(
   streamStatus: "connected" | "reconnecting" | "disconnected",
-  apiLatencyMs?: number
+  apiLatencyMs?: number,
 ): CertificationResult {
   const circuit = getCircuitStats();
   const traces = getRecentTraces();

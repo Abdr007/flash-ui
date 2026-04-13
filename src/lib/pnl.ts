@@ -13,16 +13,17 @@
 import type { Position, MarketPrice } from "./types";
 
 /** Recompute PnL for a single position given a live mark price */
-export function computePositionPnl(
-  position: Position,
-  markPrice: number
-): Position {
+export function computePositionPnl(position: Position, markPrice: number): Position {
   // Validate inputs — return unchanged if invalid
   if (
-    !Number.isFinite(markPrice) || markPrice <= 0 ||
-    !Number.isFinite(position.entry_price) || position.entry_price <= 0 ||
-    !Number.isFinite(position.size_usd) || position.size_usd <= 0 ||
-    !Number.isFinite(position.collateral_usd) || position.collateral_usd <= 0
+    !Number.isFinite(markPrice) ||
+    markPrice <= 0 ||
+    !Number.isFinite(position.entry_price) ||
+    position.entry_price <= 0 ||
+    !Number.isFinite(position.size_usd) ||
+    position.size_usd <= 0 ||
+    !Number.isFinite(position.collateral_usd) ||
+    position.collateral_usd <= 0
   ) {
     return position;
   }
@@ -52,7 +53,7 @@ export function computePositionPnl(
 /** Recompute PnL for all positions given a price map. Only updates positions whose market has a new price. */
 export function recomputeAllPnl(
   positions: Position[],
-  prices: Record<string, MarketPrice>
+  prices: Record<string, MarketPrice>,
 ): { positions: Position[]; changed: boolean } {
   let changed = false;
   const updated = positions.map((pos) => {

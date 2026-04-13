@@ -8,13 +8,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { VersionedTransaction } from "@solana/web3.js";
 import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize } from "@/lib/api-security";
 
-const HELIUS_RPC =
-  process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
+const HELIUS_RPC = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 
 // Secondary RPCs for parallel broadcast (public endpoints, no key needed)
-const SECONDARY_RPCS = [
-  "https://api.mainnet-beta.solana.com",
-].filter((url) => url !== HELIUS_RPC);
+const SECONDARY_RPCS = ["https://api.mainnet-beta.solana.com"].filter((url) => url !== HELIUS_RPC);
 
 // Rate limit: 20 broadcasts/min per IP (trades are infrequent)
 const limiter = new RateLimiter(20);
@@ -25,11 +22,7 @@ const MAX_BODY_BYTES = 8_000; // ~3KB base64 tx + JSON overhead
  * Send a raw transaction to a single RPC endpoint.
  * Returns the signature on success, null on failure.
  */
-async function sendToEndpoint(
-  rpcUrl: string,
-  txBase64: string,
-  timeout = 10_000
-): Promise<string | null> {
+async function sendToEndpoint(rpcUrl: string, txBase64: string, timeout = 10_000): Promise<string | null> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -80,18 +73,12 @@ export async function POST(req: NextRequest) {
     const txBase64: string = body?.transaction;
 
     if (!txBase64 || typeof txBase64 !== "string") {
-      return NextResponse.json(
-        { error: "Missing transaction field (base64)" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing transaction field (base64)" }, { status: 400 });
     }
 
     // Validate it's plausible base64 size
     if (txBase64.length > 3000 || txBase64.length < 100) {
-      return NextResponse.json(
-        { error: "Invalid transaction size" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid transaction size" }, { status: 400 });
     }
 
     // ---- Structure Validation: deserialize to verify it's a real Solana transaction ----
@@ -100,32 +87,36 @@ export async function POST(req: NextRequest) {
       const tx = VersionedTransaction.deserialize(txBytes);
       // Must have at least one signature (i.e., it's actually signed)
       if (!tx.signatures || tx.signatures.length === 0) {
-        return NextResponse.json(
-          { error: "Transaction has no signatures" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "Transaction has no signatures" }, { status: 400 });
       }
       // Verify the first signature is not all zeros (unsigned placeholder)
       const firstSig = tx.signatures[0];
       if (firstSig.every((b: number) => b === 0)) {
-        return NextResponse.json(
-          { error: "Transaction is not signed" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "Transaction is not signed" }, { status: 400 });
+      }
+
+      // Verify first signer matches request context (defense-in-depth)
+      // Extract the first signer's public key from the transaction message
+      const signerKeys = tx.message.staticAccountKeys;
+      if (signerKeys.length > 0) {
+        const firstSigner = signerKeys[0].toBase58();
+        // If auth wallet is provided via header, verify it matches
+        const authWallet = req.headers.get("x-wallet-address");
+        if (authWallet && firstSigner !== authWallet) {
+          return NextResponse.json(
+            { error: "Transaction signer does not match authenticated wallet" },
+            { status: 403 },
+          );
+        }
       }
     } catch {
-      return NextResponse.json(
-        { error: "Invalid transaction format" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid transaction format" }, { status: 400 });
     }
 
     // ── Parallel broadcast to all endpoints ──
     const allEndpoints = [HELIUS_RPC, ...SECONDARY_RPCS];
 
-    const results = await Promise.allSettled(
-      allEndpoints.map((url) => sendToEndpoint(url, txBase64))
-    );
+    const results = await Promise.allSettled(allEndpoints.map((url) => sendToEndpoint(url, txBase64)));
 
     let signature: string | null = null;
     let broadcastCount = 0;
@@ -138,10 +129,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!signature) {
-      return NextResponse.json(
-        { error: "All broadcast endpoints failed" },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "All broadcast endpoints failed" }, { status: 502 });
     }
 
     return NextResponse.json({
@@ -150,9 +138,6 @@ export async function POST(req: NextRequest) {
       totalEndpoints: allEndpoints.length,
     });
   } catch {
-    return NextResponse.json(
-      { error: "Broadcast failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Broadcast failed" }, { status: 500 });
   }
 }

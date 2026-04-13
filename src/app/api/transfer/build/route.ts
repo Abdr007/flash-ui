@@ -19,7 +19,20 @@
 // - Priority fee: 1 microlamport (minimum)
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { enforceWalletMatch } from "@/lib/api-security";
+
+const TransferBuildBody = z.object({
+  sender: z.string().min(32).max(50),
+  recipient: z.string().min(32).max(50),
+  token: z.string().min(1).max(20),
+  amount: z.number().positive(),
+  mint: z.string().nullable(),
+  decimals: z.number().int().min(0).max(18),
+  is_native_sol: z.boolean(),
+  is_token2022: z.boolean().optional().default(false),
+  request_id: z.string().optional(),
+});
 import {
   Connection,
   PublicKey,
@@ -79,28 +92,23 @@ function cleanIdempotencyCache() {
   }
 }
 
-interface TransferBuildRequest {
-  sender: string;
-  recipient: string;
-  token: string;
-  amount: number;
-  mint: string | null;
-  decimals: number;
-  is_native_sol: boolean;
-  is_token2022?: boolean;
-  request_id?: string;
-}
-
 export async function POST(req: NextRequest) {
   try {
-    const body: TransferBuildRequest = await req.json();
-    const { sender, recipient, token, amount, mint, decimals, is_native_sol, request_id } = body;
+    const rawBody = await req.json();
+    let parsed: z.infer<typeof TransferBuildBody>;
+    try {
+      parsed = TransferBuildBody.parse(rawBody);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+      }
+      throw err;
+    }
+    const { sender, recipient, token, amount, mint, decimals, is_native_sol, request_id } = parsed;
 
     // ---- Wallet impersonation check ----
-    if (sender) {
-      const walletCheck = enforceWalletMatch(req, sender);
-      if (walletCheck) return walletCheck;
-    }
+    const walletCheck = enforceWalletMatch(req, sender);
+    if (walletCheck) return walletCheck;
 
     // ---- Kill switch ----
     if (!TRANSFERS_ENABLED) {
@@ -115,11 +123,6 @@ export async function POST(req: NextRequest) {
       if (cached) return NextResponse.json(cached.response);
     }
 
-    // ---- Input validation ----
-    if (!sender || !recipient || !token || !amount) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-
     let senderPubkey: PublicKey;
     let recipientPubkey: PublicKey;
     try {
@@ -131,10 +134,6 @@ export async function POST(req: NextRequest) {
 
     if (sender === recipient) {
       return NextResponse.json({ error: "Cannot transfer to yourself" }, { status: 400 });
-    }
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
     const connection = new Connection(RPC_URL, { commitment: "confirmed" });

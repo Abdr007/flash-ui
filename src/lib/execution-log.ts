@@ -86,10 +86,7 @@ export function getRecentTraces(): Map<string, ExecutionTrace[]> {
 }
 
 /** Emit a system decision event (circuit breaker, rate limit, fallback) */
-export function logSystemEvent(
-  stage: TraceStage,
-  detail: Record<string, unknown>
-): void {
+export function logSystemEvent(stage: TraceStage, detail: Record<string, unknown>): void {
   try {
     console.log(
       JSON.stringify({
@@ -97,7 +94,7 @@ export function logSystemEvent(
         timestamp: new Date().toISOString(),
         stage,
         ...detail,
-      })
+      }),
     );
   } catch {
     // Fire-and-forget
@@ -130,9 +127,7 @@ export function logExecution(event: ExecutionEvent): void {
 }
 
 /** Measure async operation latency and return result + duration */
-export async function withLatency<T>(
-  fn: () => Promise<T>
-): Promise<{ result: T; latencyMs: number }> {
+export async function withLatency<T>(fn: () => Promise<T>): Promise<{ result: T; latencyMs: number }> {
   const start = performance.now();
   const result = await fn();
   const latencyMs = Math.round(performance.now() - start);

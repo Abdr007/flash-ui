@@ -38,16 +38,12 @@ const MAX_REASONABLE_FEE_RATE = 0.01; // 1%
  * Verify a set of traces grouped by execution_id.
  * Returns all detected anomalies.
  */
-export function verifyTraces(
-  tracesByExecId: Map<string, ExecutionTrace[]>
-): TraceAnomaly[] {
+export function verifyTraces(tracesByExecId: Map<string, ExecutionTrace[]>): TraceAnomaly[] {
   const anomalies: TraceAnomaly[] = [];
 
   for (const [execId, traces] of tracesByExecId) {
     // Sort by timestamp
-    const sorted = [...traces].sort(
-      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
+    const sorted = [...traces].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     const stages = sorted.map((t) => t.stage);
 
@@ -116,11 +112,7 @@ export function verifyTraces(
 
     // ---- 4. Numeric consistency ----
     for (const trace of sorted) {
-      if (
-        trace.collateral != null &&
-        trace.leverage != null &&
-        trace.position_size != null
-      ) {
+      if (trace.collateral != null && trace.leverage != null && trace.position_size != null) {
         const expected = trace.collateral * trace.leverage;
         const diff = Math.abs(trace.position_size - expected);
         // Allow 1% tolerance for API-adjusted values
@@ -146,15 +138,8 @@ export function verifyTraces(
         }
       }
 
-      if (
-        trace.liquidation_price != null &&
-        trace.entry_price != null &&
-        trace.side
-      ) {
-        if (
-          trace.side === "LONG" &&
-          trace.liquidation_price >= trace.entry_price
-        ) {
+      if (trace.liquidation_price != null && trace.entry_price != null && trace.side) {
+        if (trace.side === "LONG" && trace.liquidation_price >= trace.entry_price) {
           anomalies.push({
             execution_id: execId,
             check: "liq_price_invalid",
@@ -162,10 +147,7 @@ export function verifyTraces(
             detail: `LONG liq_price (${trace.liquidation_price}) >= entry (${trace.entry_price})`,
           });
         }
-        if (
-          trace.side === "SHORT" &&
-          trace.liquidation_price <= trace.entry_price
-        ) {
+        if (trace.side === "SHORT" && trace.liquidation_price <= trace.entry_price) {
           anomalies.push({
             execution_id: execId,
             check: "liq_price_invalid",
@@ -176,11 +158,7 @@ export function verifyTraces(
       }
 
       // ---- 6. Fee reasonableness ----
-      if (
-        trace.fees != null &&
-        trace.position_size != null &&
-        trace.position_size > 0
-      ) {
+      if (trace.fees != null && trace.position_size != null && trace.position_size > 0) {
         const feeRate = trace.fees / trace.position_size;
         if (feeRate > MAX_REASONABLE_FEE_RATE) {
           anomalies.push({
@@ -193,10 +171,7 @@ export function verifyTraces(
       }
 
       // ---- 7. Latency bounds ----
-      if (
-        trace.latency_ms != null &&
-        trace.latency_ms > MAX_REASONABLE_LATENCY_MS
-      ) {
+      if (trace.latency_ms != null && trace.latency_ms > MAX_REASONABLE_LATENCY_MS) {
         anomalies.push({
           execution_id: execId,
           check: "high_latency",
@@ -207,10 +182,7 @@ export function verifyTraces(
     }
 
     // ---- 8. No terminal stage (orphaned execution) ----
-    if (
-      stages.includes("trade_execute") &&
-      !stages.some((s) => TERMINAL_STAGES.includes(s))
-    ) {
+    if (stages.includes("trade_execute") && !stages.some((s) => TERMINAL_STAGES.includes(s))) {
       anomalies.push({
         execution_id: execId,
         check: "orphaned_execution",

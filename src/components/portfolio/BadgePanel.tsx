@@ -31,7 +31,11 @@ export default function BadgePanel() {
         setTimeout(() => setCopied(false), 2000);
       }
     } catch {
-      try { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+      try {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {}
     }
   }
 
@@ -49,7 +53,11 @@ export default function BadgePanel() {
           <button
             onClick={handleShare}
             className="text-[11px] font-medium px-3 py-1 rounded-full cursor-pointer transition-all hover:brightness-110"
-            style={{ background: "rgba(51,201,161,0.08)", color: "var(--color-brand-teal)", border: "1px solid rgba(51,201,161,0.15)" }}
+            style={{
+              background: "rgba(51,201,161,0.08)",
+              color: "var(--color-brand-teal)",
+              border: "1px solid rgba(51,201,161,0.15)",
+            }}
           >
             {copied ? "Copied!" : "Share"}
           </button>
@@ -67,7 +75,9 @@ export default function BadgePanel() {
       {next && !showAll && (
         <div className="flex items-center gap-2 text-[11px] text-text-tertiary mt-1">
           <span style={{ opacity: 0.5 }}>{next.icon}</span>
-          <span>Next: {next.name} — {next.description}</span>
+          <span>
+            Next: {next.name} — {next.description}
+          </span>
         </div>
       )}
 
@@ -84,9 +94,11 @@ export default function BadgePanel() {
       {/* Locked badges */}
       {showAll && (
         <div className="flex flex-wrap gap-2 mt-2" style={{ opacity: 0.4 }}>
-          {allBadges.filter((b) => !b.earned).map((b) => (
-            <BadgeChip key={b.id} badge={b} locked />
-          ))}
+          {allBadges
+            .filter((b) => !b.earned)
+            .map((b) => (
+              <BadgeChip key={b.id} badge={b} locked />
+            ))}
         </div>
       )}
     </div>

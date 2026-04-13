@@ -11,6 +11,7 @@ import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS, TOKEN_META } from "@/lib/constants";
 import { formatUsd, formatPnl, safe } from "@/lib/format";
 import { useNumberSpring } from "@/hooks/useSpring";
+import { BalanceSkeleton } from "@/components/ui/Skeleton";
 
 interface PortfolioHeroProps {
   onAction: (command: string) => void;
@@ -19,9 +20,15 @@ interface PortfolioHeroProps {
 
 interface WalletToken {
   mint: string;
-  symbol: string; name: string; amount: number; usd: number;
-  pricePerToken: number; logo: string; logoFallback: string;
-  color: string; portfolioPct: number;
+  symbol: string;
+  name: string;
+  amount: number;
+  usd: number;
+  pricePerToken: number;
+  logo: string;
+  logoFallback: string;
+  color: string;
+  portfolioPct: number;
 }
 
 export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
@@ -38,7 +45,9 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
   const [change24h, setChange24h] = useState<number | null>(null);
 
   const refreshRef = useRef(refreshPositions);
-  useEffect(() => { refreshRef.current = refreshPositions; });
+  useEffect(() => {
+    refreshRef.current = refreshPositions;
+  });
 
   useEffect(() => {
     if (!walletConnected) return;
@@ -56,10 +65,14 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
       setWalletDataLoading(true);
       try {
         const resp = await fetch("/api/token-prices", {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ wallet: walletAddress }),
         });
-        if (!resp.ok) { if (!cancelled) setWalletDataError(true); return; }
+        if (!resp.ok) {
+          if (!cancelled) setWalletDataError(true);
+          return;
+        }
         const data = await resp.json().catch(() => null);
         if (!data || cancelled) return;
         const total = data.totalUsd ?? 0;
@@ -75,9 +88,18 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
         const toks: WalletToken[] = [];
         if (data.solBalance > 0) {
           const m = TOKEN_META["SOL"];
-          toks.push({ mint: "So11111111111111111111111111111111111111112", symbol: "SOL", name: m?.name ?? "Solana", amount: data.solBalance,
-            usd: data.solUsd ?? 0, pricePerToken: (data.solUsd ?? 0) / data.solBalance,
-            logo: m?.logo ?? "", logoFallback: "", color: m?.color ?? "#9945FF", portfolioPct: 0 });
+          toks.push({
+            mint: "So11111111111111111111111111111111111111112",
+            symbol: "SOL",
+            name: m?.name ?? "Solana",
+            amount: data.solBalance,
+            usd: data.solUsd ?? 0,
+            pricePerToken: (data.solUsd ?? 0) / data.solBalance,
+            logo: m?.logo ?? "",
+            logoFallback: "",
+            color: m?.color ?? "#9945FF",
+            portfolioPct: 0,
+          });
         }
         for (const t of data.tokens ?? []) {
           if (t.usdValue < 0.01) continue;
@@ -87,18 +109,37 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
           const dasLogo = t.logoUri || "";
           const primaryLogo = m?.logo || dasLogo;
           const displayName = m?.name ?? t.name ?? sym;
-          toks.push({ mint: String(t.mint ?? ""), symbol: sym || "???", name: displayName || sym || "Unknown", amount: t.amount, usd: t.usdValue,
-            pricePerToken: t.pricePerToken ?? 0, logo: primaryLogo,
-            logoFallback: primaryLogo !== dasLogo ? dasLogo : "", color: m?.color ?? "#3E5068", portfolioPct: 0 });
+          toks.push({
+            mint: String(t.mint ?? ""),
+            symbol: sym || "???",
+            name: displayName || sym || "Unknown",
+            amount: t.amount,
+            usd: t.usdValue,
+            pricePerToken: t.pricePerToken ?? 0,
+            logo: primaryLogo,
+            logoFallback: primaryLogo !== dasLogo ? dasLogo : "",
+            color: m?.color ?? "#3E5068",
+            portfolioPct: 0,
+          });
         }
         for (const t of toks) t.portfolioPct = total > 0 ? (t.usd / total) * 100 : 0;
         toks.sort((a, b) => b.usd - a.usd);
-        setTokens(toks); setWalletDataError(false); setWalletDataLoading(false);
-      } catch { if (!cancelled) { setWalletDataError(true); setWalletDataLoading(false); } }
+        setTokens(toks);
+        setWalletDataError(false);
+        setWalletDataLoading(false);
+      } catch {
+        if (!cancelled) {
+          setWalletDataError(true);
+          setWalletDataLoading(false);
+        }
+      }
     }
     load();
     const iv = setInterval(load, 10_000);
-    return () => { cancelled = true; clearInterval(iv); };
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
   }, [walletConnected, walletAddress]);
 
   let totalPnl = 0;
@@ -122,39 +163,59 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
 
   return (
     <div className="flex flex-col items-center w-full max-w-[520px] mx-auto pt-8 pb-4 px-5 relative">
-
       {/* Ambient brand glow — brighter, more alive */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] pointer-events-none" style={{ opacity: 0.7 }}>
-        <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 55% 45% at 50% 30%, rgba(51,201,161,0.08) 0%, transparent 70%)",
-          animation: "orbFloat 14s ease-in-out infinite",
-        }} />
-        <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 45% 35% at 60% 40%, rgba(58,255,225,0.04) 0%, transparent 60%)",
-          animation: "orbFloat 14s ease-in-out infinite 4s",
-        }} />
-        <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 35% 25% at 40% 25%, rgba(200,245,71,0.02) 0%, transparent 60%)",
-          animation: "orbFloat 14s ease-in-out infinite 8s",
-        }} />
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] pointer-events-none"
+        style={{ opacity: 0.7 }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "radial-gradient(ellipse 55% 45% at 50% 30%, rgba(51,201,161,0.08) 0%, transparent 70%)",
+            animation: "orbFloat 14s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "radial-gradient(ellipse 45% 35% at 60% 40%, rgba(58,255,225,0.04) 0%, transparent 60%)",
+            animation: "orbFloat 14s ease-in-out infinite 4s",
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "radial-gradient(ellipse 35% 25% at 40% 25%, rgba(200,245,71,0.02) 0%, transparent 60%)",
+            animation: "orbFloat 14s ease-in-out infinite 8s",
+          }}
+        />
       </div>
 
       {/* ═══ BALANCE ═══ */}
       <div className="relative z-10 flex flex-col items-center mb-6">
-        <div className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-5"
-          style={{ color: "rgba(51,201,161,0.5)" }}>
+        <div
+          className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-5"
+          style={{ color: "rgba(51,201,161,0.5)" }}
+        >
           TOTAL BALANCE
         </div>
 
-        <div className="text-[68px] font-bold tracking-[-0.03em] leading-[1] num mb-4"
+        <div
+          className="text-[42px] sm:text-[56px] md:text-[68px] font-bold tracking-[-0.03em] leading-[1] num mb-4"
           style={{
             color: walletConnected && !walletDataError ? "#FFFFFF" : "rgba(255,255,255,0.2)",
             textShadow: walletConnected && !walletDataError ? "0 0 80px rgba(51,201,161,0.12)" : "none",
-          }}>
-          {!walletConnected ? "$0.00"
-            : walletDataLoading && totalWalletUsd === 0 ? "···"
-            : walletDataError && totalWalletUsd === 0 ? "—"
-            : formatUsd(springBalance)}
+          }}
+        >
+          {!walletConnected ? (
+            "$0.00"
+          ) : walletDataLoading && totalWalletUsd === 0 ? (
+            <BalanceSkeleton />
+          ) : walletDataError && totalWalletUsd === 0 ? (
+            "—"
+          ) : (
+            formatUsd(springBalance)
+          )}
         </div>
 
         {/* Change indicators — like Galileo's 24h/7d but with PnL */}
@@ -163,16 +224,24 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             {positions.length > 0 ? (
               <>
                 <TrendArrow positive={totalPnl >= 0} />
-                <span className="num font-semibold" style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}>
-                  {totalPnl >= 0 ? "+" : ""}{formatPnl(springPnl)}
+                <span
+                  className="num font-semibold"
+                  style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}
+                >
+                  {totalPnl >= 0 ? "+" : ""}
+                  {formatPnl(springPnl)}
                 </span>
                 <span style={{ color: "rgba(255,255,255,0.25)" }}>PnL</span>
                 {change24h !== null && change24h !== 0 && (
                   <>
                     <span style={{ color: "rgba(255,255,255,0.15)", margin: "0 4px" }}>·</span>
                     <TrendArrow positive={change24h >= 0} />
-                    <span className="num font-semibold" style={{ color: change24h >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}>
-                      {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}%
+                    <span
+                      className="num font-semibold"
+                      style={{ color: change24h >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}
+                    >
+                      {change24h >= 0 ? "+" : ""}
+                      {change24h.toFixed(2)}%
                     </span>
                     <span style={{ color: "rgba(255,255,255,0.25)" }}>24h</span>
                   </>
@@ -181,8 +250,12 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
             ) : change24h !== null && change24h !== 0 ? (
               <>
                 <TrendArrow positive={change24h >= 0} />
-                <span className="num font-semibold" style={{ color: change24h >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}>
-                  {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}%
+                <span
+                  className="num font-semibold"
+                  style={{ color: change24h >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}
+                >
+                  {change24h >= 0 ? "+" : ""}
+                  {change24h.toFixed(2)}%
                 </span>
                 <span style={{ color: "rgba(255,255,255,0.25)" }}>24h</span>
               </>
@@ -199,61 +272,94 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
 
       {/* ═══ UNIFIED ASSET CARD ═══ */}
       {walletConnected && tokens.length > 0 && (
-        <div className="w-full mb-6 relative z-10 rounded-[22px] overflow-hidden"
+        <div
+          className="w-full mb-6 relative z-10 rounded-[22px] overflow-hidden"
           style={{
             background: "rgba(14,19,28,0.6)",
             border: "1px solid rgba(51,201,161,0.06)",
             backdropFilter: "blur(24px) saturate(1.4)",
             boxShadow: "0 8px 32px -8px rgba(0,0,0,0.4)",
-          }}>
+          }}
+        >
           {/* Header */}
-          <button onClick={toggleAssets}
+          <button
+            onClick={toggleAssets}
+            aria-expanded={assetsExpanded}
+            aria-label={assetsExpanded ? "Collapse assets" : "Expand assets"}
             className="w-full flex items-center justify-between px-6 py-5 cursor-pointer
               transition-colors duration-150 hover:bg-white/[0.015]"
-            style={{ borderBottom: assetsExpanded ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+            style={{ borderBottom: assetsExpanded ? "1px solid rgba(255,255,255,0.04)" : "none" }}
+          >
             <div className="flex items-center">
               {tokens.slice(0, 4).map((t, i) => (
-                <TokenIcon key={t.symbol} token={t} size={38} style={{
-                  marginLeft: i > 0 ? "-10px" : "0", zIndex: 10 - i,
-                  border: "3px solid #0C1018", borderRadius: "50%",
-                }} />
+                <TokenIcon
+                  key={t.symbol}
+                  token={t}
+                  size={38}
+                  style={{
+                    marginLeft: i > 0 ? "-10px" : "0",
+                    zIndex: 10 - i,
+                    border: "3px solid #0C1018",
+                    borderRadius: "50%",
+                  }}
+                />
               ))}
               <span className="text-[15px] ml-3.5 font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
                 {tokens.length} assets
               </span>
             </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round"
-              style={{ transform: assetsExpanded ? "rotate(180deg)" : "rotate(0)",
-                transition: "transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              style={{
+                transform: assetsExpanded ? "rotate(180deg)" : "rotate(0)",
+                transition: "transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+              }}
+            >
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
 
           {/* Token list — internal scroll */}
-          <div className="no-scrollbar" style={{
-            maxHeight: assetsExpanded ? "400px" : "0",
-            opacity: assetsExpanded ? 1 : 0,
-            overflowY: assetsExpanded ? "auto" : "hidden",
-            transition: "max-height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 250ms",
-          }}>
+          <div
+            className="no-scrollbar"
+            style={{
+              maxHeight: assetsExpanded ? "400px" : "0",
+              opacity: assetsExpanded ? 1 : 0,
+              overflowY: assetsExpanded ? "auto" : "hidden",
+              transition: "max-height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 250ms",
+            }}
+          >
             {tokens.map((t) => (
-              <div key={t.mint || t.symbol}
+              <div
+                key={t.mint || t.symbol}
                 className="flex items-center justify-between px-6 py-4 transition-colors duration-100 hover:bg-white/[0.02]"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}
+              >
                 <div className="flex items-center gap-4">
                   <TokenIcon token={t} size={44} />
                   <div>
-                    <div className="text-[15px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>{t.name}</div>
+                    <div className="text-[15px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>
+                      {t.name}
+                    </div>
                     <div className="text-[12px] num mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
                       {fmtAmt(t.amount)} {t.symbol}
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[15px] num font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>{formatUsd(t.usd)}</div>
+                  <div className="text-[15px] num font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>
+                    {formatUsd(t.usd)}
+                  </div>
                   {t.pricePerToken > 0.001 && (
-                    <div className="text-[12px] num mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>{fmtPrice(t.pricePerToken)}</div>
+                    <div className="text-[12px] num mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+                      {fmtPrice(t.pricePerToken)}
+                    </div>
                   )}
                 </div>
               </div>
@@ -267,16 +373,40 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
       )}
 
       {/* ═══ ACTION ROW ═══ */}
-      <div ref={actionRowRef} className="flex items-end justify-center gap-7 mb-6 relative z-10">
-        <ActionNode label="Trade" onClick={() => onAction("I want to trade")}
-          icon={<><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></>} />
-        <ActionNode label="Earn" onClick={() => onAction("I want to earn yield")}
-          icon={<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />} />
+      <div ref={actionRowRef} className="flex items-end justify-center gap-4 sm:gap-7 mb-6 relative z-10">
+        <ActionNode
+          label="Trade"
+          onClick={() => onAction("I want to trade")}
+          icon={
+            <>
+              <line x1="12" y1="19" x2="12" y2="5" />
+              <polyline points="5 12 12 5 19 12" />
+            </>
+          }
+        />
+        <ActionNode
+          label="Earn"
+          onClick={() => onAction("I want to earn yield")}
+          icon={<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />}
+        />
         <FafNode onClick={() => onAction("faf")} />
-        <ActionNode label="Send" onClick={() => onAction("I want to transfer tokens")}
-          icon={<path d="M5 12h14M12 5l7 7-7 7" />} />
-        <ActionNode label="Portfolio" onClick={() => onAction("show my portfolio")}
-          icon={<><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>} />
+        <ActionNode
+          label="Send"
+          onClick={() => onAction("I want to transfer tokens")}
+          icon={<path d="M5 12h14M12 5l7 7-7 7" />}
+        />
+        <ActionNode
+          label="Portfolio"
+          onClick={() => onAction("show my portfolio")}
+          icon={
+            <>
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </>
+          }
+        />
       </div>
 
       {/* ═══ LIVE MARKET STRIP — real prices from store ═══ */}
@@ -286,15 +416,25 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
 }
 
 // ═══ ACTION NODE — Premium circle, bold icon ═══
-const ActionNode = memo(function ActionNode({ label, icon, onClick }: {
-  label: string; icon: React.ReactNode; onClick: () => void;
+const ActionNode = memo(function ActionNode({
+  label,
+  icon,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
 }) {
   return (
     <div className="flex flex-col items-center gap-2.5">
-      <button onClick={onClick}
+      <button
+        onClick={onClick}
+        aria-label={label}
         className="flex items-center justify-center cursor-pointer"
         style={{
-          width: "64px", height: "64px", borderRadius: "50%",
+          width: "64px",
+          height: "64px",
+          borderRadius: "50%",
           background: "rgba(51, 201, 161, 0.05)",
           border: "1.5px solid rgba(51, 201, 161, 0.18)",
           boxShadow: "0 0 24px -6px rgba(51, 201, 161, 0.12), inset 0 0 16px -4px rgba(51, 201, 161, 0.06)",
@@ -303,23 +443,40 @@ const ActionNode = memo(function ActionNode({ label, icon, onClick }: {
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
           e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.4)";
-          e.currentTarget.style.boxShadow = "0 0 40px -4px rgba(51, 201, 161, 0.25), 0 8px 24px rgba(0,0,0,0.3), inset 0 0 20px -4px rgba(51, 201, 161, 0.1)";
+          e.currentTarget.style.boxShadow =
+            "0 0 40px -4px rgba(51, 201, 161, 0.25), 0 8px 24px rgba(0,0,0,0.3), inset 0 0 20px -4px rgba(51, 201, 161, 0.1)";
           e.currentTarget.style.background = "rgba(51, 201, 161, 0.1)";
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = "none";
           e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.18)";
-          e.currentTarget.style.boxShadow = "0 0 24px -6px rgba(51, 201, 161, 0.12), inset 0 0 16px -4px rgba(51, 201, 161, 0.06)";
+          e.currentTarget.style.boxShadow =
+            "0 0 24px -6px rgba(51, 201, 161, 0.12), inset 0 0 16px -4px rgba(51, 201, 161, 0.06)";
           e.currentTarget.style.background = "rgba(51, 201, 161, 0.05)";
         }}
-        onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.92)"; }}
-        onMouseUp={(e) => { e.currentTarget.style.transform = "translateY(-4px) scale(1.08)"; }}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-          stroke="rgba(58, 255, 225, 0.65)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        onMouseDown={(e) => {
+          e.currentTarget.style.transform = "scale(0.92)";
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
+        }}
+      >
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="rgba(58, 255, 225, 0.65)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           {icon}
         </svg>
       </button>
-      <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.45)" }}>{label}</span>
+      <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.45)" }}>
+        {label}
+      </span>
     </div>
   );
 });
@@ -328,10 +485,14 @@ const ActionNode = memo(function ActionNode({ label, icon, onClick }: {
 const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
   return (
     <div className="flex flex-col items-center gap-2.5">
-      <button onClick={onClick}
+      <button
+        onClick={onClick}
+        aria-label="FAF staking"
         className="flex items-center justify-center cursor-pointer"
         style={{
-          width: "64px", height: "64px", borderRadius: "50%",
+          width: "64px",
+          height: "64px",
+          borderRadius: "50%",
           background: "linear-gradient(135deg, rgba(51,201,161,0.08), rgba(200,245,71,0.04))",
           border: "1.5px solid rgba(200,245,71,0.2)",
           boxShadow: "0 0 24px -6px rgba(200,245,71,0.12), inset 0 0 16px -4px rgba(200,245,71,0.06)",
@@ -340,21 +501,38 @@ const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
           e.currentTarget.style.borderColor = "rgba(200,245,71,0.35)";
-          e.currentTarget.style.boxShadow = "0 0 40px -4px rgba(200,245,71,0.2), 0 8px 24px rgba(0,0,0,0.3), inset 0 0 20px -4px rgba(200,245,71,0.1)";
+          e.currentTarget.style.boxShadow =
+            "0 0 40px -4px rgba(200,245,71,0.2), 0 8px 24px rgba(0,0,0,0.3), inset 0 0 20px -4px rgba(200,245,71,0.1)";
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = "none";
           e.currentTarget.style.borderColor = "rgba(200,245,71,0.2)";
-          e.currentTarget.style.boxShadow = "0 0 24px -6px rgba(200,245,71,0.12), inset 0 0 16px -4px rgba(200,245,71,0.06)";
+          e.currentTarget.style.boxShadow =
+            "0 0 24px -6px rgba(200,245,71,0.12), inset 0 0 16px -4px rgba(200,245,71,0.06)";
         }}
-        onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.92)"; }}
-        onMouseUp={(e) => { e.currentTarget.style.transform = "translateY(-4px) scale(1.08)"; }}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-          stroke="rgba(200,245,71,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        onMouseDown={(e) => {
+          e.currentTarget.style.transform = "scale(0.92)";
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
+        }}
+      >
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="rgba(200,245,71,0.7)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
         </svg>
       </button>
-      <span className="text-[11px] font-semibold" style={{ color: "rgba(200,245,71,0.5)" }}>FAF</span>
+      <span className="text-[11px] font-semibold" style={{ color: "rgba(200,245,71,0.5)" }}>
+        FAF
+      </span>
     </div>
   );
 });
@@ -362,11 +540,27 @@ const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
 // ═══ TREND ARROW — Galileo-style ═══
 function TrendArrow({ positive }: { positive: boolean }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-      stroke={positive ? "var(--color-accent-long)" : "#FF4D4D"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      {positive
-        ? <><polyline points="7 13 12 8 17 13" /><line x1="12" y1="8" x2="12" y2="16" /></>
-        : <><polyline points="7 11 12 16 17 11" /><line x1="12" y1="16" x2="12" y2="8" /></>}
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={positive ? "var(--color-accent-long)" : "#FF4D4D"}
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {positive ? (
+        <>
+          <polyline points="7 13 12 8 17 13" />
+          <line x1="12" y1="8" x2="12" y2="16" />
+        </>
+      ) : (
+        <>
+          <polyline points="7 11 12 16 17 11" />
+          <line x1="12" y1="16" x2="12" y2="8" />
+        </>
+      )}
     </svg>
   );
 }
@@ -388,11 +582,12 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
     async function load() {
       try {
         // 1) Current prices via Pyth Hermes (one request, all feeds)
-        const ids = Object.values(PYTH_FEEDS).map((f) => `ids%5B%5D=0x${f.id}`).join("&");
-        const curResp = await fetch(
-          `https://hermes.pyth.network/v2/updates/price/latest?${ids}&parsed=true`,
-          { signal: AbortSignal.timeout(5000) },
-        );
+        const ids = Object.values(PYTH_FEEDS)
+          .map((f) => `ids%5B%5D=0x${f.id}`)
+          .join("&");
+        const curResp = await fetch(`https://hermes.pyth.network/v2/updates/price/latest?${ids}&parsed=true`, {
+          signal: AbortSignal.timeout(5000),
+        });
         if (!curResp.ok) return;
         const curData = await curResp.json();
         const parsed = (curData?.parsed ?? []) as Array<{ id: string; price: { price: string; expo: number } }>;
@@ -416,7 +611,7 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
               );
               if (!r.ok) return [sym, null] as const;
               const d = await r.json();
-              const opens = Array.isArray(d?.o) ? d.o as number[] : [];
+              const opens = Array.isArray(d?.o) ? (d.o as number[]) : [];
               return [sym, opens[opens.length - 1] ?? null] as const;
             } catch {
               return [sym, null] as const;
@@ -446,29 +641,55 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
   if (trending.length === 0) return null;
 
   return (
-    <div className="flex items-center justify-center relative z-10 px-6 py-3 rounded-full"
+    <div
+      className="flex items-center justify-center relative z-10 px-6 py-3 rounded-full overflow-x-auto no-scrollbar"
       style={{
         background: "rgba(14,19,28,0.5)",
         border: "1px solid rgba(51,201,161,0.06)",
         backdropFilter: "blur(16px)",
         animation: "fadeIn 500ms ease 200ms both",
-      }}>
-      <span className="text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-1.5 mr-4"
-        style={{ color: "rgba(51,201,161,0.4)" }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      }}
+    >
+      <span
+        className="text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-1.5 mr-4"
+        style={{ color: "rgba(51,201,161,0.4)" }}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
           <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
           <polyline points="16 7 22 7 22 13" />
         </svg>
         Trending
       </span>
       {trending.map((t, i) => (
-        <button key={t.symbol} onClick={() => onAction(`price of ${t.symbol}`)}
+        <button
+          key={t.symbol}
+          onClick={() => onAction(`price of ${t.symbol}`)}
+          aria-label={`View ${t.symbol} price, ${t.change >= 0 ? "up" : "down"} ${Math.abs(t.change).toFixed(1)}%`}
           className="flex items-center gap-1.5 cursor-pointer transition-opacity duration-150 hover:opacity-70"
-          style={{ marginLeft: i > 0 ? "14px" : "0", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none", paddingLeft: i > 0 ? "14px" : "0" }}>
+          style={{
+            marginLeft: i > 0 ? "14px" : "0",
+            borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
+            paddingLeft: i > 0 ? "14px" : "0",
+          }}
+        >
           <TokenIcon token={t} size={20} />
-          <span className="text-[13px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>{t.symbol}</span>
-          <span className="text-[13px] num font-bold" style={{ color: t.change >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}>
-            {t.change >= 0 ? "+" : ""}{t.change.toFixed(2)}%
+          <span className="text-[13px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>
+            {t.symbol}
+          </span>
+          <span
+            className="text-[13px] num font-bold"
+            style={{ color: t.change >= 0 ? "var(--color-accent-long)" : "#FF4D4D" }}
+          >
+            {t.change >= 0 ? "+" : ""}
+            {t.change.toFixed(2)}%
           </span>
         </button>
       ))}
@@ -477,33 +698,68 @@ const TrendingStrip = memo(function TrendingStrip({ onAction }: { onAction: (cmd
 });
 
 // ═══ TOKEN ICON ═══
-function TokenIcon({ token, size = 32, style }: {
-  token: { symbol: string; logo: string; logoFallback?: string; color: string }; size?: number; style?: React.CSSProperties;
+function TokenIcon({
+  token,
+  size = 32,
+  style,
+}: {
+  token: { symbol: string; logo: string; logoFallback?: string; color: string };
+  size?: number;
+  style?: React.CSSProperties;
 }) {
   const [pf, setPf] = useState(false);
   const [ff, setFf] = useState(false);
   const src = !pf ? token.logo : token.logoFallback;
   const init = (!token.logo && !token.logoFallback) || (pf && !token.logoFallback) || (pf && ff);
-  if (init) return (
-    <span style={{ width: size, height: size, borderRadius: "50%", background: token.color,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: size * 0.3, fontWeight: 700, color: "#fff", flexShrink: 0, ...style }}>
-      {token.symbol.slice(0, 2)}
-    </span>
-  );
+  if (init)
+    return (
+      <span
+        role="img"
+        aria-label={token.symbol}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          background: token.color,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: size * 0.3,
+          fontWeight: 700,
+          color: "#fff",
+          flexShrink: 0,
+          ...style,
+        }}
+      >
+        {token.symbol.slice(0, 2)}
+      </span>
+    );
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img key={src} src={src!} alt={token.symbol} width={size} height={size}
+    <img
+      key={src}
+      src={src!}
+      alt={token.symbol}
+      width={size}
+      height={size}
       style={{ width: size, height: size, flexShrink: 0, borderRadius: "50%", objectFit: "cover", ...style }}
-      onError={() => { if (!pf) setPf(true); else setFf(true); }} />
+      onError={() => {
+        if (!pf) setPf(true);
+        else setFf(true);
+      }}
+    />
   );
 }
 
 function fmtAmt(n: number): string {
-  if (n < 0.0001) return n.toFixed(7); if (n < 0.01) return n.toFixed(6);
-  if (n < 1) return n.toFixed(4); return n.toFixed(2);
+  if (n < 0.0001) return n.toFixed(7);
+  if (n < 0.01) return n.toFixed(6);
+  if (n < 1) return n.toFixed(4);
+  return n.toFixed(2);
 }
 function fmtPrice(n: number): string {
-  if (n >= 10000) return `$${(n / 1000).toFixed(1)}K`; if (n >= 1) return `$${n.toFixed(2)}`;
-  if (n >= 0.01) return `$${n.toFixed(3)}`; return `$${n.toFixed(4)}`;
+  if (n >= 10000) return `$${(n / 1000).toFixed(1)}K`;
+  if (n >= 1) return `$${n.toFixed(2)}`;
+  if (n >= 0.01) return `$${n.toFixed(3)}`;
+  return `$${n.toFixed(4)}`;
 }

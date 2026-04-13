@@ -28,14 +28,14 @@ type TokenKind =
   | "ACTION_DEPOSIT"
   | "ACTION_WITHDRAW"
   | "POOL"
-  | "DOLLAR_AMOUNT"   // $100
-  | "TOKEN_AMOUNT"    // 100 usdc
-  | "PERCENT"         // 50%
-  | "SHARES"          // 10 shares
-  | "MAX"             // max (withdraw-only alias for 100%)
-  | "NUMBER"          // bare number (invalid — no unit)
-  | "FILLER"          // into, from, the, etc.
-  | "UNKNOWN";        // unrecognized token
+  | "DOLLAR_AMOUNT" // $100
+  | "TOKEN_AMOUNT" // 100 usdc
+  | "PERCENT" // 50%
+  | "SHARES" // 10 shares
+  | "MAX" // max (withdraw-only alias for 100%)
+  | "NUMBER" // bare number (invalid — no unit)
+  | "FILLER" // into, from, the, etc.
+  | "UNKNOWN"; // unrecognized token
 
 interface Token {
   kind: TokenKind;
@@ -90,20 +90,38 @@ function lex(input: string): Token[] {
     }
 
     // Actions
-    if (DEPOSIT_SET.has(r)) { tokens.push({ kind: "ACTION_DEPOSIT", value: r }); continue; }
-    if (WITHDRAW_SET.has(r)) { tokens.push({ kind: "ACTION_WITHDRAW", value: r }); continue; }
+    if (DEPOSIT_SET.has(r)) {
+      tokens.push({ kind: "ACTION_DEPOSIT", value: r });
+      continue;
+    }
+    if (WITHDRAW_SET.has(r)) {
+      tokens.push({ kind: "ACTION_WITHDRAW", value: r });
+      continue;
+    }
 
     // Pool
-    if (POOL_SET.has(r)) { tokens.push({ kind: "POOL", value: r }); continue; }
+    if (POOL_SET.has(r)) {
+      tokens.push({ kind: "POOL", value: r });
+      continue;
+    }
 
     // max
-    if (r === "max") { tokens.push({ kind: "MAX", value: r }); continue; }
+    if (r === "max") {
+      tokens.push({ kind: "MAX", value: r });
+      continue;
+    }
 
     // Filler
-    if (FILLER_SET.has(r)) { tokens.push({ kind: "FILLER", value: r }); continue; }
+    if (FILLER_SET.has(r)) {
+      tokens.push({ kind: "FILLER", value: r });
+      continue;
+    }
 
     // Bare number (no unit — will be flagged by verifier)
-    if (/^\d+(?:\.\d+)?$/.test(r)) { tokens.push({ kind: "NUMBER", value: r, numericValue: parseFloat(r) }); continue; }
+    if (/^\d+(?:\.\d+)?$/.test(r)) {
+      tokens.push({ kind: "NUMBER", value: r, numericValue: parseFloat(r) });
+      continue;
+    }
 
     // Unknown
     tokens.push({ kind: "UNKNOWN", value: r });
@@ -124,10 +142,7 @@ interface DepositAST {
 
 interface WithdrawAST {
   type: "Withdraw";
-  value:
-    | { type: "amount"; value: number }
-    | { type: "percent"; value: number }
-    | { type: "shares"; value: number };
+  value: { type: "amount"; value: number } | { type: "percent"; value: number } | { type: "shares"; value: number };
   pool: string;
 }
 
@@ -138,7 +153,9 @@ type EarnAST = DepositAST | WithdrawAST;
 // ============================================
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface _ParseError { errors: string[] }
+interface _ParseError {
+  errors: string[];
+}
 type ParseResult = { ok: true; ast: EarnAST } | { ok: false; errors: string[] };
 
 function parse(tokens: Token[]): ParseResult {
@@ -150,9 +167,13 @@ function parse(tokens: Token[]): ParseResult {
   // ---- Extract each slot (order-agnostic) ----
   const actions = tokens.filter((t) => t.kind === "ACTION_DEPOSIT" || t.kind === "ACTION_WITHDRAW");
   const pools = tokens.filter((t) => t.kind === "POOL");
-  const values = tokens.filter((t) =>
-    t.kind === "DOLLAR_AMOUNT" || t.kind === "TOKEN_AMOUNT" ||
-    t.kind === "PERCENT" || t.kind === "SHARES" || t.kind === "MAX"
+  const values = tokens.filter(
+    (t) =>
+      t.kind === "DOLLAR_AMOUNT" ||
+      t.kind === "TOKEN_AMOUNT" ||
+      t.kind === "PERCENT" ||
+      t.kind === "SHARES" ||
+      t.kind === "MAX",
   );
   const bareNumbers = tokens.filter((t) => t.kind === "NUMBER");
   const unknowns = tokens.filter((t) => t.kind === "UNKNOWN");
@@ -162,9 +183,11 @@ function parse(tokens: Token[]): ParseResult {
   if (actions.length > 1) errors.push("Multiple actions — one command at a time");
   if (pools.length === 0) errors.push("Missing pool (crypto, defi, gold, meme, wif, fart, ore, stable)");
   if (pools.length > 1) errors.push("Multiple pools — specify one");
-  if (values.length === 0 && bareNumbers.length === 0) errors.push("Missing value ($100, 100 USDC, 50%, 10 shares, or max)");
+  if (values.length === 0 && bareNumbers.length === 0)
+    errors.push("Missing value ($100, 100 USDC, 50%, 10 shares, or max)");
   if (values.length > 1) errors.push("Multiple values — specify exactly one");
-  if (bareNumbers.length > 0 && values.length === 0) errors.push("Amount requires unit — use $100, 100 USDC, 50%, or 10 shares");
+  if (bareNumbers.length > 0 && values.length === 0)
+    errors.push("Amount requires unit — use $100, 100 USDC, 50%, or 10 shares");
 
   // Flag unknown tokens that look like crypto symbols
   for (const u of unknowns) {
@@ -189,7 +212,7 @@ function parse(tokens: Token[]): ParseResult {
 
   // Parse value node
   if (val.kind === "MAX") {
-    if (isDeposit) return fail(["\"max\" is only for withdraw — specify USDC amount for deposit"]);
+    if (isDeposit) return fail(['"max" is only for withdraw — specify USDC amount for deposit']);
     return ok({ type: "Withdraw", value: { type: "percent", value: 100 }, pool });
   }
 
@@ -221,8 +244,12 @@ function parse(tokens: Token[]): ParseResult {
   return ok({ type: "Withdraw", value: { type: "amount", value: amt }, pool });
 }
 
-function ok(ast: EarnAST): ParseResult { return { ok: true, ast }; }
-function fail(errors: string[]): ParseResult { return { ok: false, errors }; }
+function ok(ast: EarnAST): ParseResult {
+  return { ok: true, ast };
+}
+function fail(errors: string[]): ParseResult {
+  return { ok: false, errors };
+}
 
 // ============================================
 // Phase 3 — Verifier (AST → Verified Output)
@@ -280,13 +307,25 @@ function verify(ast: EarnAST): EarnParseResult {
     }
 
     if (v.type === "amount") {
-      return { status: "valid", errors: [], earn: { action: "withdraw", pool: ast.pool, amount: v.value, amount_type: "USDC", shares: null } };
+      return {
+        status: "valid",
+        errors: [],
+        earn: { action: "withdraw", pool: ast.pool, amount: v.value, amount_type: "USDC", shares: null },
+      };
     }
     if (v.type === "percent") {
-      return { status: "valid", errors: [], earn: { action: "withdraw", pool: ast.pool, amount: v.value, amount_type: "percent", shares: null } };
+      return {
+        status: "valid",
+        errors: [],
+        earn: { action: "withdraw", pool: ast.pool, amount: v.value, amount_type: "percent", shares: null },
+      };
     }
     if (v.type === "shares") {
-      return { status: "valid", errors: [], earn: { action: "withdraw", pool: ast.pool, amount: null, amount_type: null, shares: v.value } };
+      return {
+        status: "valid",
+        errors: [],
+        earn: { action: "withdraw", pool: ast.pool, amount: null, amount_type: null, shares: v.value },
+      };
     }
   }
 

@@ -13,10 +13,17 @@ import { makeRequestId } from "@/lib/tool-dedup";
 const VALID_POOLS = ["crypto", "defi", "gold", "meme", "community", "wif", "fart", "trump", "ore", "equity", "stable"];
 
 const POOL_DISPLAY: Record<string, string> = {
-  crypto: "Crypto Pool", defi: "DeFi Pool", gold: "Gold Pool",
-  meme: "Community Pool", community: "Community Pool",
-  wif: "WIF Pool", fart: "FART Pool", trump: "TRUMP Pool",
-  ore: "Ore Pool", equity: "Equity Pool", stable: "Stable Pool",
+  crypto: "Crypto Pool",
+  defi: "DeFi Pool",
+  gold: "Gold Pool",
+  meme: "Community Pool",
+  community: "Community Pool",
+  wif: "WIF Pool",
+  fart: "FART Pool",
+  trump: "TRUMP Pool",
+  ore: "Ore Pool",
+  equity: "Equity Pool",
+  stable: "Stable Pool",
 };
 
 export function createEarnDepositTool(wallet: string) {
@@ -26,17 +33,25 @@ export function createEarnDepositTool(wallet: string) {
       "User deposits USDC and receives FLP tokens. " +
       "Supported pools: crypto, defi, gold, meme, wif, fart, ore, stable. " +
       "Example: 'deposit 100 usdc into crypto pool'",
-    inputSchema: z.object({
-      pool: z.string().describe("Pool name (crypto, defi, gold, meme, wif, fart, ore, stable)"),
-      amount_usdc: z.number().positive().describe("Amount in USDC to deposit"),
-    }).strict(),
+    inputSchema: z
+      .object({
+        pool: z.string().describe("Pool name (crypto, defi, gold, meme, wif, fart, ore, stable)"),
+        amount_usdc: z.number().positive().describe("Amount in USDC to deposit"),
+      })
+      .strict(),
     execute: async ({ pool, amount_usdc }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 
       try {
         const poolLower = pool.toLowerCase();
         if (!VALID_POOLS.includes(poolLower)) {
-          return { status: "error", data: null, error: `Unknown pool: ${pool}. Valid: ${VALID_POOLS.join(", ")}`, request_id: requestId, latency_ms: 0 };
+          return {
+            status: "error",
+            data: null,
+            error: `Unknown pool: ${pool}. Valid: ${VALID_POOLS.join(", ")}`,
+            request_id: requestId,
+            latency_ms: 0,
+          };
         }
 
         if (amount_usdc < 1) {
@@ -55,10 +70,16 @@ export function createEarnDepositTool(wallet: string) {
           if (res.ok) {
             const data = await res.json();
             const poolMap: Record<string, string> = {
-              crypto: "FLP.1", gold: "FLP.2", defi: "FLP.3",
-              meme: "FLP.4", community: "FLP.4",
-              wif: "FLP.5", trump: "FLP.7", fart: "FLP.7",
-              ore: "FLP.8", equity: "FLP.x",
+              crypto: "FLP.1",
+              gold: "FLP.2",
+              defi: "FLP.3",
+              meme: "FLP.4",
+              community: "FLP.4",
+              wif: "FLP.5",
+              trump: "FLP.7",
+              fart: "FLP.7",
+              ore: "FLP.8",
+              equity: "FLP.x",
             };
             const sym = poolMap[poolLower];
             const poolData = (data.pools ?? []).find((p: Record<string, unknown>) => p.flpTokenSymbol === sym);

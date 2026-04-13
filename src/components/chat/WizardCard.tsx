@@ -129,10 +129,7 @@ const WizardCard = memo(function WizardCard({ intro, steps, onComplete }: Wizard
       }}
     >
       {/* Intro message */}
-      <p
-        className="text-text-secondary"
-        style={{ fontSize: 13, lineHeight: 1.55, margin: "0 0 16px" }}
-      >
+      <p className="text-text-secondary" style={{ fontSize: 13, lineHeight: 1.55, margin: "0 0 16px" }}>
         {intro}
       </p>
 
@@ -182,15 +179,9 @@ const WizardCard = memo(function WizardCard({ intro, steps, onComplete }: Wizard
                   borderRadius: 10,
                   fontSize: 13,
                   fontWeight: 450,
-                  border: isSelected
-                    ? "1px solid rgba(51,201,161,0.3)"
-                    : "1px solid rgba(255,255,255,0.06)",
-                  background: isSelected
-                    ? "rgba(51,201,161,0.06)"
-                    : "transparent",
-                  color: isSelected
-                    ? "var(--color-brand-cyan)"
-                    : "var(--color-text-primary)",
+                  border: isSelected ? "1px solid rgba(51,201,161,0.3)" : "1px solid rgba(255,255,255,0.06)",
+                  background: isSelected ? "rgba(51,201,161,0.06)" : "transparent",
+                  color: isSelected ? "var(--color-brand-cyan)" : "var(--color-text-primary)",
                   transition: "all 140ms ease-out",
                 }}
                 onMouseEnter={(e) => {
@@ -298,9 +289,7 @@ const WizardCard = memo(function WizardCard({ intro, steps, onComplete }: Wizard
                   fontSize: 12,
                   fontWeight: 600,
                   border: "none",
-                  background: customValue.trim()
-                    ? "var(--color-accent-lime)"
-                    : "rgba(255,255,255,0.06)",
+                  background: customValue.trim() ? "var(--color-accent-lime)" : "rgba(255,255,255,0.06)",
                   color: customValue.trim() ? "#0A0E13" : "var(--color-text-tertiary)",
                   transition: "all 140ms ease-out",
                   whiteSpace: "nowrap",
@@ -338,10 +327,7 @@ const WizardCard = memo(function WizardCard({ intro, steps, onComplete }: Wizard
             fontWeight: 500,
             border: "none",
             background: "transparent",
-            color:
-              currentStep === 0
-                ? "var(--color-text-tertiary)"
-                : "var(--color-text-secondary)",
+            color: currentStep === 0 ? "var(--color-text-tertiary)" : "var(--color-text-secondary)",
             opacity: currentStep === 0 ? 0.4 : 1,
             transition: "all 120ms",
           }}
@@ -352,7 +338,15 @@ const WizardCard = memo(function WizardCard({ intro, steps, onComplete }: Wizard
             if (currentStep > 0) e.currentTarget.style.color = "var(--color-text-secondary)";
           }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           Back
@@ -405,19 +399,21 @@ const WizardCard = memo(function WizardCard({ intro, steps, onComplete }: Wizard
             fontSize: 12,
             fontWeight: 600,
             border: "none",
-            background:
-              answers[currentStep] !== null
-                ? "var(--color-accent-lime)"
-                : "rgba(255,255,255,0.06)",
-            color:
-              answers[currentStep] !== null
-                ? "#0A0E13"
-                : "var(--color-text-tertiary)",
+            background: answers[currentStep] !== null ? "var(--color-accent-lime)" : "rgba(255,255,255,0.06)",
+            color: answers[currentStep] !== null ? "#0A0E13" : "var(--color-text-tertiary)",
             transition: "all 140ms ease-out",
           }}
         >
           {isLastStep ? "Review Answers" : "Next Question"}
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </button>

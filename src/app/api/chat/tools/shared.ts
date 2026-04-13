@@ -86,10 +86,7 @@ const RATE_BURST_MAX = 20;
  *
  * Returns null if allowed, error ToolResponse if blocked.
  */
-export function checkWalletToolRate(
-  wallet: string,
-  requestId: string,
-): ToolResponse<null> | null {
+export function checkWalletToolRate(wallet: string, requestId: string): ToolResponse<null> | null {
   if (!wallet) return null;
 
   const now = Date.now();
@@ -106,9 +103,7 @@ export function checkWalletToolRate(
   }
 
   // Evict timestamps older than burst window
-  entry.timestamps = entry.timestamps.filter(
-    (ts) => now - ts < RATE_BURST_WINDOW_MS,
-  );
+  entry.timestamps = entry.timestamps.filter((ts) => now - ts < RATE_BURST_WINDOW_MS);
 
   // Check per-second
   const lastSecond = entry.timestamps.filter((ts) => now - ts < 1_000);
@@ -181,10 +176,7 @@ export function checkReplay(requestId: string): ToolResponse<null> | null {
  * 2. Wallet rate limit
  * 3. Kill switch (trade tools only)
  */
-export function runTradeGuards(
-  requestId: string,
-  wallet: string,
-): ToolResponse<null> | null {
+export function runTradeGuards(requestId: string, wallet: string): ToolResponse<null> | null {
   // 1. Replay protection
   const replay = checkReplay(requestId);
   if (replay) return replay;
@@ -206,10 +198,7 @@ export function runTradeGuards(
  * 1. Replay protection
  * 2. Wallet rate limit
  */
-export function runReadGuards(
-  requestId: string,
-  wallet: string,
-): ToolResponse<null> | null {
+export function runReadGuards(requestId: string, wallet: string): ToolResponse<null> | null {
   // 1. Replay protection
   const replay = checkReplay(requestId);
   if (replay) return replay;
@@ -263,12 +252,7 @@ export async function withToolTimeout<T>(
 
 // ---- Logging Helpers ----
 
-export function logToolCall(
-  tool: string,
-  requestId: string,
-  wallet: string,
-  data?: Record<string, unknown>,
-): void {
+export function logToolCall(tool: string, requestId: string, wallet: string, data?: Record<string, unknown>): void {
   logInfo("tool_call", { tool, request_id: requestId, wallet, data });
 }
 

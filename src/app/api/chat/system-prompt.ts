@@ -85,7 +85,8 @@ export function getSystemPrompt(context?: {
     const market = typeof d.market === "string" ? d.market.slice(0, 10).replace(/[^A-Za-z]/g, "") : "";
     const side = d.side === "LONG" || d.side === "SHORT" ? d.side : "";
     const lev = typeof d.leverage === "number" && Number.isFinite(d.leverage) ? Math.round(d.leverage) : 0;
-    const col = typeof d.collateral_usd === "number" && Number.isFinite(d.collateral_usd) ? Math.round(d.collateral_usd) : 0;
+    const col =
+      typeof d.collateral_usd === "number" && Number.isFinite(d.collateral_usd) ? Math.round(d.collateral_usd) : 0;
     if (market && side) {
       lines.push(``, `Last draft: ${side} ${market} ${lev}x $${col}.`);
     }
@@ -95,7 +96,8 @@ export function getSystemPrompt(context?: {
     // Validate each field is the expected type before using
     const posCount = Array.isArray(s.positions) ? s.positions.length : 0;
     const bal = typeof s.balance === "number" && Number.isFinite(s.balance) ? Math.round(s.balance) : 0;
-    const exp = typeof s.totalExposure === "number" && Number.isFinite(s.totalExposure) ? Math.round(s.totalExposure) : 0;
+    const exp =
+      typeof s.totalExposure === "number" && Number.isFinite(s.totalExposure) ? Math.round(s.totalExposure) : 0;
     lines.push(`Portfolio: ${posCount} pos, $${bal} bal, $${exp} exp.`);
   }
 

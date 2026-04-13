@@ -7,14 +7,7 @@
 import { useEffect, useRef } from "react";
 import { useFlashStore } from "@/store";
 import { POSITION_REFRESH_MS, TICKER_MARKETS, MARKETS } from "@/lib/constants";
-import {
-  formatUsd,
-  formatPrice,
-  formatPnl,
-  formatPnlPct,
-  formatLeverage,
-  liqDistancePct,
-} from "@/lib/format";
+import { formatUsd, formatPrice, formatPnl, formatPnlPct, formatLeverage, liqDistancePct } from "@/lib/format";
 import type { Position } from "@/lib/types";
 
 // Token colors for the overlapping icon circles
@@ -36,7 +29,9 @@ export default function PortfolioPanel() {
   const closePosition = useFlashStore((s) => s.closePosition);
 
   const refreshRef = useRef(refreshPositions);
-  useEffect(() => { refreshRef.current = refreshPositions; });
+  useEffect(() => {
+    refreshRef.current = refreshPositions;
+  });
 
   useEffect(() => {
     if (!walletConnected) return;
@@ -60,7 +55,6 @@ export default function PortfolioPanel() {
   return (
     <div className="h-full flex flex-col bg-bg-root dot-grid overflow-y-auto">
       <div className="flex-1 flex flex-col items-center justify-start px-6 pt-12">
-
         {/* ---- Hero Balance ---- */}
         {!walletConnected ? (
           <div className="text-center py-16" style={{ animation: "fadeIn 400ms ease-out" }}>
@@ -77,8 +71,10 @@ export default function PortfolioPanel() {
 
             {/* 24h-style PnL indicator */}
             <div className="flex items-center justify-center gap-4 mt-3">
-              <span className="flex items-center gap-1.5 text-[13px]"
-                style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}>
+              <span
+                className="flex items-center gap-1.5 text-[13px]"
+                style={{ color: totalPnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}
+              >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   {totalPnl >= 0 ? (
                     <path d="M3 12C5 8 8 6 13 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -97,12 +93,17 @@ export default function PortfolioPanel() {
 
         {/* ---- Token Icons Row (overlapping circles) ---- */}
         {activeMarkets.length > 0 && (
-          <div className="mt-8 flex items-center gap-3 px-5 py-3 rounded-full"
-            style={{ background: "rgba(20,26,34,0.8)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div
+            className="mt-8 flex items-center gap-3 px-5 py-3 rounded-full"
+            style={{ background: "rgba(20,26,34,0.8)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
             <div className="flex items-center -space-x-2">
               {activeMarkets.slice(0, 5).map((symbol) => (
-                <div key={symbol} className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-bg-root"
-                  style={{ background: TOKEN_COLORS[symbol] ?? MARKETS[symbol]?.dotColor ?? "#444" }}>
+                <div
+                  key={symbol}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-bg-root"
+                  style={{ background: TOKEN_COLORS[symbol] ?? MARKETS[symbol]?.dotColor ?? "#444" }}
+                >
                   {symbol.slice(0, 1)}
                 </div>
               ))}
@@ -121,12 +122,19 @@ export default function PortfolioPanel() {
 
         {/* ---- Trending Markets Bar ---- */}
         {activeMarkets.length > 0 && (
-          <div className="mt-8 flex items-center gap-3 px-5 py-2.5 rounded-full"
-            style={{ background: "rgba(20,26,34,0.8)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div
+            className="mt-8 flex items-center gap-3 px-5 py-2.5 rounded-full"
+            style={{ background: "rgba(20,26,34,0.8)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
             <span className="text-[11px] text-text-tertiary tracking-wider font-medium flex items-center gap-1.5">
               MARKETS
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M3 12C5 8 8 6 13 4" stroke="var(--color-accent-long)" strokeWidth="1.5" strokeLinecap="round" />
+                <path
+                  d="M3 12C5 8 8 6 13 4"
+                  stroke="var(--color-accent-long)"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
               </svg>
             </span>
             {activeMarkets.slice(0, 4).map((symbol, i) => {
@@ -134,8 +142,10 @@ export default function PortfolioPanel() {
               return (
                 <span key={symbol} className="flex items-center gap-1.5">
                   {i > 0 && <span className="w-px h-3 bg-border-subtle" />}
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ background: MARKETS[symbol]?.dotColor ?? "#444" }} />
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ background: MARKETS[symbol]?.dotColor ?? "#444" }}
+                  />
                   <span className="text-[12px] font-medium text-text-primary">{symbol}</span>
                   <span className="text-[12px] num text-accent-long">{formatPrice(p?.price)}</span>
                 </span>
@@ -148,18 +158,12 @@ export default function PortfolioPanel() {
         {walletConnected && positions.length > 0 && (
           <div className="w-full mt-8 max-w-[380px]">
             <div className="flex items-center justify-between mb-3 px-1">
-              <span className="text-[12px] text-text-secondary tracking-wide font-medium">
-                Open Positions
-              </span>
+              <span className="text-[12px] text-text-secondary tracking-wide font-medium">Open Positions</span>
               <span className="text-[11px] text-text-tertiary num">{positions.length}</span>
             </div>
             <div className="flex flex-col gap-2.5">
               {positions.map((pos) => (
-                <PositionCard
-                  key={pos.pubkey}
-                  position={pos}
-                  onClose={() => closePosition(pos.market, pos.side)}
-                />
+                <PositionCard key={pos.pubkey} position={pos} onClose={() => closePosition(pos.market, pos.side)} />
               ))}
             </div>
           </div>
@@ -174,17 +178,42 @@ export default function PortfolioPanel() {
 function ActionButton({ icon, label }: { icon: string; label: string }) {
   const icons: Record<string, React.ReactNode> = {
     long: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      >
         <path d="M12 19V5M5 12l7-7 7 7" />
       </svg>
     ),
     short: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      >
         <path d="M12 5v14M5 12l7 7 7-7" />
       </svg>
     ),
     portfolio: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="3" y="3" width="7" height="7" rx="1" />
         <rect x="14" y="3" width="7" height="7" rx="1" />
         <rect x="3" y="14" width="7" height="7" rx="1" />
@@ -192,7 +221,16 @@ function ActionButton({ icon, label }: { icon: string; label: string }) {
       </svg>
     ),
     markets: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
       </svg>
     ),
@@ -200,9 +238,7 @@ function ActionButton({ icon, label }: { icon: string; label: string }) {
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="action-circle text-text-secondary">
-        {icons[icon]}
-      </div>
+      <div className="action-circle text-text-secondary">{icons[icon]}</div>
       <span className="text-[11px] text-text-tertiary">{label}</span>
     </div>
   );
@@ -210,13 +246,7 @@ function ActionButton({ icon, label }: { icon: string; label: string }) {
 
 // ---- Position Card ----
 
-function PositionCard({
-  position,
-  onClose,
-}: {
-  position: Position;
-  onClose: () => void;
-}) {
+function PositionCard({ position, onClose }: { position: Position; onClose: () => void }) {
   const isLong = position.side === "LONG";
   const isProfit = position.unrealized_pnl >= 0;
   const sideColor = isLong ? "var(--color-accent-long)" : "var(--color-accent-short)";
@@ -228,11 +258,11 @@ function PositionCard({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-3 h-3 rounded-full"
-            style={{ background: MARKETS[position.market]?.dotColor ?? sideColor }} />
-          <span className="text-[14px] font-semibold text-text-primary">
-            {position.market}
-          </span>
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ background: MARKETS[position.market]?.dotColor ?? sideColor }}
+          />
+          <span className="text-[14px] font-semibold text-text-primary">{position.market}</span>
           <span
             className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full"
             style={{
@@ -264,15 +294,22 @@ function PositionCard({
             className="h-full rounded-full transition-all duration-300"
             style={{
               width: `${Math.min(liqDist, 100)}%`,
-              background: liqDist < 10 ? "var(--color-accent-short)" : liqDist < 20 ? "var(--color-accent-warn)" : "var(--color-accent-long)",
+              background:
+                liqDist < 10
+                  ? "var(--color-accent-short)"
+                  : liqDist < 20
+                    ? "var(--color-accent-warn)"
+                    : "var(--color-accent-long)",
             }}
           />
         </div>
       </div>
 
       {/* Close action */}
-      <div className="border-t opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-        style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+      <div
+        className="border-t opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+        style={{ borderColor: "rgba(255,255,255,0.04)" }}
+      >
         <button
           onClick={onClose}
           className="w-full py-2.5 text-[12px] font-medium text-accent-short cursor-pointer
@@ -288,15 +325,7 @@ function PositionCard({
 
 // ---- Shared ----
 
-function MiniRow({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color?: string;
-}) {
+function MiniRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="flex justify-between">
       <span className="text-text-tertiary">{label}</span>

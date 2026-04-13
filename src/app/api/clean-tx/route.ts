@@ -9,9 +9,7 @@ import {
 } from "@solana/web3.js";
 import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, safeErrorResponse } from "@/lib/api-security";
 
-const STRIP_PROGRAMS = new Set([
-  "L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95",
-]);
+const STRIP_PROGRAMS = new Set(["L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95"]);
 const FLASH_CU_LIMIT = 420_000;
 const FLASH_CU_PRICE = 10_000;
 const MAX_BODY_BYTES = 10_000; // 10KB
@@ -50,10 +48,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid payer key" }, { status: 400 });
     }
 
-    const connection = new Connection(
-      process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com",
-      { commitment: "confirmed" }
-    );
+    const connection = new Connection(process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com", {
+      commitment: "confirmed",
+    });
 
     const rawTx = VersionedTransaction.deserialize(Buffer.from(txBase64, "base64"));
     const message = rawTx.message as MessageV0;
@@ -61,10 +58,7 @@ export async function POST(req: NextRequest) {
     // ---- Payer Validation: payerKey must match transaction's fee payer ----
     const originalPayer = message.staticAccountKeys[0];
     if (!originalPayer || !originalPayer.equals(payerPubkey)) {
-      return NextResponse.json(
-        { error: "Payer key does not match transaction fee payer" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Payer key does not match transaction fee payer" }, { status: 400 });
     }
 
     // Resolve ALTs

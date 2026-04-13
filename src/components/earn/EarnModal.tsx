@@ -7,11 +7,18 @@
 // Slippage protection: 0.5% default.
 // Execution lock: prevents double-submit.
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { VersionedTransaction, ComputeBudgetProgram, MessageV0 } from "@solana/web3.js";
 import { formatUsd, safe } from "@/lib/format";
-import { recordEarnSuccess, recordEarnError, getEarnGuidance, getEarnSuccessFeedback, getCrossFeatureHint, getGuidanceLevel } from "@/lib/user-patterns";
+import {
+  recordEarnSuccess,
+  recordEarnError,
+  getEarnGuidance,
+  getEarnSuccessFeedback,
+  getCrossFeatureHint,
+  getGuidanceLevel,
+} from "@/lib/user-patterns";
 
 interface EarnModalProps {
   mode: "deposit" | "withdraw";
@@ -54,8 +61,7 @@ function getSuggestion(errorMsg: string): ErrorSuggestion | null {
     return { label: "Try a different pool", action: "none" };
   if (lower.includes("timeout") || lower.includes("congestion"))
     return { label: "Wait a moment and retry", action: "wait" };
-  if (lower.includes("rejected"))
-    return null;
+  if (lower.includes("rejected")) return null;
   if (lower.includes("simulation failed") || lower.includes("program error"))
     return { label: "Retry with a smaller amount", action: "reduce" };
   return { label: "Try again", action: "retry" };
@@ -70,7 +76,8 @@ function parseSimulationError(errJson: string, logs: string[]): string {
   // Balance-specific: extract amounts if present
   const balMatch = allLogs.match(/insufficient.*?(\d[\d,.]*)/i);
   if (balMatch) return `Insufficient balance — need ${balMatch[1]} more`;
-  if (tail.includes("insufficient") || tail.includes("Insufficient")) return "Insufficient balance for this transaction";
+  if (tail.includes("insufficient") || tail.includes("Insufficient"))
+    return "Insufficient balance for this transaction";
 
   // Slippage
   if (tail.includes("SlippageExceeded") || tail.includes("slippage") || tail.includes("Slippage")) {
@@ -83,7 +90,8 @@ function parseSimulationError(errJson: string, logs: string[]): string {
   if (tail.includes("ExceededMaxEntries") || tail.includes("MaxEntriesExceeded")) return "Pool is at maximum capacity";
 
   // Account errors
-  if (tail.includes("AccountNotFound") || tail.includes("account not found")) return "Token account not found — you may need to create an FLP token account first";
+  if (tail.includes("AccountNotFound") || tail.includes("account not found"))
+    return "Token account not found — you may need to create an FLP token account first";
   if (tail.includes("OwnerMismatch")) return "Token account ownership error — contact support";
 
   // Instruction index extraction with human-readable operation
@@ -114,7 +122,8 @@ function friendlyError(msg: string): string {
   if (msg.includes("No FLP")) return "No FLP tokens found. Deposit first.";
   if (msg.includes("too small") || msg.includes("rounds to zero")) return "Amount too small. Try a larger value.";
   if (msg.includes("slippage") || msg.includes("Slippage")) return "Price moved too much. Try again.";
-  if (msg.includes("timeout") || msg.includes("Timeout")) return "Transaction timed out. It may still land — check Solscan.";
+  if (msg.includes("timeout") || msg.includes("Timeout"))
+    return "Transaction timed out. It may still land — check Solscan.";
   if (msg.includes("blockhash")) return "Network congestion. Try again in a moment.";
   if (msg.length > 120) return msg.slice(0, 120) + "...";
   return msg;
@@ -123,13 +132,21 @@ function friendlyError(msg: string): string {
 // Dynamic slippage: higher APY = more trading activity = wider slippage
 function computeSlippage(apy: number): number {
   if (!Number.isFinite(apy) || apy <= 0) return 0.5;
-  if (apy > 100) return 2.0;  // Very high APY pools (Ore, etc) — volatile
-  if (apy > 50) return 1.5;   // High activity pools
-  if (apy > 20) return 0.75;  // Moderate
-  return 0.5;                  // Stable pools
+  if (apy > 100) return 2.0; // Very high APY pools (Ore, etc) — volatile
+  if (apy > 50) return 1.5; // High activity pools
+  if (apy > 20) return 0.75; // Moderate
+  return 0.5; // Stable pools
 }
 
-export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy, onClose, onSuccess }: EarnModalProps) {
+export default function EarnModal({
+  mode,
+  poolAlias,
+  poolName,
+  flpPrice,
+  poolApy,
+  onClose,
+  onSuccess,
+}: EarnModalProps) {
   const [amount, setAmount] = useState("");
   const [status, setStatus] = useState<Status>("input");
   const [errorMsg, setErrorMsg] = useState("");
@@ -146,7 +163,9 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
   const { publicKey, signTransaction, connected } = useWallet();
 
   const numAmount = parseFloat(amount);
-  const isValid = Number.isFinite(numAmount) && numAmount > 0 &&
+  const isValid =
+    Number.isFinite(numAmount) &&
+    numAmount > 0 &&
     (mode === "deposit" ? numAmount >= 1 : numAmount >= 1 && numAmount <= 100);
 
   // Dynamic slippage based on pool volatility
@@ -154,10 +173,24 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
 
   // Previews (display only — final values from protocol)
   const previewShares = mode === "deposit" && flpPrice > 0 ? numAmount / flpPrice : 0;
-  const previewUsdc = mode === "withdraw" && flpPrice > 0 ? numAmount * flpPrice / 100 : 0;
+  const previewUsdc = mode === "withdraw" && flpPrice > 0 ? (numAmount * flpPrice) / 100 : 0;
   const minShares = previewShares * (1 - slippagePct / 100);
 
-  const isInFlight = status === "building" || status === "simulating" || status === "signing" || status === "confirming" || status === "retrying";
+  const isInFlight =
+    status === "building" ||
+    status === "simulating" ||
+    status === "signing" ||
+    status === "confirming" ||
+    status === "retrying";
+
+  // Close modal on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   async function handleExecute() {
     // Execution lock
@@ -170,7 +203,9 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
     setLatencyInfo("");
 
     const t0 = performance.now();
-    let tBuild = 0, tSim = 0, tConfirm = 0;
+    let tBuild = 0,
+      tSim = 0,
+      tConfirm = 0;
 
     try {
       const { buildEarnDeposit, buildEarnWithdraw } = await import("@/lib/earn-sdk");
@@ -186,9 +221,10 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
       };
 
       // Build instructions via Flash SDK (with slippage protection)
-      const result = mode === "deposit"
-        ? await buildEarnDeposit(connection, wallet as never, numAmount, poolAlias, flpPrice, slippagePct)
-        : await buildEarnWithdraw(connection, wallet as never, numAmount, poolAlias, flpPrice, slippagePct);
+      const result =
+        mode === "deposit"
+          ? await buildEarnDeposit(connection, wallet as never, numAmount, poolAlias, flpPrice, slippagePct)
+          : await buildEarnWithdraw(connection, wallet as never, numAmount, poolAlias, flpPrice, slippagePct);
 
       // Compute budget (matching CLI)
       const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
@@ -250,17 +286,21 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
       tConfirm = Math.round(performance.now() - tConfirmStart);
 
       // Record success for learning
-      try { recordEarnSuccess(poolAlias, numAmount, mode); } catch {}
+      try {
+        recordEarnSuccess(poolAlias, numAmount, mode);
+      } catch {}
 
       // Build success info with personalized feedback
       setTxSig(signature);
       const personalFeedback = getEarnSuccessFeedback(poolAlias, mode);
       if (mode === "deposit") {
-        setReceivedInfo(`≈ ${safe(previewShares).toFixed(4)} FLP received`
-          + (personalFeedback ? ` · ${personalFeedback}` : ""));
+        setReceivedInfo(
+          `≈ ${safe(previewShares).toFixed(4)} FLP received` + (personalFeedback ? ` · ${personalFeedback}` : ""),
+        );
       } else {
-        setReceivedInfo(`≈ ${formatUsd(previewUsdc)} USDC received`
-          + (personalFeedback ? ` · ${personalFeedback}` : ""));
+        setReceivedInfo(
+          `≈ ${formatUsd(previewUsdc)} USDC received` + (personalFeedback ? ` · ${personalFeedback}` : ""),
+        );
       }
       const totalMs = Math.round(performance.now() - t0);
       setLatencyInfo(`Build ${tBuild}ms · Sim ${tSim}ms · Confirm ${tConfirm}ms · Total ${totalMs}ms`);
@@ -272,9 +312,13 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
       const friendly = friendlyError(raw);
 
       // ---- SMART RETRY: transient failures get one automatic retry ----
-      const isTransient = raw.includes("blockhash") || raw.includes("Blockhash")
-        || raw.includes("timeout") || raw.includes("Timeout")
-        || raw.includes("socket") || raw.includes("ECONNREFUSED");
+      const isTransient =
+        raw.includes("blockhash") ||
+        raw.includes("Blockhash") ||
+        raw.includes("timeout") ||
+        raw.includes("Timeout") ||
+        raw.includes("socket") ||
+        raw.includes("ECONNREFUSED");
 
       if (isTransient && retryCountRef.current < 1) {
         retryCountRef.current++;
@@ -290,7 +334,9 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
       }
 
       // Record error for adaptive suggestions
-      try { recordEarnError(raw); } catch {}
+      try {
+        recordEarnError(raw);
+      } catch {}
 
       setErrorMsg(friendly);
       setStatus("error");
@@ -302,17 +348,27 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ animation: "fadeIn 150ms ease-out" }}>
-      <div className="absolute inset-0 bg-bg-root/80 backdrop-blur-sm"
-        onClick={!isInFlight ? onClose : undefined} />
+      <div className="absolute inset-0 bg-bg-root/80 backdrop-blur-sm" onClick={!isInFlight ? onClose : undefined} />
 
-      <div className="relative w-[420px] glass-card overflow-hidden" style={{ animation: "slideUp 200ms ease-out" }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="earn-modal-title"
+        className="relative w-[420px] glass-card overflow-hidden"
+        style={{ animation: "slideUp 200ms ease-out" }}
+      >
         {/* Header */}
         <div className="px-6 py-5 flex items-center justify-between border-b border-border-subtle">
-          <span className="text-[16px] font-semibold text-text-primary">
+          <span id="earn-modal-title" className="text-[16px] font-semibold text-text-primary">
             {mode === "deposit" ? "Deposit" : "Withdraw"} — {poolName}
           </span>
           {!isInFlight && (
-            <button onClick={onClose} className="text-text-tertiary hover:text-text-secondary cursor-pointer text-[16px]">✕</button>
+            <button
+              onClick={onClose}
+              className="text-text-tertiary hover:text-text-secondary cursor-pointer text-[16px]"
+            >
+              ✕
+            </button>
           )}
         </div>
 
@@ -320,28 +376,34 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
         {status === "success" && (
           <div className="px-6 py-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(16,185,129,0.12)" }}>
-                <span className="text-[18px]" style={{ color: "var(--color-accent-long)" }}>✓</span>
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(16,185,129,0.12)" }}
+              >
+                <span className="text-[18px]" style={{ color: "var(--color-accent-long)" }}>
+                  ✓
+                </span>
               </div>
               <div>
                 <div className="text-[15px] font-semibold text-text-primary">
                   {mode === "deposit" ? "Deposited" : "Withdrawn"} successfully
                 </div>
-                {receivedInfo && (
-                  <div className="text-[13px] text-text-secondary num">{receivedInfo}</div>
-                )}
+                {receivedInfo && <div className="text-[13px] text-text-secondary num">{receivedInfo}</div>}
               </div>
             </div>
             <div className="flex items-center gap-3 mt-1">
               {txSig && (
-                <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noopener noreferrer"
-                  className="text-[12px] text-accent-blue underline">View on Solscan →</a>
+                <a
+                  href={`https://solscan.io/tx/${txSig}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[12px] text-accent-blue underline"
+                >
+                  View on Solscan →
+                </a>
               )}
             </div>
-            {latencyInfo && (
-              <div className="mt-3 text-[10px] num text-text-tertiary">{latencyInfo}</div>
-            )}
+            {latencyInfo && <div className="mt-3 text-[10px] num text-text-tertiary">{latencyInfo}</div>}
             <button
               onClick={onClose}
               className="w-full mt-4 py-3 text-[14px] font-medium text-text-primary rounded-xl cursor-pointer"
@@ -357,18 +419,21 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
           <>
             <div className="px-6 py-5">
               {/* Cross-feature hint (only for non-expert users) */}
-              {status === "input" && (() => {
-                const level = getGuidanceLevel();
-                if (level === "none") return null;
-                const hint = getCrossFeatureHint("earn");
-                if (!hint) return null;
-                return (
-                  <div className="mb-3 px-3 py-2 rounded-lg text-[11px] text-text-tertiary leading-relaxed"
-                    style={{ background: "rgba(59,130,246,0.04)", border: "1px solid rgba(59,130,246,0.08)" }}>
-                    {hint}
-                  </div>
-                );
-              })()}
+              {status === "input" &&
+                (() => {
+                  const level = getGuidanceLevel();
+                  if (level === "none") return null;
+                  const hint = getCrossFeatureHint("earn");
+                  if (!hint) return null;
+                  return (
+                    <div
+                      className="mb-3 px-3 py-2 rounded-lg text-[11px] text-text-tertiary leading-relaxed"
+                      style={{ background: "rgba(59,130,246,0.04)", border: "1px solid rgba(59,130,246,0.08)" }}
+                    >
+                      {hint}
+                    </div>
+                  );
+                })()}
               {/* Amount input */}
               <div className="mb-4">
                 <label className="text-[12px] text-text-tertiary mb-2 block">
@@ -383,6 +448,7 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder={mode === "deposit" ? "100" : "50"}
                   disabled={isInFlight}
+                  aria-label={mode === "deposit" ? "Deposit amount in USDC" : "Withdraw percentage"}
                   className="w-full text-[20px] font-semibold num bg-transparent text-text-primary outline-none border-b-2 pb-2"
                   style={{ borderColor: isValid ? "var(--color-accent-lime)" : "var(--color-border-subtle)" }}
                   autoFocus
@@ -423,36 +489,50 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
               )}
 
               {/* Error with actionable suggestion */}
-              {status === "error" && errorMsg && (() => {
-                const suggestion = getSuggestion(errorMsg);
-                return (
-                  <div className="mt-4 rounded-xl overflow-hidden"
-                    style={{ border: "1px solid rgba(239,68,68,0.12)" }}>
-                    <div className="px-4 py-3 text-[13px]"
-                      style={{ color: "var(--color-accent-short)", background: "rgba(239,68,68,0.06)" }}>
-                      {errorMsg}
-                    </div>
-                    {suggestion && (
-                      <div className="px-4 py-2.5 flex items-center gap-2 text-[12px]"
-                        style={{ background: "rgba(239,68,68,0.03)", borderTop: "1px solid rgba(239,68,68,0.06)" }}>
-                        <span className="text-text-tertiary">💡</span>
-                        <span className="text-text-secondary">{suggestion.label}</span>
+              {status === "error" &&
+                errorMsg &&
+                (() => {
+                  const suggestion = getSuggestion(errorMsg);
+                  return (
+                    <div
+                      className="mt-4 rounded-xl overflow-hidden"
+                      style={{ border: "1px solid rgba(239,68,68,0.12)" }}
+                    >
+                      <div
+                        className="px-4 py-3 text-[13px]"
+                        style={{ color: "var(--color-accent-short)", background: "rgba(239,68,68,0.06)" }}
+                      >
+                        {errorMsg}
                       </div>
-                    )}
-                  </div>
-                );
-              })()}
+                      {suggestion && (
+                        <div
+                          className="px-4 py-2.5 flex items-center gap-2 text-[12px]"
+                          style={{ background: "rgba(239,68,68,0.03)", borderTop: "1px solid rgba(239,68,68,0.06)" }}
+                        >
+                          <span className="text-text-tertiary">💡</span>
+                          <span className="text-text-secondary">{suggestion.label}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
               {/* In-flight indicator */}
               {isInFlight && (
                 <div className="mt-4 flex items-center gap-3 text-[13px] text-text-tertiary">
-                  <span className="w-3.5 h-3.5 border-2 border-text-tertiary border-t-transparent rounded-full"
-                    style={{ animation: "spin 0.8s linear infinite" }} />
-                  {status === "building" ? "Building transaction..."
-                    : status === "simulating" ? "Simulating — checking for errors..."
-                    : status === "retrying" ? `Retrying — ${retryReason || "rebuilding transaction"}...`
-                    : status === "signing" ? "Sign in your wallet..."
-                    : "Confirming on-chain..."}
+                  <span
+                    className="w-3.5 h-3.5 border-2 border-text-tertiary border-t-transparent rounded-full"
+                    style={{ animation: "spin 0.8s linear infinite" }}
+                  />
+                  {status === "building"
+                    ? "Building transaction..."
+                    : status === "simulating"
+                      ? "Simulating — checking for errors..."
+                      : status === "retrying"
+                        ? `Retrying — ${retryReason || "rebuilding transaction"}...`
+                        : status === "signing"
+                          ? "Sign in your wallet..."
+                          : "Confirming on-chain..."}
                 </div>
               )}
             </div>
@@ -466,11 +546,15 @@ export default function EarnModal({ mode, poolAlias, poolName, flpPrice, poolApy
                   cursor-pointer disabled:opacity-25 disabled:cursor-default"
                 style={{ color: "#000", background: "var(--color-accent-lime)", borderRadius: "0 0 0 16px" }}
               >
-                {isInFlight ? "Processing..."
-                  : status === "error" ? "Retry"
-                  : !connected ? "Connect Wallet"
-                  : mode === "deposit" ? `Deposit ${formatUsd(numAmount || 0)}`
-                  : `Withdraw ${numAmount || 0}%`}
+                {isInFlight
+                  ? "Processing..."
+                  : status === "error"
+                    ? "Retry"
+                    : !connected
+                      ? "Connect Wallet"
+                      : mode === "deposit"
+                        ? `Deposit ${formatUsd(numAmount || 0)}`
+                        : `Withdraw ${numAmount || 0}%`}
               </button>
               <button
                 onClick={onClose}

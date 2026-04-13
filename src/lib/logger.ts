@@ -127,13 +127,18 @@ export function logError(
 
 // ---- Latency Helper ----
 
-export async function withLatency<T>(
-  fn: () => Promise<T>,
-): Promise<{ result: T; latency_ms: number }> {
+export async function withLatency<T>(fn: () => Promise<T>): Promise<{ result: T; latency_ms: number }> {
   const start = performance.now();
   const result = await fn();
   const latency_ms = Math.round(performance.now() - start);
   return { result, latency_ms };
+}
+
+// ---- Request-scoped Trace ID ----
+
+/** Generate a unique request-scoped trace ID */
+export function generateTraceId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 // ---- Scrubbing ----
@@ -142,4 +147,31 @@ const SENSITIVE_PATTERNS = /sk-ant-[^\s]+|gsk_[^\s]+|api_key=[^\s&]+/g;
 
 export function scrub(text: string): string {
   return text.replace(SENSITIVE_PATTERNS, "***");
+}
+
+// ---- Structured Error Logging ----
+
+/** Log an error with full context — stack trace, error code, and request metadata */
+export function logStructuredError(
+  stage: LogStage,
+  err: unknown,
+  context?: { wallet?: string; tool?: string; request_id?: string; trace_id?: string },
+): void {
+  const message = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack?.split("\n").slice(0, 3).join(" | ") : undefined;
+
+  // Temporarily set trace ID if provided (request-scoped)
+  const prevTrace = _traceId;
+  if (context?.trace_id) _traceId = context.trace_id;
+
+  logError(stage, {
+    error: scrub(message),
+    wallet: context?.wallet,
+    tool: context?.tool,
+    request_id: context?.request_id,
+    data: stack ? { stack: scrub(stack) } : undefined,
+  });
+
+  // Restore previous trace
+  _traceId = prevTrace;
 }

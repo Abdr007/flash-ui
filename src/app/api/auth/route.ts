@@ -12,19 +12,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
-import {
-  generateNonce,
-  consumeNonce,
-  getSignMessage,
-  createAuthToken,
-} from "@/lib/wallet-auth";
-import {
-  getClientIp,
-  RateLimiter,
-  rateLimitResponse,
-  checkBodySize,
-  isValidSolanaAddress,
-} from "@/lib/api-security";
+import { generateNonce, consumeNonce, getSignMessage, createAuthToken } from "@/lib/wallet-auth";
+import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, isValidSolanaAddress } from "@/lib/api-security";
 
 // Rate limits — tighter than data endpoints since auth is infrequent
 const nonceLimiter = new RateLimiter(10); // 10 nonce requests/min
@@ -79,10 +68,7 @@ export async function POST(req: NextRequest) {
 
     // Validate nonce was issued and hasn't expired
     if (!consumeNonce(wallet, nonce)) {
-      return NextResponse.json(
-        { error: "Invalid or expired nonce. Request a new one." },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid or expired nonce. Request a new one." }, { status: 401 });
     }
 
     // Verify the ed25519 signature
@@ -105,10 +91,7 @@ export async function POST(req: NextRequest) {
 
     const verified = nacl.sign.detached.verify(messageBytes, signatureBytes, pubkeyBytes);
     if (!verified) {
-      return NextResponse.json(
-        { error: "Signature verification failed" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Signature verification failed" }, { status: 401 });
     }
 
     // Issue auth token

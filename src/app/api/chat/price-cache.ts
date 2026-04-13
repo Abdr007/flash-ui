@@ -18,7 +18,7 @@ export interface CachedPrice {
 // Module-level — survives across requests within same serverless instance
 const prices = new Map<string, CachedPrice>();
 
-const FRESH_MS = 2_000;   // <2s = fresh, use directly
+const FRESH_MS = 2_000; // <2s = fresh, use directly
 const MAX_AGE_MS = 30_000; // >30s = expired, reject
 
 // ---- Metrics (module-level, non-blocking) ----

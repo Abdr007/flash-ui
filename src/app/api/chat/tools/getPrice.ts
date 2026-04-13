@@ -9,20 +9,16 @@ import { cacheFetchThrough, cacheKey, TTL } from "../cache";
 import { dedup, makeDedupKey, makeRequestId } from "@/lib/tool-dedup";
 import { logError } from "@/lib/logger";
 import type { ToolResponse } from "./shared";
-import {
-  resolveMarket,
-  runReadGuards,
-  logToolCall,
-  logToolResult,
-} from "./shared";
+import { resolveMarket, runReadGuards, logToolCall, logToolResult } from "./shared";
 
 export function createGetPriceTool(wallet: string) {
   return tool({
-    description:
-      "Get the current price of a specific market (e.g., SOL, BTC, ETH)",
-    inputSchema: z.object({
-      market: z.string().describe("Market symbol (e.g., SOL, BTC, ETH)"),
-    }).strict(),
+    description: "Get the current price of a specific market (e.g., SOL, BTC, ETH)",
+    inputSchema: z
+      .object({
+        market: z.string().describe("Market symbol (e.g., SOL, BTC, ETH)"),
+      })
+      .strict(),
     execute: async ({ market }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
 
@@ -32,7 +28,13 @@ export function createGetPriceTool(wallet: string) {
 
         const resolved = resolveMarket(market);
         if (!resolved) {
-          return { status: "error", data: null, error: `Unknown market: ${market}`, request_id: requestId, latency_ms: 0 };
+          return {
+            status: "error",
+            data: null,
+            error: `Unknown market: ${market}`,
+            request_id: requestId,
+            latency_ms: 0,
+          };
         }
 
         logToolCall("get_price", requestId, wallet, { market: resolved });

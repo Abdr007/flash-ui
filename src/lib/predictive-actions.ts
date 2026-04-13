@@ -25,11 +25,7 @@ import {
   getUnifiedProfile,
   getGuidanceLevel,
 } from "./user-patterns";
-import {
-  getMarketBiasBoost,
-  getActiveSignals,
-  getPositionWarning,
-} from "./market-awareness";
+import { getMarketBiasBoost, getActiveSignals, getPositionWarning } from "./market-awareness";
 
 // ---- Types ----
 
@@ -60,14 +56,16 @@ interface PredictionState {
 
 export function getSuggestedActionGroups(state: PredictionState): ActionGroup[] {
   if (!state.walletConnected) {
-    return [{
-      group: "Get Started",
-      actions: [
-        { label: "Price SOL", intent: "price of SOL", priority: 50, category: "info", icon: "info" },
-        { label: "Price BTC", intent: "price of BTC", priority: 40, category: "info", icon: "info" },
-        { label: "Explore markets", intent: "show all prices", priority: 30, category: "info", icon: "info" },
-      ],
-    }];
+    return [
+      {
+        group: "Get Started",
+        actions: [
+          { label: "Price SOL", intent: "price of SOL", priority: 50, category: "info", icon: "info" },
+          { label: "Price BTC", intent: "price of BTC", priority: 40, category: "info", icon: "info" },
+          { label: "Explore markets", intent: "show all prices", priority: 30, category: "info", icon: "info" },
+        ],
+      },
+    ];
   }
 
   if (state.isExecuting) return [];
@@ -78,9 +76,10 @@ export function getSuggestedActionGroups(state: PredictionState): ActionGroup[] 
   // ---- Position Management ----
   for (const pos of state.positions) {
     const pnlPct = pos.unrealized_pnl_pct;
-    const liqDist = pos.side === "LONG"
-      ? ((pos.mark_price - pos.liquidation_price) / pos.mark_price) * 100
-      : ((pos.liquidation_price - pos.mark_price) / pos.mark_price) * 100;
+    const liqDist =
+      pos.side === "LONG"
+        ? ((pos.mark_price - pos.liquidation_price) / pos.mark_price) * 100
+        : ((pos.liquidation_price - pos.mark_price) / pos.mark_price) * 100;
 
     // Market warning from awareness engine
     const warning = getPositionWarning(pos.market, pos.side);
@@ -145,7 +144,8 @@ export function getSuggestedActionGroups(state: PredictionState): ActionGroup[] 
     // Flip suggestion
     const flipSide: Side = d.side === "LONG" ? "SHORT" : "LONG";
     const flipBias = getMarketBiasBoost(d.market, flipSide);
-    if (flipBias > 0) { // Only suggest flip if market supports it
+    if (flipBias > 0) {
+      // Only suggest flip if market supports it
       tradeActions.push({
         label: `Flip to ${flipSide}`,
         intent: `${flipSide.toLowerCase()} ${d.market} ${d.leverage}x $${d.collateral_usd}`,
@@ -199,7 +199,12 @@ export function getSuggestedActionGroups(state: PredictionState): ActionGroup[] 
       tradeActions.push({
         label: `${preferredSide} ${market} ${defLev}x`,
         intent: `${preferredSide.toLowerCase()} ${market} ${defLev}x $50`,
-        priority: 35 + marketPreferenceBoost(market) + actionAlignmentBoost(preferredSide) + bias + leverageProximityBoost(defLev),
+        priority:
+          35 +
+          marketPreferenceBoost(market) +
+          actionAlignmentBoost(preferredSide) +
+          bias +
+          leverageProximityBoost(defLev),
         category: "trade",
         icon: "open",
       });
@@ -247,9 +252,7 @@ export function getSuggestedActionGroups(state: PredictionState): ActionGroup[] 
   tradeActions.sort((a, b) => b.priority - a.priority);
 
   if (manageActions.length > 0) {
-    const marketLabel = state.positions.length === 1
-      ? `Manage ${state.positions[0].market}`
-      : "Manage Positions";
+    const marketLabel = state.positions.length === 1 ? `Manage ${state.positions[0].market}` : "Manage Positions";
     groups.push({
       group: marketLabel,
       actions: manageActions.slice(0, 3),
@@ -313,9 +316,10 @@ export function getTradeConfidence(trade: {
     factors.push("Moderate leverage");
   }
 
-  const liqDist = trade.side === "LONG"
-    ? ((trade.entry_price - trade.liquidation_price) / trade.entry_price) * 100
-    : ((trade.liquidation_price - trade.entry_price) / trade.entry_price) * 100;
+  const liqDist =
+    trade.side === "LONG"
+      ? ((trade.entry_price - trade.liquidation_price) / trade.entry_price) * 100
+      : ((trade.liquidation_price - trade.entry_price) / trade.entry_price) * 100;
 
   if (liqDist < 5) {
     score -= 30;
@@ -358,10 +362,7 @@ const COMMAND_PREFIXES = [
   { prefix: "price", completions: Object.keys(MARKETS).map((m) => `price ${m}`) },
 ];
 
-export function getAutocompleteSuggestions(
-  input: string,
-  maxResults = 4,
-): string[] {
+export function getAutocompleteSuggestions(input: string, maxResults = 4): string[] {
   const trimmed = input.trim().toLowerCase();
   if (trimmed.length < 2) return [];
 
@@ -413,12 +414,11 @@ export function predictNextAction(state: PredictionState): SuggestedAction | nul
     const pos = state.positions.find((pos) => pos.market === last.market);
     if (pos && Math.abs(pos.unrealized_pnl_pct) > 3) {
       return {
-        label: pos.unrealized_pnl_pct > 0
-          ? `Take profit ${pos.market} +${pos.unrealized_pnl_pct.toFixed(1)}%`
-          : `Check ${pos.market} ${pos.unrealized_pnl_pct.toFixed(1)}%`,
-        intent: pos.unrealized_pnl_pct > 5
-          ? `close ${pos.market} ${pos.side}`
-          : `price ${pos.market}`,
+        label:
+          pos.unrealized_pnl_pct > 0
+            ? `Take profit ${pos.market} +${pos.unrealized_pnl_pct.toFixed(1)}%`
+            : `Check ${pos.market} ${pos.unrealized_pnl_pct.toFixed(1)}%`,
+        intent: pos.unrealized_pnl_pct > 5 ? `close ${pos.market} ${pos.side}` : `price ${pos.market}`,
         priority: 85,
         category: "manage",
         icon: pos.unrealized_pnl_pct > 0 ? "close" : "info",
@@ -459,11 +459,11 @@ export function predictNextAction(state: PredictionState): SuggestedAction | nul
  * Reads positions (leveraged trading) + earn deposits (yield exposure).
  */
 export interface CombinedRisk {
-  totalExposure: number;     // sum of all position sizes + earn deposits
-  tradingExposure: number;   // leveraged position sizes
-  earnExposure: number;      // estimated earn deposit value
+  totalExposure: number; // sum of all position sizes + earn deposits
+  tradingExposure: number; // leveraged position sizes
+  earnExposure: number; // estimated earn deposit value
   riskLevel: "low" | "moderate" | "elevated" | "high";
-  message: string | null;    // contextual warning (null = no warning)
+  message: string | null; // contextual warning (null = no warning)
 }
 
 export function getCombinedRisk(positions: Position[]): CombinedRisk {

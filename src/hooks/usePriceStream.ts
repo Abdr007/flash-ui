@@ -38,11 +38,14 @@ export function usePriceStream() {
       (status) => {
         statusRef.current(status);
         if (status === "connected") {
-          if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
+          if (pollingTimer) {
+            clearInterval(pollingTimer);
+            pollingTimer = null;
+          }
         } else if (!pollingTimer) {
           pollingTimer = setInterval(() => refreshRef.current(), PRICE_REFRESH_MS);
         }
-      }
+      },
     );
 
     stream.connect();

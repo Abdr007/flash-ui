@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const url = `${FSTATS}/${encodeURIComponent(path)}${safePeriod ? `?period=${encodeURIComponent(safePeriod)}` : ""}`;
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(8000),
-      headers: { "Accept": "application/json" },
+      headers: { Accept: "application/json" },
     });
 
     if (!resp.ok) {

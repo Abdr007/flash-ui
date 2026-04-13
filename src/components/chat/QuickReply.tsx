@@ -73,8 +73,13 @@ const QuickReply = memo(function QuickReply({ userMessage, onSelect, disabled }:
               )}
             </div>
             <svg
-              width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--color-text-tertiary)"
+              strokeWidth="2"
+              strokeLinecap="round"
               className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
             >
               <path d="M5 12h14M12 5l7 7-7 7" />
