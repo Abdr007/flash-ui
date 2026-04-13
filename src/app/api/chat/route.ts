@@ -613,6 +613,14 @@ function matchDirectTool(input: string): DirectToolMatch | null {
   m = /^(?:close|exit|flatten)\s+(?:my\s+)?(\w+)(?:\s+(?:position|trade|long|short))?$/i.exec(t);
   if (m) return { toolName: "close_position_preview", params: { market: resolveMarket(m[1]) } };
 
+  // ── Reverse / Flip position ──
+  m = /^(?:reverse|flip)\s+(?:my\s+)?(\w+)(?:\s+(?:position|trade|long|short))?$/i.exec(t);
+  if (m) return { toolName: "reverse_position_preview", params: { market: resolveMarket(m[1]) } };
+
+  // ── Market info (reversed word order) ──
+  m = /^(\w+)\s+(?:market\s+)?(?:info|details|stats)$/i.exec(t);
+  if (m && resolveMarket(m[1])) return { toolName: "get_market_info", params: { market: resolveMarket(m[1]) } };
+
   // ── Transfer: "send 0.1 SOL to <address>" ──
   // Use tOriginal to preserve base58 case in the recipient address
   // Tolerates trailing words like "please", "now", punctuation

@@ -105,6 +105,7 @@ interface ParsedTrade {
   leverage: number;
   tp: number | null;
   sl: number | null;
+  degen: boolean;
 }
 
 // ---- Market Resolution (synchronous) ----
@@ -120,12 +121,15 @@ function resolveMarket(token: string): string | null {
 // ---- PHASE 1: Parse (synchronous, <1ms) ----
 
 function parse(input: string): ParsedTrade | null {
-  // Degen-mode trades route through the AI path so build_trade sees
-  // degen=true. Fast-path intentionally doesn't parse degen.
-  if (/\bdegen\b/i.test(input)) return null;
+  // Detect degen keywords, strip them, and pass degen flag through
+  const isDegen = /\b(?:degen|ape|full\s+send|send\s+it|max\s+leverage)\b/i.test(input);
+  const cleanedInput = input
+    .replace(/\b(?:degen|ape|full\s+send|send\s+it|max\s+leverage)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
   // Try format A: long SOL $25 5x
-  let m = FAST_TRADE_RE.exec(input);
+  let m = FAST_TRADE_RE.exec(cleanedInput);
   let collateral: number;
   let leverage: number;
 
@@ -134,7 +138,7 @@ function parse(input: string): ParsedTrade | null {
     leverage = parseFloat(m[4]);
   } else {
     // Try format B: long SOL 5x $25
-    m = FAST_TRADE_RE_B.exec(input);
+    m = FAST_TRADE_RE_B.exec(cleanedInput);
     if (!m) return null;
     leverage = parseFloat(m[3]);
     collateral = parseFloat(m[4]);
@@ -146,7 +150,8 @@ function parse(input: string): ParsedTrade | null {
   // Numeric safety — reject NaN/Infinity/out-of-bounds
   if (!Number.isFinite(collateral) || collateral < MIN_COLLATERAL) return null;
   // Per-market leverage cap (same as firewall — reject early, don't waste cycles)
-  const maxLev = getMaxLeverageForMarket(market);
+  // Degen mode allows up to 500x on SOL/BTC/ETH pools
+  const maxLev = isDegen ? Math.max(getMaxLeverageForMarket(market), 500) : getMaxLeverageForMarket(market);
   if (!Number.isFinite(leverage) || leverage < 1 || leverage > maxLev) return null;
 
   // TP can be in group 5 or 7, SL in 6 or 8 (either ordering)
@@ -163,6 +168,7 @@ function parse(input: string): ParsedTrade | null {
     leverage,
     tp,
     sl,
+    degen: isDegen,
   };
 }
 
@@ -227,6 +233,7 @@ function validate(
     fees,
     fee_rate: feeRate,
     slippage_bps: DEFAULT_SLIPPAGE_BPS,
+    degen: trade.degen,
     ...(trade.tp != null && { take_profit_price: trade.tp }),
     ...(trade.sl != null && { stop_loss_price: trade.sl }),
   };
