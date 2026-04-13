@@ -60,17 +60,18 @@ const FAF_PATTERNS: {
   { pattern: /^faf$/i, action: "dashboard", toolName: "faf_dashboard" },
 
   // ── Dashboard (many natural forms) ──
-  { pattern: /^faf\s+(status|dashboard|info)$/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^faf\s+(status|dashboard|info|help|options)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^show\s+(?:my\s+)?faf/i, action: "dashboard", toolName: "faf_dashboard" },
   {
     pattern: /^(?:my\s+)?faf\s+(?:staking|stake)\s*(?:status|info|dashboard)?$/i,
     action: "dashboard",
     toolName: "faf_dashboard",
   },
-  { pattern: /^(?:what(?:'s| is)\s+)?my\s+faf/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^(?:what(?:'?s| is| are)\s+)?(?:my\s+)?faf/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^faf\s+(rewards?|earnings?|balance)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^faf\s+(points?|voltage)$/i, action: "dashboard", toolName: "faf_dashboard" },
   { pattern: /^how much (?:faf )?(?:do i have |have i )?stak/i, action: "dashboard", toolName: "faf_dashboard" },
+  { pattern: /^what (?:is|can i do with) faf/i, action: "dashboard", toolName: "faf_dashboard" },
 
   // ── Unstake (with amount) — MUST be before stake patterns (regex "stake" matches inside "unstake") ──
   {
@@ -86,7 +87,7 @@ const FAF_PATTERNS: {
     extract: (m) => ({ amount: parseFloat(m[1]) }),
   },
   {
-    pattern: /(?:want|wanna|like)\s+to\s+unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i,
+    pattern: /(?:want|wanna|like)\s+(?:to\s+)?unstake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i,
     action: "unstake",
     toolName: "faf_unstake",
     extract: (m) => ({ amount: parseFloat(m[1]) }),
@@ -101,11 +102,12 @@ const FAF_PATTERNS: {
   // ── Unstake (no amount → prompt) ──
   { pattern: /^faf\s+unstake$/i, action: "unstake_prompt", toolName: "__prompt__" },
   {
-    pattern: /(?:want|wanna|like)\s+to\s+unstake\s+(?:my\s+)?(?:faf|tokens?)?\s*$/i,
+    pattern: /(?:want|wanna|like)\s+(?:to\s+)?unstake\s+(?:my\s+)?(?:faf|tokens?)?\s*$/i,
     action: "unstake_prompt",
     toolName: "__prompt__",
   },
   { pattern: /^unstake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i, action: "unstake_prompt", toolName: "__prompt__" },
+  { pattern: /^i\s+wanna\s+unstake/i, action: "unstake_prompt", toolName: "__prompt__" },
 
   // ── Stake (with amount — many natural forms) ──
   {
@@ -127,7 +129,13 @@ const FAF_PATTERNS: {
     extract: (m) => ({ amount: parseFloat(m[1]) }),
   },
   {
-    pattern: /(?:want|wanna|like)\s+to\s+(?!un)stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i,
+    pattern: /^stake\s+(?:faf|tokens?)\s+(\d+(?:\.\d+)?)/i,
+    action: "stake",
+    toolName: "faf_stake",
+    extract: (m) => ({ amount: parseFloat(m[1]) }),
+  },
+  {
+    pattern: /(?:want|wanna|like)\s+(?:to\s+)?(?!un)stake\s+(\d+(?:\.\d+)?)\s*(?:faf)?/i,
     action: "stake",
     toolName: "faf_stake",
     extract: (m) => ({ amount: parseFloat(m[1]) }),
@@ -142,11 +150,12 @@ const FAF_PATTERNS: {
   // ── Stake (no amount → prompt) ──
   { pattern: /^faf\s+stake$/i, action: "stake_prompt", toolName: "__prompt__" },
   {
-    pattern: /(?:want|wanna|like)\s+to\s+(?!un)stake\s+(?:my\s+)?(?:faf(?:\s+tokens?)?\s*|tokens?\s*)$/i,
+    pattern: /(?:want|wanna|like)\s+(?:to\s+)?(?!un)stake\s+(?:my\s+)?(?:faf(?:\s+tokens?)?\s*|tokens?\s*)$/i,
     action: "stake_prompt",
     toolName: "__prompt__",
   },
   { pattern: /^stake\s+(?:my\s+)?(?:faf|tokens?)\s*$/i, action: "stake_prompt", toolName: "__prompt__" },
+  { pattern: /^i\s+wanna\s+stake/i, action: "stake_prompt", toolName: "__prompt__" },
 
   // ── Claim (many natural forms) ──
   {
@@ -168,13 +177,19 @@ const FAF_PATTERNS: {
     extract: () => ({ claim_type: "all" }),
   },
   {
-    pattern: /^(?:i\s+)?want\s+to\s+claim/i,
+    pattern: /^(?:i\s+)?(?:want|wanna|like)\s+(?:to\s+)?claim/i,
     action: "claim",
     toolName: "faf_claim",
     extract: () => ({ claim_type: "all" }),
   },
   {
-    pattern: /^collect\s+(?:my\s+)?(?:faf\s+)?rewards?/i,
+    pattern: /^(?:collect|harvest)\s+(?:my\s+)?(?:faf\s+)?(?:rewards?|earnings?)?/i,
+    action: "claim",
+    toolName: "faf_claim",
+    extract: () => ({ claim_type: "all" }),
+  },
+  {
+    pattern: /^claim$/i,
     action: "claim",
     toolName: "faf_claim",
     extract: () => ({ claim_type: "all" }),
@@ -182,13 +197,18 @@ const FAF_PATTERNS: {
 
   // ── Tiers ──
   { pattern: /^faf\s+(tier|tiers|vip)$/i, action: "tier", toolName: "faf_tier" },
-  { pattern: /^(?:show\s+)?(?:me\s+)?(?:the\s+)?(?:vip\s+)?tiers?$/i, action: "tier", toolName: "faf_tier" },
-  { pattern: /^(?:what(?:'s| is|are)\s+)?(?:the\s+)?(?:vip\s+)?tier/i, action: "tier", toolName: "faf_tier" },
+  {
+    pattern: /^(?:show\s+)?(?:me\s+)?(?:the\s+)?(?:vip\s+)?tiers?\s*(?:info)?$/i,
+    action: "tier",
+    toolName: "faf_tier",
+  },
+  { pattern: /^(?:what(?:'?s| is| are)\s+)?(?:the\s+)?(?:vip\s+)?tiers?/i, action: "tier", toolName: "faf_tier" },
+  { pattern: /^tier/i, action: "tier", toolName: "faf_tier" },
 
   // ── Requests ──
   { pattern: /^faf\s+(requests?|pending|unstake\s+requests?)$/i, action: "requests", toolName: "faf_requests" },
   {
-    pattern: /^(?:show\s+)?(?:my\s+)?(?:unstake\s+)?(?:pending\s+)?requests?$/i,
+    pattern: /^(?:show\s+)?(?:me\s+)?(?:my\s+)?(?:unstake\s+)?(?:pending\s+)?requests?$/i,
     action: "requests",
     toolName: "faf_requests",
   },
