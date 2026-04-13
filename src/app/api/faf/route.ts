@@ -250,6 +250,10 @@ export async function POST(req: NextRequest) {
     const serialized = transaction.serialize();
     const base64 = Buffer.from(serialized).toString("base64");
 
+    if (base64.length > 6000) {
+      return NextResponse.json({ error: "Transaction too large. Try a simpler operation." }, { status: 400 });
+    }
+
     return NextResponse.json({
       transaction: base64,
       blockhash,

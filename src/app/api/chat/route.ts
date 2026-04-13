@@ -182,7 +182,7 @@ const FAF_PATTERNS: {
 
   // ── Tiers ──
   { pattern: /^faf\s+(tier|tiers|vip)$/i, action: "tier", toolName: "faf_tier" },
-  { pattern: /^(?:show\s+)?(?:vip\s+)?tiers?$/i, action: "tier", toolName: "faf_tier" },
+  { pattern: /^(?:show\s+)?(?:me\s+)?(?:the\s+)?(?:vip\s+)?tiers?$/i, action: "tier", toolName: "faf_tier" },
   { pattern: /^(?:what(?:'s| is|are)\s+)?(?:the\s+)?(?:vip\s+)?tier/i, action: "tier", toolName: "faf_tier" },
 
   // ── Requests ──
@@ -206,6 +206,8 @@ const FAF_PATTERNS: {
     toolName: "faf_cancel_unstake",
     extract: (m) => ({ index: parseInt(m[1], 10) }),
   },
+  // "cancel unstake" without index → show requests list so user can pick
+  { pattern: /^(?:cancel\s+(?:my\s+)?unstake|faf\s+cancel)$/i, action: "requests", toolName: "faf_requests" },
 ];
 
 function matchFafCommand(input: string): FafCommand | null {

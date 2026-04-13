@@ -31,7 +31,7 @@ function makeDummyWallet(pubkey: PublicKey): Wallet {
 function isValidPubkey(addr: string): boolean {
   try {
     new PublicKey(addr);
-    return addr.length >= 32;
+    return addr.length >= 32 && addr.length <= 44;
   } catch {
     return false;
   }
@@ -414,7 +414,7 @@ export function createFafCancelUnstakeTool(wallet: string) {
 
         const requests = await getFafUnstakeRequests(conn, dummyWallet, pubkey);
 
-        if (index >= requests.length) {
+        if (index < 0 || index >= requests.length) {
           return {
             status: "error",
             data: null,

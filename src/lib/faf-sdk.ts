@@ -219,7 +219,9 @@ export async function buildStakeInstructions(
 ): Promise<FafInstructionResult> {
   const client = getClient(connection, wallet);
   const poolConfig = getPoolConfig();
-  const nativeAmount = new BN(Math.round(amountUi * Math.pow(10, FAF_DECIMALS)));
+  const rawAmount = Math.round(amountUi * Math.pow(10, FAF_DECIMALS));
+  if (rawAmount <= 0) throw new Error("Amount too small — must be at least 1 FAF token unit");
+  const nativeAmount = new BN(rawAmount);
 
   const result = await client.depositTokenStake(userPubkey, userPubkey, nativeAmount, poolConfig);
 
@@ -237,7 +239,9 @@ export async function buildUnstakeInstructions(
 ): Promise<FafInstructionResult> {
   const client = getClient(connection, wallet);
   const poolConfig = getPoolConfig();
-  const nativeAmount = new BN(Math.round(amountUi * Math.pow(10, FAF_DECIMALS)));
+  const rawAmount = Math.round(amountUi * Math.pow(10, FAF_DECIMALS));
+  if (rawAmount <= 0) throw new Error("Amount too small — must be at least 1 FAF token unit");
+  const nativeAmount = new BN(rawAmount);
 
   const result = await client.unstakeTokenRequest(userPubkey, nativeAmount, poolConfig);
 
