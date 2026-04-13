@@ -87,8 +87,6 @@ export const OrderActionCard = memo(function OrderActionCard({ output }: { outpu
     );
   }
 
-  const isLive = step === "cancelling" || step === "placing";
-
   return (
     <div className="w-full max-w-[460px] glass-card overflow-hidden">
       <div className="px-5 py-3.5 border-b border-border-subtle flex items-center justify-between">
