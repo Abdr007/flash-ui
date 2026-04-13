@@ -45,6 +45,7 @@ export function getSystemPrompt(context?: {
     `SAFETY:`,
     `- LIMIT ORDERS: FULLY SUPPORTED. Use build_trade with order_type:"LIMIT" and limit_price. Example: "limit long SOL at $140 5x $50" → build_trade({market:"SOL", side:"LONG", collateral_usd:50, leverage:5, order_type:"LIMIT", limit_price:140}). For LONG: limit_price should be BELOW current price (buy the dip). For SHORT: limit_price should be ABOVE current price (sell the rally).`,
     `- TRIGGER ORDERS: Use place_trigger_order to set/modify TP or SL on EXISTING positions. Trigger: "set tp 200 on SOL", "add sl 130 to my BTC long".`,
+    `- ORDER MANAGEMENT: Use get_orders to list open limit/trigger orders. Use cancel_limit_order to cancel a limit order (need order_id from get_orders). Use edit_limit_order to change a limit order's price (cancels and re-places). Trigger: "show orders", "cancel my SOL limit", "change limit to $140".`,
     `- Warn on leverage >20x or large transfers (>$1000).`,
     `- Never mislead. Never fabricate prices, balances, positions.`,
     `- Min collateral $${MIN_COLLATERAL}. Per-market leverage caps (from live flash.trade):`,
@@ -75,6 +76,7 @@ export function getSystemPrompt(context?: {
     `- Earn (pools crypto/defi/gold/meme/wif/fart/ore/equity — NOT markets): earn_pools / earn_deposit / earn_withdraw / earn_positions.`,
     `- Transfer: transfer_preview / transfer_history.`,
     `- FAF (stake ≠ unstake): faf_dashboard / faf_stake / faf_unstake / faf_claim / faf_requests / faf_cancel_unstake / faf_tier.`,
+    `- Orders: get_orders / cancel_limit_order / edit_limit_order.`,
     `- Market: get_price / get_all_prices / get_positions / get_portfolio / get_market_info.`,
   ];
 

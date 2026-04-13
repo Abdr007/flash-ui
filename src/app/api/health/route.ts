@@ -3,6 +3,7 @@ import { evaluateCertification } from "@/lib/certification";
 import { getCircuitStats } from "@/lib/circuit-breaker";
 import { getRecentTraces } from "@/lib/execution-log";
 import { verifyTraces, anomalySummary } from "@/lib/trace-verifier";
+import { getMetricsSummary } from "@/lib/metrics";
 
 const FLASH_API_URL = process.env.NEXT_PUBLIC_FLASH_API_URL || "https://flashapi.trade";
 
@@ -131,6 +132,7 @@ export async function GET() {
         latest_anomalies: anomalies.slice(-5),
       }),
     },
+    metrics: getMetricsSummary(),
     timestamp: new Date().toISOString(),
   });
 }

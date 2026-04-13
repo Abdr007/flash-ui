@@ -11,6 +11,7 @@ import { logInfo, logError } from "@/lib/logger";
 import { isReplay } from "@/lib/tool-dedup";
 import { MARKET_ALIASES } from "@/lib/constants";
 import { resolveSymbol, refreshIfStale } from "@/lib/markets-registry";
+import { recordMetric } from "@/lib/metrics";
 
 // ---- Tool Response (strict, no `any`) ----
 
@@ -271,6 +272,7 @@ export function logToolResult(
     latency_ms: latencyMs,
     data: { status, ...extra },
   });
+  recordMetric(tool, latencyMs);
 }
 
 /**
