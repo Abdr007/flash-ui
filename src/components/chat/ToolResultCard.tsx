@@ -25,6 +25,7 @@ import TransferHistoryCard from "./cards/TransferHistoryCard";
 import FafCard from "./cards/FafCard";
 import ActionOptionsCard from "./cards/ActionOptionsCard";
 import TransferPickerCard from "./cards/TransferPickerCard";
+import TriggerOrderCard from "./cards/TriggerOrderCard";
 import WizardCard from "./WizardCard";
 
 // ---- Wizard Tool Card (thin wrapper) ----
@@ -143,6 +144,9 @@ const ToolResultCard = memo(function ToolResultCard({
       break;
     case "transfer_picker":
       card = <TransferPickerCard output={output} onAction={onAction} />;
+      break;
+    case "place_trigger_order":
+      card = <TriggerOrderCard output={output} />;
       break;
     default:
       card = <GenericCard toolName={part.toolName} output={output} />;

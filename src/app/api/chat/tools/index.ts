@@ -18,6 +18,7 @@ import { createEarnDepositTool } from "./earnDeposit";
 import { createEarnPoolsTool, createEarnPositionsTool, createEarnWithdrawTool } from "./earnPools";
 import { createTransferPreviewTool } from "./transferPreview";
 import { createTransferHistoryTool } from "./transferHistory";
+import { createPlaceTriggerOrderTool } from "./placeTriggerOrder";
 import {
   createFafDashboardTool,
   createFafStakeTool,
@@ -53,5 +54,6 @@ export function buildTools(wallet: string) {
     faf_requests: createFafRequestsTool(wallet),
     faf_cancel_unstake: createFafCancelUnstakeTool(wallet),
     faf_tier: createFafTierTool(wallet),
+    place_trigger_order: createPlaceTriggerOrderTool(wallet),
   };
 }

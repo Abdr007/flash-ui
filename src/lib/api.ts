@@ -460,12 +460,12 @@ export async function enrichTradeWithQuote(trade: TradeObject): Promise<TradeObj
       };
     }
 
-    // ---- Limit order gate (defense-in-depth — parser rejects first) ----
-    if (trade.order_type === "limit" || trade.limit_price) {
+    // ---- Limit entry orders not supported (trigger orders on existing positions ARE) ----
+    if (trade.order_type === "limit") {
       return {
         ...trade,
         status: "ERROR",
-        error: "Limit orders are not yet supported. Use market orders with TP/SL instead.",
+        error: "Limit entry orders are not supported. Open a market order, then use 'set tp/sl' to add trigger orders.",
       };
     }
 

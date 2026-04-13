@@ -434,12 +434,11 @@ function parseSingleIntent(input: string): ParseResult {
   cleaned = cleaned.replace(/\d+(?:\.\d+)?\s*%\s*(?:tp|take\s*profit|sl|stop\s*loss)/gi, "");
   cleaned = cleaned.replace(/\b(?:tp|take\s*profit|sl|stop\s*loss)\s+(?:at\s+)?\d+(?:\.\d+)?\s*%/gi, "");
 
-  // Step 3: Limit order gate — REJECT IMMEDIATELY at parse time
+  // Step 3: "limit" keyword → pass to AI (AI knows about trigger orders and can explain)
   if (/\blimit\b/i.test(cleaned)) {
     return {
       type: "unknown",
       intent: { type: "QUERY", raw: trimmed },
-      // Parser rejects — this message will be shown to user via AI fallback
     };
   }
   // Strip explicit "market" keyword (it's the default, no-op)
