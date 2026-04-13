@@ -441,7 +441,8 @@ export async function enrichTradeWithQuote(trade: TradeObject): Promise<TradeObj
       };
     }
 
-    const entry = priceData.price;
+    // For limit orders, use the limit price as entry (that's where the order triggers)
+    const entry = trade.limit_price && trade.order_type === "limit" ? trade.limit_price : priceData.price;
     const collateral = trade.collateral_usd;
     const leverage = trade.leverage;
     const size = collateral * leverage;
