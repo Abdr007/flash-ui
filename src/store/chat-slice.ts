@@ -535,6 +535,9 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
         // Pass TP/SL through — validated by firewall
         take_profit_price: typeof rawTrade.take_profit_price === "number" ? rawTrade.take_profit_price : null,
         stop_loss_price: typeof rawTrade.stop_loss_price === "number" ? rawTrade.stop_loss_price : null,
+        // Pass limit order fields through
+        order_type: typeof rawTrade.order_type === "string" ? (rawTrade.order_type as "MARKET" | "LIMIT") : undefined,
+        limit_price: typeof rawTrade.limit_price === "number" ? rawTrade.limit_price : undefined,
       };
 
       // Update context memory
