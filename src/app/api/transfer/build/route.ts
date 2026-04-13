@@ -61,8 +61,8 @@ const TRANSFERS_ENABLED = process.env.TRANSFERS_ENABLED !== "false";
 
 // SOL transfers: NO compute budget instructions = absolute minimum fee (5000 lamports base only)
 // SPL transfers: need CU budget for token program + ATA creation
-const SPL_COMPUTE_UNITS = 80_000;
-const SPL_PRIORITY_FEE_MICROLAMPORTS = 100; // 100 µL/CU — near-zero but nonzero for ordering
+const SPL_COMPUTE_UNITS = 100_000; // ATA creation + transfer + compute budget
+const SPL_PRIORITY_FEE_MICROLAMPORTS = 1_000; // 1000 µL/CU — reliable landing even during congestion
 const MAX_SAFE_RAW_AMOUNT = BigInt("9223372036854775807"); // 2^63 - 1
 
 /**
@@ -208,7 +208,10 @@ export async function POST(req: NextRequest) {
       }
 
       // Get sender ATA + verify balance (Token2022-aware)
-      const senderAta = await getAssociatedTokenAddress(mintPubkey, senderPubkey, false, tokenProgramId);
+      // Pass tokenProgramId to getAssociatedTokenAddress for Token2022 compatibility
+      const senderAta = await getAssociatedTokenAddress(
+        mintPubkey, senderPubkey, false, tokenProgramId,
+      );
       try {
         const senderAccount = await getAccount(connection, senderAta, undefined, tokenProgramId);
 
@@ -234,11 +237,22 @@ export async function POST(req: NextRequest) {
       }
 
       // Get/create recipient ATA (Token2022-aware)
-      const recipientAta = await getAssociatedTokenAddress(mintPubkey, recipientPubkey, false, tokenProgramId);
+      const recipientAta = await getAssociatedTokenAddress(
+        mintPubkey, recipientPubkey, false, tokenProgramId,
+      );
       const recipientAtaInfo = await connection.getAccountInfo(recipientAta);
+      const needsAtaCreation = !recipientAtaInfo;
 
-      // Idempotent ATA creation — succeeds even if ATA already exists (race-safe)
-      if (!recipientAtaInfo) {
+      // If recipient needs ATA creation, verify sender has enough SOL for rent (~0.002 SOL)
+      if (needsAtaCreation) {
+        const senderSolBalance = await connection.getBalance(senderPubkey);
+        const rentNeeded = 2_039_280 + 5000; // ATA rent-exempt minimum + base fee
+        if (senderSolBalance < rentNeeded) {
+          return NextResponse.json({
+            error: `Insufficient SOL for account creation. Need ~0.002 SOL for recipient's token account rent.`,
+          }, { status: 400 });
+        }
+        // Idempotent ATA creation — succeeds even if ATA already exists (race-safe)
         instructions.push(
           createAssociatedTokenAccountIdempotentInstruction(
             senderPubkey,
