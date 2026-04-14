@@ -43,9 +43,9 @@ export default function SystemStatus() {
             </linearGradient>
           </defs>
         </svg>
-        <div className="flex flex-col leading-[1.1]">
-          <span className="text-[12px] font-extrabold tracking-[0.15em] text-white italic">FLASH</span>
-          <span className="text-[8px] font-bold tracking-[0.25em] text-white italic">TERMINAL</span>
+        <div className="flex flex-col leading-[1.15]">
+          <span className="text-[13px] font-extrabold tracking-[0.12em] text-white italic">FLASH</span>
+          <span className="text-[13px] font-extrabold tracking-[0.12em] text-white italic">TERMINAL</span>
         </div>
       </div>
 
