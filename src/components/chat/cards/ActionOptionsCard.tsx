@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import type { ToolOutput } from "./types";
+import { ToolError } from "./shared";
 
 const ActionOptionsCard = memo(function ActionOptionsCard({
   output,
@@ -11,7 +12,7 @@ const ActionOptionsCard = memo(function ActionOptionsCard({
   onAction?: (cmd: string) => void;
 }) {
   const data = output.data as Record<string, unknown> | null;
-  if (!data) return null;
+  if (!data) return <ToolError toolName="options" error="No options available" />;
 
   const title = String(data.title ?? "");
   const options = (data.options ?? []) as { label: string; intent: string; description?: string }[];

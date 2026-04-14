@@ -70,8 +70,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      style={{ height: "100dvh" }}
+      data-theme="dark"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      style={{ height: "100dvh", colorScheme: "dark" }}
     >
       <body className="h-full">{children}</body>
     </html>

@@ -281,7 +281,8 @@ const TradePreviewCard = memo(function TradePreviewCard({
   // Trade was submitted and completed successfully — unified success card.
   if (tradeCompleted && (tradeStatus === "SUCCESS" || !activeTrade)) {
     const sig = activeTrade?.tx_signature ?? capturedSig;
-    return <TxSuccessCard label="Trade executed" signature={sig} variant="long" />;
+    const successVariant = hookSide === "SHORT" ? "short" : "long";
+    return <TxSuccessCard label="Trade executed" signature={sig} variant={successVariant} />;
   }
 
   // Trade errored

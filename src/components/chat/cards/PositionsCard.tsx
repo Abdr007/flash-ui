@@ -81,6 +81,14 @@ const PositionsCard = memo(function PositionsCard({ output }: { output: ToolOutp
                       <span>Mark {formatPrice(mark)}</span>
                     </>
                   )}
+                  {Number(pos.liquidation_price ?? 0) > 0 && (
+                    <>
+                      <span>·</span>
+                      <span style={{ color: "var(--color-accent-short)" }}>
+                        Liq {formatPrice(Number(pos.liquidation_price))}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="text-right shrink-0">

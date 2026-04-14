@@ -58,7 +58,7 @@ export const EarnPoolsCard = memo(function EarnPoolsCard({
           <div className="text-right">
             <div
               className="text-[14px] num font-bold"
-              style={{ color: p.apy > 0 ? "#2CE800" : "var(--color-text-secondary)" }}
+              style={{ color: p.apy > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}
             >
               {p.apy >= 0.01 ? `${p.apy}%` : "—"}{" "}
               <span className="text-[10px] font-normal text-text-tertiary">APY</span>

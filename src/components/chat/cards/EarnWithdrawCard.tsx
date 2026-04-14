@@ -106,7 +106,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
         </div>
         <span
           className="text-[14px] num font-bold"
-          style={{ color: apy > 0 ? "#2CE800" : "var(--color-text-tertiary)" }}
+          style={{ color: apy > 0 ? "var(--color-accent-long)" : "var(--color-text-tertiary)" }}
         >
           {apy}% APY
         </span>

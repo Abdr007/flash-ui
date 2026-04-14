@@ -28,7 +28,7 @@ export const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { o
         style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
       >
         <span className="text-[14px] font-semibold text-text-primary">My Earn Positions</span>
-        <span className="text-[14px] num font-bold" style={{ color: "#2CE800" }}>
+        <span className="text-[14px] num font-bold" style={{ color: "var(--color-accent-long)" }}>
           {formatUsd(totalValue)}
         </span>
       </div>
@@ -48,7 +48,7 @@ export const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { o
             <div className="text-[14px] num font-semibold text-text-primary">{formatUsd(safe(p.valueUsd))}</div>
             <div
               className="text-[11px] num mt-0.5"
-              style={{ color: p.apy > 0 ? "#2CE800" : "var(--color-text-tertiary)" }}
+              style={{ color: p.apy > 0 ? "var(--color-accent-long)" : "var(--color-text-tertiary)" }}
             >
               {p.apy}% APY
             </div>
