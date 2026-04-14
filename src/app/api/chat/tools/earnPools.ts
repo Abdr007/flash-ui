@@ -10,6 +10,55 @@ import type { ToolResponse } from "./shared";
 import { logToolCall, logToolResult } from "./shared";
 import { makeRequestId } from "@/lib/tool-dedup";
 
+// FLP/sFLP symbol → pool alias resolver
+// Handles: "flp.1", "sflp.1", "FLP.1", "sFLP.1", "flp1", "sflp5", etc.
+const FLP_TO_POOL: Record<string, string> = {
+  "flp.1": "crypto",
+  "sflp.1": "crypto",
+  flp1: "crypto",
+  sflp1: "crypto",
+  "flp.2": "gold",
+  "sflp.2": "gold",
+  flp2: "gold",
+  sflp2: "gold",
+  "flp.3": "defi",
+  "sflp.3": "defi",
+  flp3: "defi",
+  sflp3: "defi",
+  "flp.4": "meme",
+  "sflp.4": "meme",
+  flp4: "meme",
+  sflp4: "meme",
+  "flp.5": "wif",
+  "sflp.5": "wif",
+  flp5: "wif",
+  sflp5: "wif",
+  "flp.7": "trump",
+  "sflp.7": "trump",
+  flp7: "trump",
+  sflp7: "trump",
+  "flp.8": "ore",
+  "sflp.8": "ore",
+  flp8: "ore",
+  sflp8: "ore",
+  "flp.x": "equity",
+  "sflp.x": "equity",
+  flpx: "equity",
+  sflpx: "equity",
+  "flp.r": "remora",
+  "sflp.r": "remora",
+};
+
+/** Resolve pool alias from user input — handles names, FLP symbols, sFLP symbols */
+export function resolvePoolAlias(input: string): string | null {
+  const lower = (input ?? "").toLowerCase().trim();
+  // Direct pool name match
+  const KNOWN = ["crypto", "gold", "defi", "meme", "community", "wif", "trump", "fart", "ore", "equity"];
+  if (KNOWN.includes(lower)) return lower;
+  // FLP/sFLP symbol match
+  return FLP_TO_POOL[lower] ?? null;
+}
+
 interface PoolInfo {
   name: string;
   symbol: string;
@@ -297,13 +346,13 @@ export function createEarnWithdrawTool(wallet: string) {
         };
       }
 
-      const poolLower = (pool ?? "").toLowerCase();
-      const flpSymbol = POOL_FLP_MAP[poolLower];
+      const resolved = resolvePoolAlias(pool) ?? (pool ?? "").toLowerCase();
+      const flpSymbol = POOL_FLP_MAP[resolved];
       if (!flpSymbol) {
         return {
           status: "error",
           data: null,
-          error: `Unknown pool: ${pool}. Valid: ${Object.keys(POOL_FLP_MAP).join(", ")}`,
+          error: `Unknown pool: ${pool}. Valid: crypto, defi, gold, meme, wif, fart, ore, equity (or FLP.1, FLP.2, etc.)`,
           request_id: requestId,
           latency_ms: 0,
         };
@@ -326,8 +375,8 @@ export function createEarnWithdrawTool(wallet: string) {
           data: {
             type: "earn_withdraw_preview",
             action: "earn_withdraw",
-            pool: poolLower,
-            pool_name: POOL_NAMES_W[poolLower] ?? pool,
+            pool: resolved,
+            pool_name: POOL_NAMES_W[resolved] ?? pool,
             percent,
             flp_price: Math.round(flpPrice * 10000) / 10000,
             apy: Math.round(apy * 10) / 10,
@@ -386,8 +435,8 @@ export function createConvertFlpTool(wallet: string) {
         };
       }
 
-      const poolLower = (pool ?? "").toLowerCase();
-      const flpSymbol = CONVERT_POOL_MAP[poolLower];
+      const resolved = resolvePoolAlias(pool) ?? (pool ?? "").toLowerCase();
+      const flpSymbol = CONVERT_POOL_MAP[resolved];
       if (!flpSymbol) {
         return {
           status: "error",
@@ -402,8 +451,8 @@ export function createConvertFlpTool(wallet: string) {
         status: "success",
         data: {
           type: "convert_flp_preview",
-          pool: poolLower,
-          pool_display: poolLower.charAt(0).toUpperCase() + poolLower.slice(1) + " Pool",
+          pool: resolved,
+          pool_display: resolved.charAt(0).toUpperCase() + resolved.slice(1) + " Pool",
           flp_symbol: flpSymbol,
           amount,
           description: `Convert ${amount} ${flpSymbol} → s${flpSymbol} (auto-compounding)`,

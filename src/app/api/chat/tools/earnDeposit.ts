@@ -9,6 +9,7 @@ import { z } from "zod";
 import type { ToolResponse } from "./shared";
 import { logToolCall, logToolResult } from "./shared";
 import { makeRequestId } from "@/lib/tool-dedup";
+import { resolvePoolAlias } from "./earnPools";
 
 const VALID_POOLS = ["crypto", "defi", "gold", "meme", "community", "wif", "fart", "trump", "ore", "equity"];
 
@@ -43,12 +44,12 @@ export function createEarnDepositTool(wallet: string) {
       const requestId = makeRequestId();
 
       try {
-        const poolLower = pool.toLowerCase();
+        const poolLower = resolvePoolAlias(pool) ?? pool.toLowerCase();
         if (!VALID_POOLS.includes(poolLower)) {
           return {
             status: "error",
             data: null,
-            error: `Unknown pool: ${pool}. Valid: ${VALID_POOLS.join(", ")}`,
+            error: `Unknown pool: ${pool}. Valid: ${VALID_POOLS.join(", ")} (or FLP.1, FLP.2, etc.)`,
             request_id: requestId,
             latency_ms: 0,
           };
