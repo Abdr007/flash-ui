@@ -23,10 +23,32 @@ export default function SystemStatus() {
       {/* Brand — left */}
       <div className="flex items-center gap-2.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/ft-logo.svg" alt="Flash Terminal" width={24} height={24} className="rounded-full" />
-        <span className="text-[14px] font-bold tracking-tight" style={{ color: "rgba(255,255,255,0.85)" }}>
-          Flash Terminal
-        </span>
+        <img src="/ft-logo.svg" alt="Flash Trade" width={28} height={28} />
+        <svg width="90" height="24" viewBox="0 0 90 24" fill="none" aria-label="Flash Trade">
+          <text
+            x="0"
+            y="13"
+            fill="white"
+            fontSize="13"
+            fontWeight="800"
+            fontFamily="var(--font-geist-sans), sans-serif"
+            letterSpacing="0.5"
+          >
+            FLASH
+          </text>
+          <text
+            x="0"
+            y="23"
+            fill="white"
+            fontSize="9"
+            fontWeight="600"
+            fontFamily="var(--font-geist-sans), sans-serif"
+            letterSpacing="1.5"
+            opacity="0.5"
+          >
+            TRADE
+          </text>
+        </svg>
       </div>
 
       {/* Wallet — right */}
