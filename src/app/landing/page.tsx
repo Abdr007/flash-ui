@@ -254,7 +254,7 @@ function Counter({ end, suffix = "" }: { end: number; suffix?: string }) {
 // ─── Landing Page ────────────────────────────────────────────────────────────
 export default function LandingPage() {
   return (
-    <div className="bg-bg-root text-text-primary min-h-screen overflow-x-hidden selection:bg-[#33c9a1]/20">
+    <div className="landing-scroll bg-bg-root text-text-primary min-h-screen overflow-x-hidden selection:bg-[#33c9a1]/20">
       {/* ═══ HERO ═══ */}
       <section className="relative min-h-screen flex flex-col items-center justify-center px-5 sm:px-8 overflow-hidden">
         <div className="absolute inset-0 dot-grid-full" style={{ opacity: 0.35 }} />
