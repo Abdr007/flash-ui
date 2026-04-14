@@ -15,6 +15,8 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const { signTransaction, connected, publicKey } = useWallet();
   const unmountedRef = useRef(false);
+  const [selectedPct, setSelectedPct] = useState<number | null>(null);
+  const [customPct, setCustomPct] = useState("");
   useEffect(
     () => () => {
       unmountedRef.current = true;
@@ -126,12 +128,58 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
     }
   }
 
+  const effectivePct = customPct ? Number(customPct) : selectedPct;
+  const pctValid = effectivePct != null && effectivePct > 0 && effectivePct <= 100;
+
   return (
     <div className="w-full max-w-[460px] glass-card overflow-hidden">
       <div className="px-5 py-4">
         <div className="text-[11px] text-text-tertiary uppercase tracking-wider mb-1">Convert FLP → sFLP</div>
         <div className="text-[16px] font-semibold text-text-primary">{poolDisplay}</div>
         <div className="text-[13px] text-text-secondary mt-1">{description}</div>
+      </div>
+
+      {/* Amount selector */}
+      <div className="px-5 pb-4">
+        <div className="text-[11px] text-text-tertiary mb-2">How much to convert?</div>
+        <div className="flex gap-2">
+          {[25, 50, 75, 100].map((pct) => (
+            <button
+              key={pct}
+              onClick={() => {
+                setSelectedPct(pct);
+                setCustomPct("");
+              }}
+              className="flex-1 py-2 rounded-lg text-[13px] font-semibold cursor-pointer transition-all duration-150"
+              style={{
+                background: selectedPct === pct && !customPct ? "var(--color-accent-long)" : "rgba(255,255,255,0.04)",
+                color: selectedPct === pct && !customPct ? "#000" : "var(--color-text-secondary)",
+                border:
+                  selectedPct === pct && !customPct
+                    ? "1px solid var(--color-accent-long)"
+                    : "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              {pct}%
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            type="number"
+            min="1"
+            max="100"
+            placeholder="Custom %"
+            value={customPct}
+            onChange={(e) => {
+              setCustomPct(e.target.value);
+              setSelectedPct(null);
+            }}
+            className="flex-1 py-2 px-3 rounded-lg text-[13px] num bg-transparent text-text-primary outline-none"
+            style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
+          />
+          <span className="text-[12px] text-text-tertiary">%</span>
+        </div>
       </div>
 
       {status === "error" && errorMsg && (
@@ -146,10 +194,16 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
       <div className="flex border-t border-border-subtle">
         <button
           onClick={handleConvert}
-          disabled={status === "executing"}
+          disabled={status === "executing" || !pctValid}
           className="btn-primary flex-1 py-3 text-[13px] font-bold tracking-wide cursor-pointer disabled:opacity-25 disabled:cursor-default rounded-none rounded-bl-xl"
         >
-          {status === "executing" ? "Converting..." : status === "error" ? "Retry" : "Convert to sFLP"}
+          {status === "executing"
+            ? "Converting..."
+            : status === "error"
+              ? "Retry"
+              : !pctValid
+                ? "Select amount"
+                : `Convert ${effectivePct}% to sFLP`}
         </button>
       </div>
     </div>
