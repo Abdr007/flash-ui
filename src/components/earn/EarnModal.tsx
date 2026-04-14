@@ -228,7 +228,7 @@ export default function EarnModal({
 
       // Compute budget (matching CLI)
       const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
-      const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000 });
+      const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100 });
       const allIxs = [cuLimit, cuPrice, ...result.instructions];
 
       // Resolve ALTs

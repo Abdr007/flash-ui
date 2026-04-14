@@ -11,7 +11,7 @@ import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, safeErrorRe
 
 const STRIP_PROGRAMS = new Set(["L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95"]);
 const FLASH_CU_LIMIT = 420_000;
-const FLASH_CU_PRICE = 10_000;
+const FLASH_CU_PRICE = 100; // match flash.trade — minimal priority fee
 const MAX_BODY_BYTES = 10_000; // 10KB
 
 // Rate limit: 20 req/min per IP

@@ -35,7 +35,7 @@ import {
 
 const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 const COMPUTE_UNITS = 220_000;
-const PRIORITY_FEE = 50_000;
+const PRIORITY_FEE = 100; // match flash.trade — minimal priority fee
 const MAX_BODY_BYTES = 4_000;
 
 // Rate limit: 15 req/min per IP (staking is infrequent)

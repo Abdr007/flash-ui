@@ -156,7 +156,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
             );
 
             const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
-            const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000 });
+            const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100 });
             const allIxs = [cuLimit, cuPrice, ...result.instructions];
 
             // Use Address Lookup Tables from pool config (prevents "encoding overruns" error)

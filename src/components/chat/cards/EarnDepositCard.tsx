@@ -52,7 +52,7 @@ export const EarnDepositCard = memo(function EarnDepositCard({ output }: { outpu
       const result = await buildEarnDeposit(connection, walletObj as never, amountUsdc, poolAlias, flpPrice, 0.75);
 
       const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
-      const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000 });
+      const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100 });
       const allIxs = [cuLimit, cuPrice, ...result.instructions];
 
       const altAccounts = [];

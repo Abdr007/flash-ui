@@ -21,7 +21,7 @@ const STRIP_PROGRAMS = new Set(["L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95"]);
 
 // Match Flash Trade website exactly
 const FLASH_CU_LIMIT = 420_000;
-const FLASH_CU_PRICE = 10_000; // microlamports (0.01 lamports/CU)
+const FLASH_CU_PRICE = 100; // microlamports — match flash.trade (minimal priority fee)
 
 export async function cleanFlashTransaction(
   txBase64: string,
