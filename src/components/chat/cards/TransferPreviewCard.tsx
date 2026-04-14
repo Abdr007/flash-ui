@@ -655,12 +655,16 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
         )}
         <div className="flex items-center justify-between py-1.5">
           <span className="text-[12px] text-text-tertiary">Network Fee</span>
-          <span className="text-[12px] num text-text-secondary">{data.total_fee_sol.toFixed(6)} SOL</span>
+          <span className="text-[12px] num text-text-secondary">
+            {(Number(data.total_fee_sol) || 0).toFixed(6)} SOL
+          </span>
         </div>
         {data.needs_ata && (
           <div className="flex items-center justify-between py-1.5">
             <span className="text-[12px] text-text-tertiary">Account Creation</span>
-            <span className="text-[12px] num text-text-secondary">~{data.ata_fee_sol.toFixed(4)} SOL</span>
+            <span className="text-[12px] num text-text-secondary">
+              ~{(Number(data.ata_fee_sol) || 0).toFixed(4)} SOL
+            </span>
           </div>
         )}
       </div>

@@ -14,10 +14,12 @@ export const EarnDepositCard = memo(function EarnDepositCard({ output }: { outpu
   );
   const [errorMsg, setErrorMsg] = useState("");
   const [txSig, setTxSig] = useState("");
+  const [cancelled, setCancelled] = useState(false);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const { connection } = useConnection();
   const { signTransaction, connected } = useWallet();
 
+  if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Deposit cancelled.</div>;
   if (!d) return <ToolError toolName="earn_deposit" error="No deposit data returned" />;
 
   const poolName = String(d.pool_name ?? d.pool ?? "");
@@ -200,6 +202,12 @@ export const EarnDepositCard = memo(function EarnDepositCard({ output }: { outpu
             style={{ color: "#000", background: "var(--color-accent-lime)" }}
           >
             {connected ? `Deposit $${amountUsdc}` : "Connect Wallet"}
+          </button>
+          <button
+            onClick={() => setCancelled(true)}
+            className="btn-secondary px-6 py-3 text-[13px] text-text-tertiary border-l border-border-subtle cursor-pointer hover:text-text-secondary rounded-none rounded-br-xl"
+          >
+            Cancel
           </button>
         </div>
       )}

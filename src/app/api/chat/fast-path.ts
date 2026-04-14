@@ -245,10 +245,8 @@ function validate(
   const feeRate = 0.0008; // 8 bps — Flash Trade base fee
   const fees = positionSize * feeRate;
   const mmr = Math.min(0.005, 0.5 / trade.leverage); // scales for high leverage
-  const collateralAfterFees = trade.collateral - fees;
-  const marginRatio = positionSize > 0 ? collateralAfterFees / positionSize : 0;
   const liquidationPrice =
-    trade.side === "LONG" ? entryPrice * (1 - marginRatio + mmr) : entryPrice * (1 + marginRatio - mmr);
+    trade.side === "LONG" ? entryPrice * (1 - 1 / trade.leverage + mmr) : entryPrice * (1 + 1 / trade.leverage - mmr);
 
   if (!Number.isFinite(liquidationPrice) || liquidationPrice <= 0) return { valid: false };
 

@@ -66,7 +66,7 @@ const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutp
     return () => {
       cancelled = true;
     };
-  }, [walletAddress, storePrices]);
+  }, [walletAddress]);  
 
   if (!d) return <ToolError toolName="get_portfolio" error="No portfolio data returned" />;
 

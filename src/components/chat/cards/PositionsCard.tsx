@@ -19,8 +19,10 @@ const PositionsCard = memo(function PositionsCard({ output }: { output: ToolOutp
   let totalPnl = 0;
   let totalSize = 0;
   for (const pos of data) {
-    totalPnl += Number(pos.unrealized_pnl ?? 0);
-    totalSize += Number(pos.size_usd ?? 0);
+    const pnl = Number(pos.unrealized_pnl ?? 0);
+    const size = Number(pos.size_usd ?? 0);
+    if (Number.isFinite(pnl)) totalPnl += pnl;
+    if (Number.isFinite(size)) totalSize += size;
   }
 
   return (

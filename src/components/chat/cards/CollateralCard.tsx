@@ -15,6 +15,7 @@ import type { ToolOutput } from "./types";
 export const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
   const [postExecData, setPostExecData] = useState<Record<string, unknown> | null>(null);
+  const [cancelled, setCancelled] = useState(false);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const refreshPositions = useFlashStore((s) => s.refreshPositions);
   useWallet(); // ensure wallet context is available
@@ -100,6 +101,7 @@ export const CollateralCard = memo(function CollateralCard({ output }: { output:
     },
   });
 
+  if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Collateral change cancelled.</div>;
   if (!d) return <ToolError toolName="collateral" error="No collateral data returned" />;
 
   if (status === "success") {
@@ -214,7 +216,7 @@ export const CollateralCard = memo(function CollateralCard({ output }: { output:
         </div>
       )}
 
-      {/* Execute button */}
+      {/* Execute + Cancel buttons */}
       <div className="flex border-t border-border-subtle">
         <button
           onClick={handleExecute}
@@ -231,6 +233,14 @@ export const CollateralCard = memo(function CollateralCard({ output }: { output:
                 ? "Confirming..."
                 : `Confirm ${isAdd ? "Add" : "Remove"}`}
         </button>
+        {status === "preview" && (
+          <button
+            onClick={() => setCancelled(true)}
+            className="btn-secondary px-6 py-3 text-[13px] text-text-tertiary border-l border-border-subtle cursor-pointer hover:text-text-secondary rounded-none rounded-br-xl"
+          >
+            Cancel
+          </button>
+        )}
       </div>
     </div>
   );

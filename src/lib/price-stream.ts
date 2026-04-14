@@ -116,7 +116,10 @@ export class PriceStream {
       // 1. Must be a finite positive number
       if (!Number.isFinite(priceNum) || priceNum <= 0) continue;
 
-      // 2. Timestamp must be newer than last accepted update
+      // 2. Reject stale data (>60s old)
+      if (timestamp < Date.now() - 60_000) continue;
+
+      // 3. Timestamp must be newer than last accepted update
       const lastTs = this.lastTimestamps.get(symbol) ?? 0;
       if (timestamp <= lastTs) continue;
 

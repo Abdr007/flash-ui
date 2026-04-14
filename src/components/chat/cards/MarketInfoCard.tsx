@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { Cell, ToolError } from "./shared";
 import type { ToolOutput } from "./types";
+import { formatLeverage } from "@/lib/format";
 
 const MarketInfoCard = memo(function MarketInfoCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
@@ -12,8 +13,8 @@ const MarketInfoCard = memo(function MarketInfoCard({ output }: { output: ToolOu
       <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
         <Cell label="Market" value={String(d.market ?? "")} />
         <Cell label="Pool" value={String(d.pool ?? "")} />
-        <Cell label="Default Lev" value={`${d.default_leverage ?? "—"}x`} />
-        <Cell label="Max Lev" value={`${d.max_leverage ?? "—"}x`} />
+        <Cell label="Default Lev" value={formatLeverage(Number(d.default_leverage))} />
+        <Cell label="Max Lev" value={formatLeverage(Number(d.max_leverage))} />
       </div>
     </div>
   );

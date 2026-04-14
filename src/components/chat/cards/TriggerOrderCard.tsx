@@ -1,15 +1,16 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
 import { Cell, ToolError, TxSuccessCard } from "./shared";
 import type { ToolOutput } from "./types";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, formatUsd } from "@/lib/format";
 
 export const TriggerOrderCard = memo(function TriggerOrderCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
+  const [cancelled, setCancelled] = useState(false);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const refreshPositions = useFlashStore((s) => s.refreshPositions);
   useWallet();
@@ -24,7 +25,8 @@ export const TriggerOrderCard = memo(function TriggerOrderCard({ output }: { out
 
   const isTP = orderType === "take_profit";
   const accent = isTP ? "var(--color-accent-long)" : "var(--color-accent-short)";
-  const distance = entryPrice > 0 ? (Math.abs(triggerPrice - entryPrice) / entryPrice) * 100 : 0;
+  const rawDist = entryPrice > 0 ? (Math.abs(triggerPrice - entryPrice) / entryPrice) * 100 : 0;
+  const distance = Number.isFinite(rawDist) ? rawDist : 0;
 
   const {
     status,
@@ -53,6 +55,7 @@ export const TriggerOrderCard = memo(function TriggerOrderCard({ output }: { out
     },
   });
 
+  if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Order cancelled.</div>;
   if (!d) return <ToolError toolName="place_trigger_order" error={output.error} />;
 
   if (status === "success") {
@@ -103,7 +106,7 @@ export const TriggerOrderCard = memo(function TriggerOrderCard({ output }: { out
           value={`${distance.toFixed(1)}%`}
           color={distance < 5 ? "var(--color-accent-warn)" : undefined}
         />
-        <Cell label="Position Size" value={`$${sizeUsd.toFixed(2)}`} />
+        <Cell label="Position Size" value={formatUsd(sizeUsd)} />
       </div>
 
       <div className="flex border-t border-border-subtle">
@@ -122,6 +125,14 @@ export const TriggerOrderCard = memo(function TriggerOrderCard({ output }: { out
                 : "Confirming..."
             : `Set ${isTP ? "Take Profit" : "Stop Loss"}`}
         </button>
+        {status === "preview" && (
+          <button
+            onClick={() => setCancelled(true)}
+            className="btn-secondary px-6 py-3 text-[13px] text-text-tertiary border-l border-border-subtle cursor-pointer hover:text-text-secondary rounded-none rounded-br-xl"
+          >
+            Cancel
+          </button>
+        )}
       </div>
     </div>
   );

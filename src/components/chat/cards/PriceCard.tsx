@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { TokenIcon, CRYPTO_SYMBOLS, COMMODITY_SYMBOLS, SectionHeader, PriceSection } from "./shared";
+import { TokenIcon, CRYPTO_SYMBOLS, COMMODITY_SYMBOLS, SectionHeader, PriceSection, ToolError } from "./shared";
 import type { PriceRow } from "./shared";
 import type { ToolOutput } from "./types";
 import { useFlashStore } from "@/store";
@@ -99,7 +99,7 @@ const PriceCard = memo(function PriceCard({ toolName, output }: { toolName: stri
       </div>
     );
   }
-  return null;
+  return <ToolError toolName={toolName} error="No price data available" />;
 });
 
 export { PriceCard };

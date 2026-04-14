@@ -3,6 +3,7 @@
 import { memo } from "react";
 import type { ToolOutput } from "./types";
 import { ToolError } from "./shared";
+import { formatUsd, safe } from "@/lib/format";
 
 // ═══ EARN POSITIONS CARD — user's deposits ═══
 export const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { output: ToolOutput }) {
@@ -28,7 +29,7 @@ export const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { o
       >
         <span className="text-[14px] font-semibold text-text-primary">My Earn Positions</span>
         <span className="text-[14px] num font-bold" style={{ color: "#2CE800" }}>
-          ${totalValue.toFixed(2)}
+          {formatUsd(totalValue)}
         </span>
       </div>
       {positions.map((p, i) => (
@@ -44,7 +45,7 @@ export const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { o
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[14px] num font-semibold text-text-primary">${p.valueUsd.toFixed(2)}</div>
+            <div className="text-[14px] num font-semibold text-text-primary">{formatUsd(safe(p.valueUsd))}</div>
             <div
               className="text-[11px] num mt-0.5"
               style={{ color: p.apy > 0 ? "#2CE800" : "var(--color-text-tertiary)" }}

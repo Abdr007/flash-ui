@@ -803,19 +803,23 @@ export async function POST(req: Request) {
   const walletAddress: string = typeof body.wallet_address === "string" ? body.wallet_address : "";
   const context = typeof body.context === "object" && body.context !== null ? body.context : {};
 
-  // Wallet impersonation check — if auth token is present, wallet must match
+  // Wallet auth — require valid token when wallet_address is present
   if (walletAddress) {
     const authHeader = req.headers.get("authorization");
-    if (authHeader) {
-      const { verifyAuthToken } = await import("@/lib/wallet-auth");
-      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
-      const payload = verifyAuthToken(token);
-      if (payload && payload.wallet.toLowerCase() !== walletAddress.toLowerCase()) {
-        return new Response(JSON.stringify({ error: "Wallet mismatch: authenticated wallet does not match request" }), {
-          status: 403,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authentication required for wallet operations" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const { verifyAuthToken } = await import("@/lib/wallet-auth");
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+    const payload = verifyAuthToken(token);
+    if (!payload || payload.wallet.toLowerCase() !== walletAddress.toLowerCase()) {
+      return new Response(JSON.stringify({ error: "Wallet mismatch: authenticated wallet does not match request" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
     }
   }
 

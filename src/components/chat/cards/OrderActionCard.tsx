@@ -23,7 +23,7 @@ export const OrderActionCard = memo(function OrderActionCard({ output }: { outpu
   const oldPrice = Number(d?.old_price ?? d?.price ?? 0);
   const newPrice = Number(d?.new_limit_price ?? 0);
 
-  const [step, setStep] = useState<"preview" | "cancelling" | "placing" | "success" | "error">("preview");
+  const [step, setStep] = useState<"preview" | "cancelling" | "placing" | "success" | "error" | "dismissed">("preview");
   const [txSig, setTxSig] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -61,6 +61,7 @@ export const OrderActionCard = memo(function OrderActionCard({ output }: { outpu
     }
   }, [step, walletAddress, signTransaction, cancelTx, newOrderTx, isEdit, connection]);
 
+  if (step === "dismissed") return <div className="text-[13px] text-text-tertiary py-2">Action cancelled.</div>;
   if (!d) return <ToolError toolName="order_action" error={output.error} />;
 
   if (step === "success") {
@@ -146,6 +147,14 @@ export const OrderActionCard = memo(function OrderActionCard({ output }: { outpu
                 ? "Confirm Edit (2 signatures)"
                 : "Confirm Cancel"}
         </button>
+        {step === "preview" && (
+          <button
+            onClick={() => setStep("dismissed")}
+            className="btn-secondary px-6 py-3 text-[13px] text-text-tertiary border-l border-border-subtle cursor-pointer hover:text-text-secondary rounded-none rounded-br-xl"
+          >
+            Dismiss
+          </button>
+        )}
       </div>
     </div>
   );

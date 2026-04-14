@@ -3,7 +3,7 @@
 import { memo } from "react";
 import { ToolError } from "./shared";
 import type { ToolOutput } from "./types";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, formatUsd } from "@/lib/format";
 
 interface Order {
   market: string;
@@ -75,8 +75,8 @@ export const OrdersCard = memo(function OrdersCard({ output }: { output: ToolOut
                 <div className="text-[14px] num font-semibold" style={{ color: "var(--color-accent-blue)" }}>
                   @ {formatPrice(order.price)}
                 </div>
-                {order.size_usd && (
-                  <div className="text-[11px] num text-text-tertiary">${order.size_usd.toFixed(2)}</div>
+                {order.size_usd != null && (
+                  <div className="text-[11px] num text-text-tertiary">{formatUsd(order.size_usd)}</div>
                 )}
               </div>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useRef } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import { useFlashStore } from "@/store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Cell, ToolError } from "./shared";
@@ -127,6 +127,13 @@ const FafCard = memo(function FafCard({
   const [txSig, setTxSig] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const lockRef = useRef(false);
+  const unmountedRef = useRef(false);
+  useEffect(
+    () => () => {
+      unmountedRef.current = true;
+    },
+    [],
+  );
 
   if (!data) return <ToolError toolName={toolName} error={output.error} />;
 
@@ -178,6 +185,7 @@ const FafCard = memo(function FafCard({
       let pollCount = 0;
       const start = Date.now();
       while (Date.now() - start < 45000) {
+        if (unmountedRef.current) break;
         try {
           const { value } = await conn.getSignatureStatuses([bJson.signature]);
           const s = value[0];
@@ -189,6 +197,7 @@ const FafCard = memo(function FafCard({
         } catch (e) {
           if (e instanceof Error && e.message.includes("failed on-chain")) throw e;
         }
+        if (unmountedRef.current) break;
         // Rebroadcast every other poll cycle to improve landing rate
         pollCount++;
         if (pollCount % 2 === 0) {

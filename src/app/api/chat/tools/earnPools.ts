@@ -258,6 +258,7 @@ const POOL_FLP_MAP: Record<string, string> = {
   fart: "FLP.7",
   ore: "FLP.8",
   equity: "FLP.x",
+  stable: "FLP.6",
 };
 
 const POOL_NAMES_W: Record<string, string> = {
@@ -271,6 +272,7 @@ const POOL_NAMES_W: Record<string, string> = {
   fart: "FART Pool",
   ore: "Ore Pool",
   equity: "Equity Pool",
+  stable: "Stable Pool",
 };
 
 export function createEarnWithdrawTool(wallet: string) {
