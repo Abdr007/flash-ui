@@ -15,7 +15,12 @@ import { createAddCollateralTool } from "./addCollateral";
 import { createRemoveCollateralTool } from "./removeCollateral";
 import { createReversePositionTool } from "./reversePosition";
 import { createEarnDepositTool } from "./earnDeposit";
-import { createEarnPoolsTool, createEarnPositionsTool, createEarnWithdrawTool } from "./earnPools";
+import {
+  createEarnPoolsTool,
+  createEarnPositionsTool,
+  createEarnWithdrawTool,
+  createConvertFlpTool,
+} from "./earnPools";
 import { createTransferPreviewTool } from "./transferPreview";
 import { createTransferHistoryTool } from "./transferHistory";
 import { createPlaceTriggerOrderTool } from "./placeTriggerOrder";
@@ -46,6 +51,7 @@ export function buildTools(wallet: string) {
     earn_pools: createEarnPoolsTool(wallet),
     earn_positions: createEarnPositionsTool(wallet),
     earn_withdraw: createEarnWithdrawTool(wallet),
+    convert_flp_to_sflp: createConvertFlpTool(wallet),
     transfer_preview: createTransferPreviewTool(wallet),
     transfer_history: createTransferHistoryTool(wallet),
     faf_dashboard: createFafDashboardTool(wallet),

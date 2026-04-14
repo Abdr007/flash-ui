@@ -201,3 +201,31 @@ export async function buildEarnWithdraw(
     poolConfig: pc,
   };
 }
+
+// ---- Convert FLP → sFLP (migrateFlp) ----
+
+export async function buildFlpToSflp(
+  connection: Connection,
+  wallet: Wallet,
+  amountFlp: number,
+  poolAlias: string,
+): Promise<EarnTxResult> {
+  const poolName = resolvePoolName(poolAlias);
+  if (!poolName) throw new Error(`Unknown pool: ${poolAlias}`);
+  if (!Number.isFinite(amountFlp) || amountFlp <= 0) throw new Error("Amount must be positive");
+
+  const pc = getPoolConfig(poolName);
+  const client = getClient(connection, wallet, poolName);
+
+  const nativeAmount = new BN(Math.floor(amountFlp * 1_000_000)); // FLP has 6 decimals
+  if (nativeAmount.isZero()) throw new Error("Amount too small");
+
+  const flpMint = pc.compoundingTokenMint;
+  const result = await client.migrateFlp(nativeAmount, flpMint, pc);
+
+  return {
+    instructions: result.instructions,
+    additionalSigners: result.additionalSigners,
+    poolConfig: pc,
+  };
+}

@@ -342,3 +342,75 @@ export function createEarnWithdrawTool(wallet: string) {
     },
   });
 }
+
+// ============================================
+// Tool: convert_flp_to_sflp
+// ============================================
+
+const CONVERT_POOL_MAP: Record<string, string> = {
+  crypto: "FLP.1",
+  gold: "FLP.2",
+  defi: "FLP.3",
+  meme: "FLP.4",
+  community: "FLP.4",
+  wif: "FLP.5",
+  trump: "FLP.7",
+  fart: "FLP.7",
+  ore: "FLP.8",
+  equity: "FLP.x",
+};
+
+export function createConvertFlpTool(wallet: string) {
+  return tool({
+    description:
+      "Convert FLP tokens to sFLP (auto-compounding staked FLP). " +
+      "Call when user says 'convert FLP to sFLP', 'stake my FLP', 'migrate FLP'.",
+    inputSchema: z
+      .object({
+        pool: z.string().describe("Pool name (crypto, defi, gold, meme, wif, fart, ore, equity)"),
+        amount: z.number().positive().describe("Amount of FLP tokens to convert"),
+      })
+      .strict(),
+    execute: async ({ pool, amount }): Promise<ToolResponse<unknown>> => {
+      const requestId = makeRequestId();
+      const start = Date.now();
+      logToolCall("convert_flp_to_sflp", requestId, wallet, { pool, amount });
+
+      if (!wallet) {
+        return {
+          status: "error",
+          data: null,
+          error: "Connect your wallet first.",
+          request_id: requestId,
+          latency_ms: 0,
+        };
+      }
+
+      const poolLower = (pool ?? "").toLowerCase();
+      const flpSymbol = CONVERT_POOL_MAP[poolLower];
+      if (!flpSymbol) {
+        return {
+          status: "error",
+          data: null,
+          error: `Unknown pool: ${pool}. Available: ${Object.keys(CONVERT_POOL_MAP).join(", ")}`,
+          request_id: requestId,
+          latency_ms: Date.now() - start,
+        };
+      }
+
+      return {
+        status: "success",
+        data: {
+          type: "convert_flp_preview",
+          pool: poolLower,
+          pool_display: poolLower.charAt(0).toUpperCase() + poolLower.slice(1) + " Pool",
+          flp_symbol: flpSymbol,
+          amount,
+          description: `Convert ${amount} ${flpSymbol} → s${flpSymbol} (auto-compounding)`,
+        },
+        request_id: requestId,
+        latency_ms: Date.now() - start,
+      };
+    },
+  });
+}
