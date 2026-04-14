@@ -3,7 +3,7 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { useFlashStore } from "@/store";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Cell, ToolError } from "./shared";
+import { Cell, ToolError, TxSuccessCard } from "./shared";
 import type { ToolOutput } from "./types";
 import { safe } from "@/lib/format";
 
@@ -222,39 +222,7 @@ const FafCard = memo(function FafCard({
 
   // Success state
   if (status === "success" && txSig) {
-    return (
-      <div className="glass-card-solid overflow-hidden success-glow" style={{ borderColor: "rgba(0,210,106,0.15)" }}>
-        <div className="px-5 py-4 flex items-center gap-3">
-          <span
-            className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(0,210,106,0.1)" }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--color-accent-long)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </span>
-          <div>
-            <div className="text-[14px] font-semibold text-text-primary">Transaction Confirmed</div>
-            <a
-              href={`https://solscan.io/tx/${txSig}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[12px] font-mono text-accent-blue hover:underline"
-            >
-              {txSig.slice(0, 16)}...
-            </a>
-          </div>
-        </div>
-      </div>
-    );
+    return <TxSuccessCard label="Transaction confirmed" signature={txSig} variant="long" />;
   }
 
   // Error state

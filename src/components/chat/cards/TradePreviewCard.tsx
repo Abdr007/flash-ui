@@ -440,7 +440,15 @@ const TradePreviewCard = memo(function TradePreviewCard({
               <label className="text-[11px] text-text-tertiary mb-0.5 block" htmlFor="tpsl-tp">
                 Take Profit
               </label>
-              <div className="flex items-baseline gap-1.5">
+              <div
+                className="flex items-baseline gap-1.5"
+                style={{
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  background: "rgba(255,255,255,0.02)",
+                  borderRadius: "8px",
+                  padding: "4px 8px",
+                }}
+              >
                 <span className="text-[13px] text-text-tertiary">$</span>
                 <input
                   id="tpsl-tp"
@@ -459,7 +467,15 @@ const TradePreviewCard = memo(function TradePreviewCard({
               <label className="text-[11px] text-text-tertiary mb-0.5 block" htmlFor="tpsl-sl">
                 Stop Loss
               </label>
-              <div className="flex items-baseline gap-1.5">
+              <div
+                className="flex items-baseline gap-1.5"
+                style={{
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  background: "rgba(255,255,255,0.02)",
+                  borderRadius: "8px",
+                  padding: "4px 8px",
+                }}
+              >
                 <span className="text-[13px] text-text-tertiary">$</span>
                 <input
                   id="tpsl-sl"
@@ -630,6 +646,16 @@ const TradePreviewCard = memo(function TradePreviewCard({
         </div>
       )}
 
+      {/* Smart suggestions — context-aware, non-intrusive */}
+      {!submitting && (
+        <TradeHints
+          trade={t}
+          onApplyTp={(v) => setTpDraft(String(v))}
+          onApplySl={(v) => setSlDraft(String(v))}
+          onAction={onAction}
+        />
+      )}
+
       {/* Actions */}
       <div className="flex border-t border-border-subtle">
         <button
@@ -653,16 +679,6 @@ const TradePreviewCard = memo(function TradePreviewCard({
           Cancel
         </button>
       </div>
-
-      {/* Smart suggestions — context-aware, non-intrusive */}
-      {!submitting && (
-        <TradeHints
-          trade={t}
-          onApplyTp={(v) => setTpDraft(String(v))}
-          onApplySl={(v) => setSlDraft(String(v))}
-          onAction={onAction}
-        />
-      )}
     </div>
   );
 });

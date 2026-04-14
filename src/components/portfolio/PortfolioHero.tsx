@@ -440,35 +440,13 @@ const ActionNode = memo(function ActionNode({
       <button
         onClick={onClick}
         aria-label={label}
-        className="flex items-center justify-center cursor-pointer"
+        className="action-circle flex items-center justify-center cursor-pointer"
         style={{
           width: "64px",
           height: "64px",
-          borderRadius: "50%",
           background: "rgba(51, 201, 161, 0.05)",
           border: "1.5px solid rgba(51, 201, 161, 0.18)",
           boxShadow: "0 0 24px -6px rgba(51, 201, 161, 0.12), inset 0 0 16px -4px rgba(51, 201, 161, 0.06)",
-          transition: "all 300ms cubic-bezier(0.22, 1, 0.36, 1)",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
-          e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.4)";
-          e.currentTarget.style.boxShadow =
-            "0 0 40px -4px rgba(51, 201, 161, 0.25), 0 8px 24px rgba(0,0,0,0.3), inset 0 0 20px -4px rgba(51, 201, 161, 0.1)";
-          e.currentTarget.style.background = "rgba(51, 201, 161, 0.1)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "none";
-          e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.18)";
-          e.currentTarget.style.boxShadow =
-            "0 0 24px -6px rgba(51, 201, 161, 0.12), inset 0 0 16px -4px rgba(51, 201, 161, 0.06)";
-          e.currentTarget.style.background = "rgba(51, 201, 161, 0.05)";
-        }}
-        onMouseDown={(e) => {
-          e.currentTarget.style.transform = "scale(0.92)";
-        }}
-        onMouseUp={(e) => {
-          e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
         }}
       >
         <svg
@@ -498,33 +476,13 @@ const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
       <button
         onClick={onClick}
         aria-label="FAF staking"
-        className="flex items-center justify-center cursor-pointer"
+        className="action-circle flex items-center justify-center cursor-pointer"
         style={{
           width: "64px",
           height: "64px",
-          borderRadius: "50%",
           background: "linear-gradient(135deg, rgba(51,201,161,0.08), rgba(200,245,71,0.04))",
           border: "1.5px solid rgba(200,245,71,0.2)",
           boxShadow: "0 0 24px -6px rgba(200,245,71,0.12), inset 0 0 16px -4px rgba(200,245,71,0.06)",
-          transition: "all 300ms cubic-bezier(0.22, 1, 0.36, 1)",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
-          e.currentTarget.style.borderColor = "rgba(200,245,71,0.35)";
-          e.currentTarget.style.boxShadow =
-            "0 0 40px -4px rgba(200,245,71,0.2), 0 8px 24px rgba(0,0,0,0.3), inset 0 0 20px -4px rgba(200,245,71,0.1)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "none";
-          e.currentTarget.style.borderColor = "rgba(200,245,71,0.2)";
-          e.currentTarget.style.boxShadow =
-            "0 0 24px -6px rgba(200,245,71,0.12), inset 0 0 16px -4px rgba(200,245,71,0.06)";
-        }}
-        onMouseDown={(e) => {
-          e.currentTarget.style.transform = "scale(0.92)";
-        }}
-        onMouseUp={(e) => {
-          e.currentTarget.style.transform = "translateY(-4px) scale(1.08)";
         }}
       >
         <svg

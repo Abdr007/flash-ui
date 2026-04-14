@@ -166,7 +166,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
 
   // Clear optimistic state once real streaming starts
   useEffect(() => {
-     
     if (isStreaming) setOptimisticPending(false);
   }, [isStreaming]);
 
@@ -319,7 +318,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                 backdropFilter: "blur(24px) saturate(1.4)",
                 border: "1px solid rgba(51,201,161,0.08)",
                 boxShadow: "0 8px 32px -8px rgba(0,0,0,0.5)",
-                animation: "slideDown 200ms cubic-bezier(0.22, 1, 0.36, 1) both",
+                animation: "slideUp 200ms cubic-bezier(0.22, 1, 0.36, 1) both",
               }}
             >
               {autocomplete.map((s, i) => (
@@ -362,7 +361,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               rows={1}
               className="w-full bg-transparent text-[15px] text-text-primary px-5 pt-4 pb-14
                 placeholder:text-text-tertiary outline-none border-none resize-none no-scrollbar"
-              style={{ minHeight: "90px", maxHeight: "200px" }}
+              style={{ minHeight: "52px", maxHeight: "200px" }}
               autoFocus
             />
             <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3">
@@ -426,14 +425,15 @@ const StreamingDot = memo(function StreamingDot({ inline }: { inline?: boolean }
   }
   return (
     <div className="flex items-center gap-3 py-2 mt-6 msg-anim">
-      <div
-        className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center"
-        style={{ background: "var(--color-bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}
-      >
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-          <path d="M3 12L8 3L13 12H3Z" fill="var(--color-accent-blue)" fillOpacity="0.9" />
-        </svg>
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/ft-logo.svg"
+        alt=""
+        width={32}
+        height={32}
+        className="rounded-full shrink-0"
+        style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+      />
       <div className="flex items-center gap-1.5">
         <div
           className="h-1.5 w-1.5 rounded-full"
@@ -568,10 +568,14 @@ const UserMessage = memo(function UserMessage({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
       <div
-        className="max-w-[85%] rounded-lg px-3.5 py-2.5"
-        style={{ background: "rgba(51,201,161,0.08)", border: "1px solid rgba(51,201,161,0.12)" }}
+        className="max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5"
+        style={{
+          background: "rgba(51,201,161,0.10)",
+          border: "1px solid rgba(51,201,161,0.12)",
+          boxShadow: "0 2px 8px -2px rgba(0,0,0,0.2)",
+        }}
       >
-        <span className="text-[13px] text-text-primary leading-relaxed">{text}</span>
+        <span className="text-[14px] text-text-primary leading-relaxed">{text}</span>
       </div>
     </div>
   );

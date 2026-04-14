@@ -16,14 +16,22 @@ export default function SystemStatus() {
   };
 
   return (
-    <div className="relative flex items-center justify-between px-5 h-11 shrink-0">
-      {/* Early version — subtle, left */}
-      <span className="text-[10px] hidden sm:inline" style={{ color: "rgba(255,255,255,0.18)" }}>
-        <span className="font-semibold" style={{ color: "rgba(58,255,225,0.4)" }}>
-          early
-        </span>{" "}
-        version · always verify before signing
-      </span>
+    <div
+      className="relative flex items-center justify-between px-5 h-11 shrink-0"
+      style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+    >
+      {/* Brand + early badge — left */}
+      <div className="flex items-center gap-2 hidden sm:flex">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/ft-logo.svg" alt="Flash" width={22} height={22} className="rounded-full" />
+        <span className="text-[13px] font-semibold text-text-primary tracking-tight">Flash</span>
+        <span
+          className="text-[9px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded"
+          style={{ background: "rgba(58,255,225,0.1)", color: "rgba(58,255,225,0.5)" }}
+        >
+          EARLY
+        </span>
+      </div>
       <span className="sm:hidden" />
 
       {/* Wallet — right */}
