@@ -646,7 +646,7 @@ function matchDirectTool(input: string): DirectToolMatch | null {
     );
   if (m) return { toolName: "get_market_info", params: { market: resolveMarket(m[1]) } };
 
-  // ── Close position (validate market exists) ──
+  // ── Close position (explicit market) ──
   m = /^(?:close|exit|flatten)\s+(?:my\s+)?(\w+)(?:\s+(?:position|trade|long|short))?$/i.exec(t);
   if (m && resolveMarket(m[1])) return { toolName: "close_position_preview", params: { market: resolveMarket(m[1]) } };
 
@@ -961,6 +961,40 @@ export async function POST(req: Request) {
         }
       } catch (err) {
         logError("fast_path", { wallet: walletAddress, error: err instanceof Error ? err.message : "unknown" });
+      }
+    }
+  }
+
+  // ---- CONTEXTUAL CLOSE: "close this position", "close it" → resolve from positions ----
+  {
+    const closeCtx = lastUserText.trim();
+    const posArr = Array.isArray((context as Record<string, unknown>).positions)
+      ? ((context as Record<string, unknown>).positions as unknown[])
+      : [];
+    if (/^(?:close|exit|flatten)\s+(?:this|that|it|the|my)\s*(?:position|trade)?$/i.test(closeCtx)) {
+      if (posArr.length === 1) {
+        const p = posArr[0] as Record<string, unknown>;
+        const mkt = String(p.market ?? "");
+        if (mkt) {
+          try {
+            const toolFn = tools.close_position_preview;
+            if (toolFn && "execute" in toolFn) {
+              const result = await (
+                toolFn as unknown as { execute: (args: Record<string, unknown>) => Promise<unknown> }
+              ).execute({ market: mkt });
+              return createFafStreamResponse("close_position_preview", result as Record<string, unknown>);
+            }
+          } catch {}
+        }
+      } else if (posArr.length > 1) {
+        const markets = (posArr as Record<string, unknown>[]).map((p) => String(p.market ?? "")).filter(Boolean);
+        return createFafStreamResponse("action_options", {
+          status: "ok",
+          data: {
+            title: "Which position to close?",
+            options: markets.map((m) => ({ label: `Close ${m}`, action: `close ${m}` })),
+          },
+        });
       }
     }
   }
