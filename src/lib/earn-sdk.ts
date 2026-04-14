@@ -154,15 +154,37 @@ export async function buildEarnWithdraw(
   const flpMint = pc.compoundingTokenMint;
   let flpBalance = await getTokenBal(flpMint);
   let useRawLp = false;
+  let unstakeFirst = false;
 
-  // Fallback: check raw LP tokens (from unstake path)
+  // Fallback: check raw LP tokens (sFLP in token account)
   if (flpBalance.isZero()) {
     const rawLpMint = pc.stakedLpTokenMint;
     flpBalance = await getTokenBal(rawLpMint);
-    if (flpBalance.isZero()) {
-      throw new Error("No FLP tokens found. Deposit first.");
+    if (!flpBalance.isZero()) {
+      useRawLp = true;
     }
-    useRawLp = true;
+  }
+
+  // Fallback: check stake PDA (sFLP staked in Flash protocol)
+  if (flpBalance.isZero()) {
+    try {
+      const { PublicKey: PK } = await import("@solana/web3.js");
+      const [stakePda] = PK.findProgramAddressSync(
+        [Buffer.from("stake"), wallet.publicKey.toBuffer(), pc.poolAddress.toBuffer()],
+        pc.programId,
+      );
+      const accInfo = await connection.getAccountInfo(stakePda);
+      if (accInfo && accInfo.data.length >= 80) {
+        const raw = Number(accInfo.data.readBigUInt64LE(72));
+        if (raw > 0) {
+          flpBalance = new BN(raw);
+          unstakeFirst = true;
+        }
+      }
+    } catch {}
+    if (flpBalance.isZero()) {
+      throw new Error("No FLP or sFLP found. Deposit first.");
+    }
   }
 
   // Calculate withdraw amount from percentage
@@ -178,26 +200,41 @@ export async function buildEarnWithdraw(
     minOut = new BN(Math.floor(minUsdc * 1_000_000));
   }
 
-  // Build transaction (same branching as CLI)
-  let result: { instructions: TransactionInstruction[]; additionalSigners: Signer[] };
-  if (useRawLp) {
-    result = await client.removeLiquidity("USDC", withdrawAmount, minOut, pc, true, true);
+  // Build transaction
+  let allInstructions: TransactionInstruction[] = [];
+  let allSigners: Signer[] = [];
+
+  if (unstakeFirst) {
+    // Unstake from PDA to token account first, then remove liquidity
+    const unstakeResult = await client.unstakeInstant("USDC", withdrawAmount, pc, wallet.publicKey);
+    allInstructions.push(...unstakeResult.instructions);
+    allSigners.push(...unstakeResult.additionalSigners);
+    // After unstake, the tokens are in the sFLP token account — use removeLiquidity
+    const removeResult = await client.removeLiquidity("USDC", withdrawAmount, minOut, pc, true, true);
+    allInstructions.push(...removeResult.instructions);
+    allSigners.push(...removeResult.additionalSigners);
+  } else if (useRawLp) {
+    const result = await client.removeLiquidity("USDC", withdrawAmount, minOut, pc, true, true);
+    allInstructions = result.instructions;
+    allSigners = result.additionalSigners;
   } else {
-    result = await client.removeCompoundingLiquidity(
+    const result = await client.removeCompoundingLiquidity(
       withdrawAmount,
       minOut,
       "USDC",
       flpMint,
       pc,
-      true, // createUserATA
-      undefined, // ephemeralSignerPubkey
-      wallet.publicKey, // userPublicKey
+      true,
+      undefined,
+      wallet.publicKey,
     );
+    allInstructions = result.instructions;
+    allSigners = result.additionalSigners;
   }
 
   return {
-    instructions: result.instructions,
-    additionalSigners: result.additionalSigners,
+    instructions: allInstructions,
+    additionalSigners: allSigners,
     poolConfig: pc,
   };
 }
