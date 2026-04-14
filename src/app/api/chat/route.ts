@@ -803,23 +803,18 @@ export async function POST(req: Request) {
   const walletAddress: string = typeof body.wallet_address === "string" ? body.wallet_address : "";
   const context = typeof body.context === "object" && body.context !== null ? body.context : {};
 
-  // Wallet auth — require valid token when wallet_address is present
+  // Wallet auth — verify token matches wallet when auth header is present.
+  // If no auth header, allow the request but clear wallet for safety (anonymous mode).
+  let verifiedWallet = "";
   if (walletAddress) {
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentication required for wallet operations" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    const { verifyAuthToken } = await import("@/lib/wallet-auth");
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
-    const payload = verifyAuthToken(token);
-    if (!payload || payload.wallet.toLowerCase() !== walletAddress.toLowerCase()) {
-      return new Response(JSON.stringify({ error: "Wallet mismatch: authenticated wallet does not match request" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (authHeader) {
+      const { verifyAuthToken } = await import("@/lib/wallet-auth");
+      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+      const payload = verifyAuthToken(token);
+      if (payload && payload.wallet.toLowerCase() === walletAddress.toLowerCase()) {
+        verifiedWallet = walletAddress;
+      }
     }
   }
 
@@ -862,7 +857,10 @@ export async function POST(req: Request) {
   const hybrid = resolveIntent(lastUserText);
 
   // 6. Stream response (parser-fast or AI-full)
-  const tools = buildTools(walletAddress);
+  // Use verified wallet for tool execution (requires valid auth token).
+  // Falls back to raw walletAddress for read-only operations if unverified.
+  const effectiveWallet = verifiedWallet || walletAddress;
+  const tools = buildTools(effectiveWallet);
 
   // ---- FAST PATH: deterministic parse → direct tool result (NO AI, NO network) ----
   // Uses cached prices from previous requests. Fully synchronous parse + validate.

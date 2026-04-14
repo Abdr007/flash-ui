@@ -54,7 +54,11 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
               const hist = localStorage.getItem("flash_transfer_history");
               if (hist) body.transfer_history = hist;
             } catch {}
-            return fetch(url, { ...init, body: JSON.stringify(body) });
+            const { getAuthHeaders } = await import("@/hooks/useWalletAuth");
+            const authHeaders = getAuthHeaders();
+            const headers = new Headers(init?.headers);
+            for (const [k, v] of Object.entries(authHeaders)) headers.set(k, v);
+            return fetch(url, { ...init, headers, body: JSON.stringify(body) });
           } catch (e) {
             console.error("[ChatTransport]", e);
             return fetch(url, init);
@@ -162,7 +166,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
 
   // Clear optimistic state once real streaming starts
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (isStreaming) setOptimisticPending(false);
   }, [isStreaming]);
 
