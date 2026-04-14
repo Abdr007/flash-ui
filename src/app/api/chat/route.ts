@@ -946,6 +946,12 @@ export async function POST(req: Request) {
         });
       }
 
+      // Wallet required for all FAF actions except informational queries
+      const WALLET_NOT_REQUIRED: Set<string> = new Set(["tier", "options", "hub"]);
+      if (!walletAddress && !WALLET_NOT_REQUIRED.has(fafMatch.action)) {
+        return createFafTextResponse("Please connect your wallet first to use FAF staking.");
+      }
+
       try {
         const toolResult = await executeFafTool(fafMatch, walletAddress, tools);
         if (toolResult) {

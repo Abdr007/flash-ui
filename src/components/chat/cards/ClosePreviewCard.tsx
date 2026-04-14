@@ -159,7 +159,10 @@ export const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { out
                 : `Close ${closePercent < 100 ? closePercent + "%" : "Position"}`}
         </button>
         {status === "preview" && (
-          <button className="btn-secondary px-6 py-3 text-[13px] text-text-tertiary border-l border-border-subtle cursor-pointer hover:text-text-secondary rounded-none rounded-br-xl">
+          <button
+            onClick={() => reset()}
+            className="btn-secondary px-6 py-3 text-[13px] text-text-tertiary border-l border-border-subtle cursor-pointer hover:text-text-secondary rounded-none rounded-br-xl"
+          >
             Cancel
           </button>
         )}

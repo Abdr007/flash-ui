@@ -33,9 +33,21 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
   }
   componentDidCatch(error: Error) {
     console.error("[ChatCrash]", error?.message);
-    setTimeout(() => this.setState({ hasError: false }), 0);
   }
   render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col h-full items-center justify-center gap-3">
+          <p className="text-[14px] text-text-secondary">Something went wrong in the chat panel.</p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            className="btn-secondary px-4 py-2 text-[13px] text-accent-blue cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
     return <div className="flex flex-col h-full">{this.props.children}</div>;
   }
 }

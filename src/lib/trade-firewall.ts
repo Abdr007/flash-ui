@@ -21,7 +21,7 @@ import type { Position } from "./types";
 // live flash.trade UI). Falls back to the absolute ceiling if the registry
 // doesn't know the market yet.
 // Degen pools: SOL (Crypto.1), BTC/ETH (Crypto.1), Gold (Virtual.1), DeFi (Governance.1)
-const DEGEN_MARKETS = new Set(["SOL", "BTC", "ETH", "WBTC"]);
+const DEGEN_MARKETS = new Set(["SOL", "BTC", "ETH"]);
 const DEGEN_MAX_LEVERAGE = 500;
 
 export function getMaxLeverageForMarket(market: string, degen?: boolean): number {

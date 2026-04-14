@@ -183,7 +183,7 @@ function parse(input: string): ParsedTrade | null {
   if (!Number.isFinite(collateral) || collateral < MIN_COLLATERAL) return null;
   // Per-market leverage cap (same as firewall — reject early, don't waste cycles)
   // Degen mode allows up to 500x on SOL/BTC/ETH pools
-  const maxLev = isDegen ? Math.max(getMaxLeverageForMarket(market), 500) : getMaxLeverageForMarket(market);
+  const maxLev = getMaxLeverageForMarket(market, isDegen);
   if (!Number.isFinite(leverage) || leverage < 1 || leverage > maxLev) return null;
 
   // TP can be in group 5 or 7, SL in 6 or 8 (either ordering)
@@ -244,13 +244,11 @@ function validate(
   const positionSize = trade.collateral * trade.leverage;
   const feeRate = 0.0008; // 8 bps — Flash Trade base fee
   const fees = positionSize * feeRate;
-  const MAINTENANCE_MARGIN_RATE = 0.005; // 0.5%
+  const mmr = Math.min(0.005, 0.5 / trade.leverage); // scales for high leverage
   const collateralAfterFees = trade.collateral - fees;
   const marginRatio = positionSize > 0 ? collateralAfterFees / positionSize : 0;
   const liquidationPrice =
-    trade.side === "LONG"
-      ? entryPrice * (1 - marginRatio + MAINTENANCE_MARGIN_RATE)
-      : entryPrice * (1 + marginRatio - MAINTENANCE_MARGIN_RATE);
+    trade.side === "LONG" ? entryPrice * (1 - marginRatio + mmr) : entryPrice * (1 + marginRatio - mmr);
 
   if (!Number.isFinite(liquidationPrice) || liquidationPrice <= 0) return { valid: false };
 

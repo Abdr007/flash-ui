@@ -79,6 +79,17 @@ export function createReversePositionTool(wallet: string) {
 
         // New position will use same collateral minus fees
         const netCollateral = position.collateral_usd + closePnl - closeFee;
+
+        if (netCollateral <= 0) {
+          return {
+            status: "error",
+            data: null,
+            error: `Position is underwater — closing PnL ($${closePnl.toFixed(2)}) exceeds collateral ($${position.collateral_usd.toFixed(2)}). Cannot reverse without additional collateral.`,
+            request_id: requestId,
+            latency_ms,
+          };
+        }
+
         const openFee = netCollateral * position.leverage * 0.0008;
 
         const preview = {

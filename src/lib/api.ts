@@ -34,9 +34,15 @@ async function apiGet<T>(path: string): Promise<T> {
   const existing = inflightGets.get(path);
   if (existing) return existing as Promise<T>;
 
-  const request = apiGetInternal<T>(path).finally(() => {
+  let request: Promise<T>;
+  try {
+    request = apiGetInternal<T>(path).finally(() => {
+      inflightGets.delete(path);
+    });
+  } catch (err) {
     inflightGets.delete(path);
-  });
+    throw err;
+  }
 
   inflightGets.set(path, request);
   return request;
@@ -450,11 +456,12 @@ export async function enrichTradeWithQuote(trade: TradeObject): Promise<TradeObj
     const feeRate = 0.0008;
     const fees = size * feeRate;
 
+    const mmr = Math.min(0.005, 0.5 / leverage);
     let liqPrice: number;
     if (trade.action === "LONG") {
-      liqPrice = entry - entry / leverage;
+      liqPrice = entry * (1 - 1 / leverage + mmr);
     } else {
-      liqPrice = entry + entry / leverage;
+      liqPrice = entry * (1 + 1 / leverage - mmr);
     }
 
     // Validate ALL computed values before marking READY

@@ -20,7 +20,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { enforceWalletMatch } from "@/lib/api-security";
+import { enforceWalletMatch, getClientIp, RateLimiter, rateLimitResponse } from "@/lib/api-security";
+
+// Rate limit: 15 req/min per IP (heavier endpoint — multiple RPC calls)
+const transferLimiter = new RateLimiter(15);
 
 const TransferBuildBody = z.object({
   sender: z.string().min(32).max(50),
@@ -93,6 +96,10 @@ function cleanIdempotencyCache() {
 }
 
 export async function POST(req: NextRequest) {
+  // ---- Rate Limit ----
+  const ip = getClientIp(req);
+  if (!transferLimiter.check(ip)) return rateLimitResponse();
+
   try {
     const rawBody = await req.json();
     let parsed: z.infer<typeof TransferBuildBody>;

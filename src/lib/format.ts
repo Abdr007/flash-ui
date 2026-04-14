@@ -24,7 +24,7 @@ export function formatUsd(value: number | null | undefined): string {
       style: "currency",
       currency: "USD",
       minimumFractionDigits: 2,
-      maximumFractionDigits: value >= 1000 ? 0 : 2,
+      maximumFractionDigits: 2,
     }).format(value);
   } catch {
     return `$${safe(value).toFixed(2)}`;
@@ -63,7 +63,7 @@ export function formatPnlPct(value: number | null | undefined): string {
 
 export function formatLeverage(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return "—";
-  return `${value}x`;
+  return `${Math.round(value * 10) / 10}x`;
 }
 
 export function formatPercent(value: number | null | undefined): string {

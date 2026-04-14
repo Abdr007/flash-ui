@@ -364,7 +364,15 @@ export const ConfidenceBadge = memo(function ConfidenceBadge({ confidence }: { c
 
 // ---- Tool Error ----
 
-export const ToolError = memo(function ToolError({ toolName, error }: { toolName: string; error?: string }) {
+export const ToolError = memo(function ToolError({
+  toolName,
+  error,
+  onRetry,
+}: {
+  toolName: string;
+  error?: string;
+  onRetry?: () => void;
+}) {
   return (
     <div
       role="alert"
@@ -375,7 +383,13 @@ export const ToolError = memo(function ToolError({ toolName, error }: { toolName
         <span className="text-[13px] text-accent-short">✕</span>
         <span className="text-[13px] text-text-secondary">{error ?? `${toolName} failed`}</span>
       </div>
-      <button className="btn-secondary text-[12px] text-accent-blue cursor-pointer">Retry</button>
+      {onRetry ? (
+        <button onClick={onRetry} className="btn-secondary text-[12px] text-accent-blue cursor-pointer">
+          Retry
+        </button>
+      ) : (
+        <span className="text-[12px] text-text-tertiary">Try again</span>
+      )}
     </div>
   );
 });

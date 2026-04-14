@@ -41,6 +41,7 @@ export default function TradeCard({ trade }: { trade: TradeObject }) {
     trade.fees &&
     trade.position_size
       ? getTradeConfidence({
+          market: trade.market,
           leverage: trade.leverage,
           collateral_usd: trade.collateral_usd,
           position_size: trade.position_size,

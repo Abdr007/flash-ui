@@ -294,6 +294,7 @@ export interface TradeConfidence {
 }
 
 export function getTradeConfidence(trade: {
+  market: string;
   leverage: number;
   collateral_usd: number;
   position_size: number;
@@ -341,7 +342,7 @@ export function getTradeConfidence(trade: {
   }
 
   // Market momentum check
-  const bias = getMarketBiasBoost(trade.side === "LONG" ? "SOL" : "SOL", trade.side);
+  const bias = getMarketBiasBoost(trade.market, trade.side);
   if (bias < -5) {
     score -= 10;
     factors.push("Against current market momentum");

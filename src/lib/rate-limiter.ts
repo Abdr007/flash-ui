@@ -46,9 +46,11 @@ export function checkCommandLimit(sessionId: string): { allowed: boolean; remain
   return check(commandLimits, sessionId, COMMAND_LIMIT_PER_MIN);
 }
 
-// Cleanup stale entries every 5 minutes
-if (typeof globalThis !== "undefined") {
-  setInterval(() => {
+// Cleanup stale entries every 5 minutes (singleton to prevent HMR leaks)
+const CLEANUP_KEY = Symbol.for("flash-rate-limiter-cleanup");
+const g = globalThis as Record<symbol, ReturnType<typeof setInterval> | undefined>;
+if (!g[CLEANUP_KEY]) {
+  g[CLEANUP_KEY] = setInterval(() => {
     const now = Date.now();
     for (const [k, v] of walletExecLimits) if (now >= v.resetAt) walletExecLimits.delete(k);
     for (const [k, v] of commandLimits) if (now >= v.resetAt) commandLimits.delete(k);

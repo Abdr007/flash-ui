@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const safePeriod = /^[a-zA-Z0-9_-]{0,20}$/.test(period) ? period : "";
 
   try {
-    const url = `${FSTATS}/${encodeURIComponent(path)}${safePeriod ? `?period=${encodeURIComponent(safePeriod)}` : ""}`;
+    const url = `${FSTATS}/${path}${safePeriod ? `?period=${encodeURIComponent(safePeriod)}` : ""}`;
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(8000),
       headers: { Accept: "application/json" },

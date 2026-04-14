@@ -94,19 +94,9 @@ export function createAddCollateralTool(wallet: string) {
         // The Flash program handles the internal swap (USDC→JitoSOL etc.)
         const collateralToken = "USDC";
 
-        // Convert USD amount to token amount using current price
-        const currentPrice = result.priceData?.price ?? position.mark_price;
-        const tokenAmount = currentPrice > 0 ? amount_usd / currentPrice : 0;
-
-        if (tokenAmount <= 0) {
-          return {
-            status: "error",
-            data: null,
-            error: "Could not calculate token amount — price unavailable",
-            request_id: requestId,
-            latency_ms,
-          };
-        }
+        // USDC is pegged 1:1 to USD — no price conversion needed.
+        // Dividing by asset price (e.g. SOL=$150) would deposit 150x less than intended.
+        const tokenAmount = amount_usd;
 
         // Use Flash API for accurate preview (includes fees, funding, PnL)
         // depositAmountUi expects TOKEN amount, not USD

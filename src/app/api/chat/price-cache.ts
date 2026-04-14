@@ -20,6 +20,7 @@ const prices = new Map<string, CachedPrice>();
 
 const FRESH_MS = 2_000; // <2s = fresh, use directly
 const MAX_AGE_MS = 30_000; // >30s = expired, reject
+const MAX_ENTRIES = 200; // upper bound to prevent unbounded growth
 
 // ---- Metrics (module-level, non-blocking) ----
 export const metrics = {
@@ -80,6 +81,15 @@ export function updatePriceCache(allPrices: Record<string, { price: number }>): 
           metrics.drifts++;
         }
       }
+    }
+  }
+
+  // Evict oldest entries if cache exceeds cap
+  if (prices.size > MAX_ENTRIES) {
+    const sorted = [...prices.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const toDelete = sorted.slice(0, prices.size - MAX_ENTRIES);
+    for (const [key] of toDelete) {
+      prices.delete(key);
     }
   }
 }

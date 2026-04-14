@@ -29,12 +29,21 @@ import {
   bumpStateVersion,
 } from "./types";
 
+let _collapseTimer: ReturnType<typeof setTimeout> | null = null;
+let _refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+const MAX_MESSAGES = 200;
+function capMessages(msgs: ChatMessage[]): ChatMessage[] {
+  if (msgs.length > MAX_MESSAGES) msgs.splice(0, msgs.length - MAX_MESSAGES);
+  return msgs;
+}
+
 // ---- Helper: update the last trade card in chat messages ----
 function updateLastTradeCard(get: StoreGet, set: StoreSet, updatedTrade: TradeObject) {
   const msgs = [...get().messages];
-  const lastTradeMsg = [...msgs].reverse().find((m) => m.trade_card);
-  if (lastTradeMsg) {
-    lastTradeMsg.trade_card = updatedTrade;
+  const idx = msgs.findLastIndex((m) => m.trade_card);
+  if (idx !== -1) {
+    msgs[idx] = { ...msgs[idx], trade_card: updatedTrade };
   }
   set({ messages: msgs });
 }
@@ -575,17 +584,16 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
         entry_price: trade.entry_price ?? 0,
         tx_signature: txSignature,
       };
-      setTimeout(() => {
+      _collapseTimer = setTimeout(() => {
+        _collapseTimer = null;
         const msgs = [...get().messages];
+        if (msgs.length === 0) return;
         const last = [...msgs].reverse().find((m) => m.trade_card);
         if (last && last.trade_card?.status === "SUCCESS") {
           last.collapsed_trade = collapseData;
           last.trade_card = undefined;
           set({ messages: msgs });
         }
-        // Clear activeTrade after the card has had time to show the success
-        // state. If a new trade has been started in the meantime, don't clobber
-        // it — only clear if the current activeTrade is still this one.
         const cur = get().activeTrade;
         if (cur?.tx_signature === txSignature) {
           set({ activeTrade: null });
@@ -626,8 +634,8 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
       set({ activeTrade: successTrade, isExecuting: false });
       setTradeLock(false);
       resetExecution(); // Clear persisted execution state
-      // Delay position refresh to avoid race conditions with tab focus recovery
-      setTimeout(() => {
+      _refreshTimer = setTimeout(() => {
+        _refreshTimer = null;
         try {
           get().refreshPositions();
         } catch {}
@@ -660,6 +668,15 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
       // SAFETY: Cannot cancel during EXECUTING — tx is in flight
       if (trade && trade.status === "EXECUTING") return;
 
+      if (_collapseTimer) {
+        clearTimeout(_collapseTimer);
+        _collapseTimer = null;
+      }
+      if (_refreshTimer) {
+        clearTimeout(_refreshTimer);
+        _refreshTimer = null;
+      }
+
       const msgs = [...get().messages];
       const lastTradeMsg = [...msgs].reverse().find((m) => m.trade_card);
       if (lastTradeMsg) {
@@ -676,7 +693,7 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
       bumpStateVersion();
 
       set({
-        messages: [...msgs, sysMsg],
+        messages: capMessages([...msgs, sysMsg]),
         activeTrade: null,
       });
     },
@@ -755,7 +772,7 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
           content: `Closing ${side} ${market} — sign in your wallet.`,
           timestamp: Date.now(),
         };
-        set({ messages: [...get().messages, sysMsg] });
+        set({ messages: capMessages([...get().messages, sysMsg]) });
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : "Close failed";
         const sysMsg: ChatMessage = {
@@ -764,7 +781,7 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
           content: `Error: ${errorMsg}`,
           timestamp: Date.now(),
         };
-        set({ messages: [...get().messages, sysMsg] });
+        set({ messages: capMessages([...get().messages, sysMsg]) });
       } finally {
         setCloseLock(false);
       }

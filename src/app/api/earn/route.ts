@@ -5,6 +5,9 @@
 // Caches for 30s to prevent API spam.
 // NO custom math — all APY/TVL from protocol.
 
+import { NextRequest } from "next/server";
+import { getClientIp, RateLimiter, rateLimitResponse } from "@/lib/api-security";
+
 // Force dynamic — prevent Vercel from caching 404 for this route
 export const dynamic = "force-dynamic";
 
@@ -12,9 +15,16 @@ export const dynamic = "force-dynamic";
 const EARN_API = "https://api.prod.flash.trade/earn-page/data";
 const CACHE_TTL_MS = 30_000;
 
+// Rate limit: 30 req/min per IP
+const limiter = new RateLimiter(30);
+
 let cached: { data: unknown; expires: number } | null = null;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // ---- Rate Limit ----
+  const ip = getClientIp(req);
+  if (!limiter.check(ip)) return rateLimitResponse();
+
   // Return cached if fresh
   if (cached && Date.now() < cached.expires) {
     return Response.json(cached.data, {

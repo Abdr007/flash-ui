@@ -28,6 +28,12 @@ import {
 import type { FlashStore, StoreSet, StoreGet, ContextMemory } from "./types";
 import { msgId, tradeLock, closeLock, setCloseLock, getStateVersion, bumpStateVersion } from "./types";
 
+const MAX_MESSAGES = 200;
+function capMessages(msgs: ChatMessage[]): ChatMessage[] {
+  if (msgs.length > MAX_MESSAGES) msgs.splice(0, msgs.length - MAX_MESSAGES);
+  return msgs;
+}
+
 // ---- The subset of FlashStore that this slice provides ----
 export type ChatSlice = Pick<
   FlashStore,
@@ -104,7 +110,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
       // Capture version before async work
       const versionBefore = bumpStateVersion();
 
-      set({ messages: [...state.messages, userMsg], isProcessing: true });
+      set({ messages: capMessages([...state.messages, userMsg]), isProcessing: true });
 
       // CASE 1: Active trade in progressive build
       if (state.activeTrade && state.activeTrade.status === "INCOMPLETE") {
@@ -120,7 +126,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
             timestamp: Date.now(),
           };
           set({
-            messages: [...get().messages, sysMsg],
+            messages: capMessages([...get().messages, sysMsg]),
             activeTrade: updated,
             isProcessing: false,
           });
@@ -144,7 +150,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
           trade_card: enriched,
         };
         set({
-          messages: [...get().messages, sysMsg],
+          messages: capMessages([...get().messages, sysMsg]),
           activeTrade: enriched,
           isProcessing: false,
         });
@@ -167,7 +173,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
             timestamp: Date.now(),
           };
           set({
-            messages: [...get().messages, sysMsg],
+            messages: capMessages([...get().messages, sysMsg]),
             activeTrade: trade,
             isProcessing: false,
           });
@@ -201,7 +207,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
           trade_card: enriched,
         };
         set({
-          messages: [...get().messages, sysMsg],
+          messages: capMessages([...get().messages, sysMsg]),
           activeTrade: enriched,
           isProcessing: false,
         });
@@ -230,8 +236,9 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
         const side = intent.side ?? state.positions.find((p) => p.market === market)?.side;
 
         addSystemMsg(`Closing ${side ? side + " " : ""}${market} position...`);
-        set({ isProcessing: false, activeTrade: null });
+        set({ activeTrade: null });
         await get().closePosition(market, side ?? "LONG");
+        set({ isProcessing: false });
         return;
       }
 
@@ -264,8 +271,13 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
         }
         setCloseLock(true);
         try {
+          const wallet = get().walletAddress;
+          if (!wallet) {
+            addSystemMsg("Connect wallet to reduce position.");
+            return;
+          }
           const { buildClosePosition } = await import("@/lib/api");
-          const result = await buildClosePosition({ market, side, owner: get().walletAddress!, closePercent: pct });
+          const result = await buildClosePosition({ market, side, owner: wallet, closePercent: pct });
           if (result.err) throw new Error(result.err);
           addSystemMsg(`${market} reduced by ${pct}%.`);
           get().refreshPositions();
@@ -305,7 +317,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
           trade_card: enriched,
         };
         set({
-          messages: [...get().messages, sysMsg],
+          messages: capMessages([...get().messages, sysMsg]),
           activeTrade: enriched,
           isProcessing: false,
         });
@@ -455,7 +467,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
           timestamp: Date.now(),
           ...(tradeCard && { trade_card: tradeCard }),
         };
-        set({ messages: [...get().messages, sysMsg] });
+        set({ messages: capMessages([...get().messages, sysMsg]) });
       }
     },
 

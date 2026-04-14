@@ -264,6 +264,7 @@ const TradePreviewCard = memo(function TradePreviewCard({
   const bounceStyle = useBounceIn();
 
   const confidence = getTradeConfidence({
+    market: t?.market ?? "",
     leverage: hookLeverage,
     collateral_usd: hookCollateral,
     position_size: hookPositionSize,
