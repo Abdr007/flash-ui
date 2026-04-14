@@ -324,17 +324,6 @@ export default function LandingPage() {
             </Link>
           </div>
         </div>
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 opacity-40">
-          <div
-            className="w-6 h-10 rounded-full flex items-start justify-center pt-2"
-            style={{ border: "1.5px solid rgba(51,201,161,0.2)" }}
-          >
-            <div
-              className="w-1 h-2 rounded-full bg-[#33c9a1]"
-              style={{ animation: "typingBounce 2s ease-in-out infinite" }}
-            />
-          </div>
-        </div>
       </section>
 
       {/* ═══ STATS ═══ */}
