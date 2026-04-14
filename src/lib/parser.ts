@@ -71,9 +71,6 @@ function extractSide(input: string): Side | null {
   return null;
 }
 
-// Words to strip before market extraction (not market names themselves)
-const NOISE_WORDS = /\b(open|trade|a|an|the|my|new|position|on|for|with)\b/gi;
-
 function extractMarket(input: string): string | null {
   const lower = input.toLowerCase();
   for (const [alias, symbol] of Object.entries(MARKET_ALIASES)) {

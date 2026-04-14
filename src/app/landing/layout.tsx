@@ -10,7 +10,6 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
 
     const prevHtmlHeight = html.style.height;
     const prevBodyOverflow = body.style.overflow;
-    const prevBodyHeight = body.className;
 
     html.style.height = "auto";
     body.style.overflow = "auto";
