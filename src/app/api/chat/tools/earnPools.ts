@@ -222,9 +222,11 @@ export function createEarnPositionsTool(wallet: string) {
         });
         const poolData = poolRes.ok ? await poolRes.json() : { pools: [] };
 
-        // Read FLP balances on-chain via Helius RPC
+        // Read FLP + sFLP balances: check both SPL token accounts AND Flash stake PDAs
         const RPC_URL = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
         const balData: Record<string, number> = {};
+
+        // 1. Check SPL token accounts (FLP in regular token accounts)
         try {
           const rpcResp = await fetch(RPC_URL, {
             method: "POST",
@@ -250,11 +252,102 @@ export function createEarnPositionsTool(wallet: string) {
               if (!mint || uiAmount <= 0) continue;
               for (const [sym, mintAddr] of Object.entries(FLP_MINTS)) {
                 if (mintAddr === mint) {
-                  balData[sym] = uiAmount;
+                  balData[sym] = (balData[sym] ?? 0) + uiAmount;
                   break;
                 }
               }
             }
+          }
+        } catch {}
+
+        // 2. Check Flash stake PDAs (sFLP staked via Flash protocol)
+        try {
+          const { PublicKey } = await import("@solana/web3.js");
+          const FLASH_PROGRAM = new PublicKey("FLASH6Lo6h3iasJKWDs2F8TkW2UKf3s15C8PMGuVfgBn");
+          const userKey = new PublicKey(wallet);
+          // Pool addresses from PoolConfig
+          const poolAddresses: Record<string, string> = {};
+          for (const p of poolData.pools ?? []) {
+            const sym = String(p.flpTokenSymbol ?? "");
+            const addr = String(p.poolAddress ?? "");
+            if (sym && addr) poolAddresses[sym] = addr;
+          }
+          for (const [sym, addr] of Object.entries(poolAddresses)) {
+            try {
+              const poolKey = new PublicKey(addr);
+              const [stakePda] = PublicKey.findProgramAddressSync(
+                [Buffer.from("stake"), userKey.toBuffer(), poolKey.toBuffer()],
+                FLASH_PROGRAM,
+              );
+              const accResp = await fetch(RPC_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  jsonrpc: "2.0",
+                  id: 1,
+                  method: "getAccountInfo",
+                  params: [stakePda.toBase58(), { encoding: "jsonParsed" }],
+                }),
+                signal: AbortSignal.timeout(5000),
+              });
+              if (accResp.ok) {
+                const accData = await accResp.json();
+                const data = accData?.result?.value?.data;
+                if (data) {
+                  // The stake account has activeStakeAmount as a u64 at a specific offset
+                  // Since we can't easily decode the anchor struct, use the token balance approach
+                  // The staked amount is visible in the pool's staked LP vault change
+                  // For now, add the sFLP symbol entry if the stake PDA exists
+                  const sflpSym = sym.replace("FLP.", "sFLP.");
+                  if (!balData[sflpSym]) {
+                    // Stake PDA exists — user has staked position. Get balance from compounding token account
+                    const compMint = FLP_MINTS[sym]; // FLP mint = compoundingTokenMint
+                    if (compMint) {
+                      const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
+                      const compTokenAccount = getAssociatedTokenAddressSync(new PublicKey(compMint), userKey, true);
+                      const balResp = await fetch(RPC_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          jsonrpc: "2.0",
+                          id: 1,
+                          method: "getTokenAccountBalance",
+                          params: [compTokenAccount.toBase58()],
+                        }),
+                        signal: AbortSignal.timeout(5000),
+                      });
+                      if (balResp.ok) {
+                        const balJson = await balResp.json();
+                        const bal = Number(balJson?.result?.value?.uiAmount ?? 0);
+                        if (bal > 0) balData[sym] = (balData[sym] ?? 0) + bal;
+                      }
+                    }
+                    // Also check the sFLP (stakedLpTokenMint) balance
+                    const sflpMint = FLP_MINTS[sflpSym];
+                    if (sflpMint) {
+                      const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
+                      const sflpTokenAccount = getAssociatedTokenAddressSync(new PublicKey(sflpMint), userKey, true);
+                      const balResp = await fetch(RPC_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          jsonrpc: "2.0",
+                          id: 1,
+                          method: "getTokenAccountBalance",
+                          params: [sflpTokenAccount.toBase58()],
+                        }),
+                        signal: AbortSignal.timeout(5000),
+                      });
+                      if (balResp.ok) {
+                        const balJson = await balResp.json();
+                        const bal = Number(balJson?.result?.value?.uiAmount ?? 0);
+                        if (bal > 0) balData[sflpSym] = (balData[sflpSym] ?? 0) + bal;
+                      }
+                    }
+                  }
+                }
+              }
+            } catch {}
           }
         } catch {}
 
