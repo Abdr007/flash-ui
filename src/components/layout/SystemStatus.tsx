@@ -44,8 +44,10 @@ export default function SystemStatus() {
           </defs>
         </svg>
         <div className="flex flex-col leading-[1.1]">
-          <span className="text-[11px] font-extrabold tracking-[0.15em] text-white">FLASH</span>
-          <span className="text-[11px] font-extrabold tracking-[0.15em] text-white">TRADE</span>
+          <span className="text-[12px] font-extrabold tracking-[0.15em] text-white" style={{ fontStyle: "italic" }}>
+            FLASH
+          </span>
+          <span className="text-[8px] font-bold tracking-[0.25em] text-white/50">TERMINAL</span>
         </div>
       </div>
 
