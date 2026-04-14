@@ -259,12 +259,9 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
           return;
         }
 
-        addSystemMsg(`Reducing ${market} position by ${pct}%...`);
-        set({ isProcessing: false });
-
         const pos = state.positions.find((p) => p.market === market);
         const side = pos?.side ?? "LONG";
-        // closePercent = reduce percent
+
         if (closeLock) {
           set({ isProcessing: false });
           return;
@@ -274,13 +271,62 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
           const wallet = get().walletAddress;
           if (!wallet) {
             addSystemMsg("Connect wallet to reduce position.");
+            set({ isProcessing: false });
             return;
           }
-          const { buildClosePosition } = await import("@/lib/api");
-          const result = await buildClosePosition({ market, side, owner: wallet, closePercent: pct });
+          if (!pos?.pubkey) {
+            addSystemMsg(`No ${side} ${market} position found.`);
+            set({ isProcessing: false });
+            return;
+          }
+
+          addSystemMsg(`Reducing ${market} by ${pct}% — building transaction...`);
+          set({ isProcessing: false });
+
+          const { buildClosePositionTx } = await import("@/lib/api");
+          const result = await buildClosePositionTx({
+            positionKey: pos.pubkey,
+            marketSymbol: market,
+            side: side === "LONG" ? "Long" : "Short",
+            owner: wallet,
+            closePercent: pct,
+            inputUsdUi: String((pos.size_usd * pct) / 100),
+            withdrawTokenSymbol: "USDC",
+          });
           if (result.err) throw new Error(result.err);
-          addSystemMsg(`${market} reduced by ${pct}%.`);
-          get().refreshPositions();
+          if (!result.transactionBase64) throw new Error("No transaction returned from API");
+
+          const cleanResp = await fetch("/api/clean-tx", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ txBase64: result.transactionBase64, payerKey: wallet }),
+          });
+          if (!cleanResp.ok) throw new Error(`Clean-tx failed: ${cleanResp.status}`);
+          const cleanData = await cleanResp.json().catch(() => {
+            throw new Error("Invalid clean-tx response");
+          });
+          if (cleanData.error) throw new Error(cleanData.error);
+          if (!cleanData.txBase64) throw new Error("No cleaned transaction returned");
+
+          const closeTrade: TradeObject = {
+            id: `reduce-${market}-${Date.now()}`,
+            market,
+            action: side,
+            collateral_usd: (pos.collateral_usd * pct) / 100,
+            leverage: pos.leverage,
+            position_size: (pos.size_usd * pct) / 100,
+            entry_price: pos.entry_price,
+            mark_price: pos.mark_price,
+            liquidation_price: pos.liquidation_price,
+            fees: 0,
+            fee_rate: null,
+            slippage_bps: null,
+            status: "SIGNING",
+            unsigned_tx: cleanData.txBase64,
+            missing_fields: [],
+          };
+          set({ activeTrade: closeTrade });
+          addSystemMsg(`Reducing ${side} ${market} by ${pct}% — sign in your wallet.`);
         } catch (err: unknown) {
           const errorMsg = err instanceof Error ? err.message : "Reduce failed";
           addSystemMsg(`Error: ${errorMsg}`);

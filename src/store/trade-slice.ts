@@ -665,8 +665,8 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
     cancelTrade: () => {
       const trade = get().activeTrade;
 
-      // SAFETY: Cannot cancel during EXECUTING — tx is in flight
-      if (trade && trade.status === "EXECUTING") return;
+      // SAFETY: Cannot cancel during SIGNING or EXECUTING — tx may be signed/in flight
+      if (trade && (trade.status === "SIGNING" || trade.status === "EXECUTING")) return;
 
       if (_collapseTimer) {
         clearTimeout(_collapseTimer);
