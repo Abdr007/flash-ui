@@ -28,6 +28,7 @@ import TransferPickerCard from "./cards/TransferPickerCard";
 import TriggerOrderCard from "./cards/TriggerOrderCard";
 import OrdersCard from "./cards/OrdersCard";
 import OrderActionCard from "./cards/OrderActionCard";
+import { ConvertFlpCard } from "./cards/ConvertFlpCard";
 import WizardCard from "./WizardCard";
 
 // ---- Wizard Tool Card (thin wrapper) ----
@@ -122,6 +123,9 @@ const ToolResultCard = memo(function ToolResultCard({
       break;
     case "earn_withdraw":
       card = <EarnWithdrawCard output={output} />;
+      break;
+    case "convert_flp_to_sflp":
+      card = <ConvertFlpCard output={output} />;
       break;
     case "transfer_preview":
       card = <TransferPreviewCard output={output} />;
