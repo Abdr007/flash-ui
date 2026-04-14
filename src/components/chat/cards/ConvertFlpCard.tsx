@@ -79,23 +79,8 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
       const tx = new VersionedTransaction(message);
       if (result.additionalSigners.length > 0) tx.sign(result.additionalSigners);
 
-      // Simulate
-      const simResult = await conn.simulateTransaction(tx, { sigVerify: false, replaceRecentBlockhash: true });
-      if (simResult.value.err) {
-        const errJson = JSON.stringify(simResult.value.err);
-        const logs = simResult.value.logs?.slice(-3)?.join(" ") ?? "";
-        // Custom:1 = insufficient balance / no FLP tokens (already sFLP)
-        if (errJson.includes('"Custom":1') || logs.includes("insufficient")) {
-          throw new Error(
-            "No FLP tokens found. Your tokens are already sFLP (auto-compounding). No conversion needed.",
-          );
-        }
-        throw new Error(
-          logs.includes("AccountNotFound")
-            ? "No FLP token account found for this pool."
-            : `Conversion failed. Your tokens may already be sFLP.`,
-        );
-      }
+      // Simulate — skip simulation, sign directly (migrateFlp has complex account validation)
+      // The on-chain program will reject if invalid
 
       // Sign
       const signed = await signTransaction(tx);

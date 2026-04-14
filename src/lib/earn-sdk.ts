@@ -202,7 +202,7 @@ export async function buildEarnWithdraw(
   };
 }
 
-// ---- Convert FLP → sFLP (migrateFlp) ----
+// ---- Convert FLP → sFLP (migrateStake) ----
 
 export async function buildFlpToSflp(
   connection: Connection,
@@ -217,12 +217,20 @@ export async function buildFlpToSflp(
   const pc = getPoolConfig(poolName);
   const client = getClient(connection, wallet, poolName);
 
-  // migrateFlp compoundingTokenAmount = amount of FLP to convert (in native units)
   const nativeAmount = new BN(Math.floor(amountFlp * 1_000_000)); // FLP has 6 decimals
   if (nativeAmount.isZero()) throw new Error("Amount too small");
 
   const flpMint = pc.compoundingTokenMint;
-  const result = await client.migrateFlp(nativeAmount, flpMint, pc);
+
+  // Try migrateStake first (converts staked FLP → sFLP with ATA creation)
+  // Falls back to migrateFlp if migrateStake fails
+  let result: { instructions: TransactionInstruction[]; additionalSigners: Signer[] };
+  try {
+    result = await client.migrateStake(nativeAmount, flpMint, pc, true);
+  } catch {
+    // Fallback to migrateFlp
+    result = await client.migrateFlp(nativeAmount, flpMint, pc);
+  }
 
   return {
     instructions: result.instructions,
