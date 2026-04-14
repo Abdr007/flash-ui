@@ -77,6 +77,7 @@ export async function buildEarnDeposit(
   poolAlias: string,
   flpPrice: number,
   slippagePct = 0.5,
+  asSflp = false, // true = addLiquidity (sFLP.1 in wallet), false = addCompoundingLiquidity (FLP.1)
 ): Promise<EarnTxResult> {
   const poolName = resolvePoolName(poolAlias);
   if (!poolName) throw new Error(`Unknown pool: ${poolAlias}`);
@@ -99,16 +100,30 @@ export async function buildEarnDeposit(
     minOut = new BN(Math.floor(minShares * 1_000_000));
   }
 
-  const result = await client.addCompoundingLiquidity(
-    nativeAmount,
-    minOut,
-    "USDC",
-    pc.compoundingTokenMint,
-    pc,
-    true, // skipBalanceChecks — ATA may not exist yet
-    undefined, // ephemeralSignerPubkey
-    wallet.publicKey, // userPublicKey — explicit
-  );
+  let result: { instructions: TransactionInstruction[]; additionalSigners: Signer[] };
+
+  if (asSflp) {
+    // addLiquidity: USDC → sFLP.1 (stakedLpTokenMint) — visible in wallet as SPL token
+    result = await client.addLiquidity(
+      "USDC",
+      nativeAmount,
+      minOut,
+      pc,
+      true, // skipBalanceChecks
+    );
+  } else {
+    // addCompoundingLiquidity: USDC → FLP.1 (compoundingTokenMint) — auto-compounds
+    result = await client.addCompoundingLiquidity(
+      nativeAmount,
+      minOut,
+      "USDC",
+      pc.compoundingTokenMint,
+      pc,
+      true,
+      undefined,
+      wallet.publicKey,
+    );
+  }
 
   return {
     instructions: result.instructions,
@@ -236,21 +251,23 @@ export async function buildEarnWithdraw(
 }
 
 // ---- Convert FLP.1 → sFLP.1 (visible in wallet) ----
-// Two atomic steps in one tx:
-// 1. removeCompoundingLiquidity: burn FLP.1 → get USDC
-// 2. addLiquidity: deposit USDC → get sFLP.1 in wallet token account
-// This gives sFLP.1 as a regular SPL token (visible in Solflare/Phantom),
-// NOT locked in a stake PDA like migrateFlp does.
+// Step 1 tx: removeCompoundingLiquidity (FLP.1 → USDC)
+// Step 2 tx: addLiquidity (USDC → sFLP.1 in wallet)
+// Must be two separate transactions because we can't know the exact USDC
+// output from step 1 to use as input for step 2 in the same tx.
 
-export async function buildFlpToSflp(connection: Connection, wallet: Wallet, poolAlias: string): Promise<EarnTxResult> {
+export async function buildFlpToSflpStep1(
+  connection: Connection,
+  wallet: Wallet,
+  poolAlias: string,
+): Promise<EarnTxResult> {
   const poolName = resolvePoolName(poolAlias);
   if (!poolName) throw new Error(`Unknown pool: ${poolAlias}`);
 
   const pc = getPoolConfig(poolName);
   const client = getClient(connection, wallet, poolName);
-  const flpMint = pc.compoundingTokenMint; // FLP.1
+  const flpMint = pc.compoundingTokenMint;
 
-  // Get FLP.1 balance
   const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
   const userFlpAccount = getAssociatedTokenAddressSync(flpMint, wallet.publicKey, true);
 
@@ -259,33 +276,30 @@ export async function buildFlpToSflp(connection: Connection, wallet: Wallet, poo
     const balResp = await connection.getTokenAccountBalance(userFlpAccount);
     flpBalance = new BN(balResp.value.amount);
   } catch {
-    throw new Error("No FLP token account found. You may not have any FLP for this pool.");
+    throw new Error("No FLP.1 tokens found in your wallet.");
   }
+  if (flpBalance.isZero()) throw new Error("Your FLP.1 balance is zero.");
 
-  if (flpBalance.isZero()) {
-    throw new Error("Your FLP balance is zero. Nothing to convert.");
-  }
-
-  // Step 1: Burn FLP.1 → get USDC (removeCompoundingLiquidity)
-  const removeResult = await client.removeCompoundingLiquidity(
+  const result = await client.removeCompoundingLiquidity(
     flpBalance,
-    BN_ZERO, // min out = 0 (accept any USDC amount)
+    BN_ZERO,
     "USDC",
     flpMint,
     pc,
-    true, // createUserATA
+    true,
     undefined,
     wallet.publicKey,
   );
 
-  // Step 2: Deposit USDC → get sFLP.1 in wallet (addLiquidity)
-  // We can't know exact USDC amount from step 1 in advance,
-  // so we build a separate tx. User will need to click twice.
-  // For now, just do step 1 (FLP.1 → USDC), then user deposits USDC → sFLP.1 separately.
+  return { instructions: result.instructions, additionalSigners: result.additionalSigners, poolConfig: pc };
+}
 
-  return {
-    instructions: removeResult.instructions,
-    additionalSigners: removeResult.additionalSigners,
-    poolConfig: pc,
-  };
+export async function buildFlpToSflpStep2(
+  connection: Connection,
+  wallet: Wallet,
+  usdcAmount: number,
+  poolAlias: string,
+): Promise<EarnTxResult> {
+  // Deposit USDC → sFLP.1 (visible in wallet)
+  return buildEarnDeposit(connection, wallet, usdcAmount, poolAlias, 0, 0.75, true);
 }
