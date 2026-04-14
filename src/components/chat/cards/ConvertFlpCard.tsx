@@ -57,6 +57,22 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
         },
       };
 
+      // Read USDC balance BEFORE step 1 (so we only deposit the difference after)
+      let usdcBefore = 0;
+      try {
+        const { getAssociatedTokenAddressSync: getAta } = await import("@solana/spl-token");
+        const pc0 = (await import("flash-sdk/dist/PoolConfig")).PoolConfig.fromIdsByName(
+          (await import("@/lib/earn-sdk")).resolvePoolName(pool) ?? "",
+          "mainnet-beta",
+        );
+        const usdcCustody = pc0.custodies.find((c: { symbol: string }) => c.symbol === "USDC");
+        if (usdcCustody) {
+          const usdcAta = getAta(usdcCustody.mintKey, publicKey, true);
+          const bal = await conn.getTokenAccountBalance(usdcAta);
+          usdcBefore = Number(bal.value.uiAmount ?? 0);
+        }
+      } catch {}
+
       // Step 1: FLP.1 → USDC
       const result = await buildFlpToSflpStep1(conn, walletObj as never, pool);
 
@@ -131,7 +147,9 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
         try {
           const usdcAta = getAssociatedTokenAddressSync(usdcMint, publicKey, true);
           const usdcBal = await conn.getTokenAccountBalance(usdcAta);
-          const usdcAmount = Number(usdcBal.value.uiAmount ?? 0);
+          const usdcAfter = Number(usdcBal.value.uiAmount ?? 0);
+          // Only deposit the USDC gained from step 1, NOT the full balance
+          const usdcAmount = Math.max(0, usdcAfter - usdcBefore);
           if (usdcAmount >= 0.01) {
             const step2Result = await buildFlpToSflpStep2(conn, walletObj as never, usdcAmount, pool);
             const cuLimit2 = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
