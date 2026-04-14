@@ -205,26 +205,15 @@ export async function buildEarnWithdraw(
   let allSigners: Signer[] = [];
 
   if (unstakeFirst) {
-    // User has sFLP.1 in stake PDA. Two-step atomic:
-    // 1. migrateStake: staked sFLP.1 (PDA) → FLP.1 (compounding token in wallet)
-    // 2. removeCompoundingLiquidity: FLP.1 → USDC
+    // User has sFLP.1 in stake PDA. Convert to FLP.1 first (user can then withdraw FLP.1 → USDC separately).
+    // migrateStake: staked sFLP.1 (PDA) → FLP.1 (compounding token in wallet)
     const migrateResult = await client.migrateStake(withdrawAmount, flpMint, pc, true);
-    allInstructions.push(...migrateResult.instructions);
-    allSigners.push(...migrateResult.additionalSigners);
-
-    // After migrateStake, user has FLP.1 in wallet — burn it for USDC
-    const removeResult = await client.removeCompoundingLiquidity(
-      withdrawAmount,
-      minOut,
-      "USDC",
-      flpMint,
-      pc,
-      true,
-      undefined,
-      wallet.publicKey,
-    );
-    allInstructions.push(...removeResult.instructions);
-    allSigners.push(...removeResult.additionalSigners);
+    allInstructions = migrateResult.instructions;
+    allSigners = migrateResult.additionalSigners;
+    // NOTE: After this tx confirms, user will have FLP.1 in wallet.
+    // They need to call "withdraw from crypto pool" again to convert FLP.1 → USDC.
+    // This is because migrateStake outputs FLP.1, but the amount differs from sFLP.1 input
+    // (exchange rate isn't 1:1), so we can't chain removeCompoundingLiquidity in the same tx.
   } else if (useRawLp) {
     const result = await client.removeLiquidity("USDC", withdrawAmount, minOut, pc, true, true);
     allInstructions = result.instructions;
