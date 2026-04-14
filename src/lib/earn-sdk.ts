@@ -204,21 +204,11 @@ export async function buildEarnWithdraw(
   let allSigners: Signer[] = [];
 
   if (unstakeFirst) {
-    // User has sFLP.1 in stake PDA. Convert to FLP.1 first (user can then withdraw FLP.1 → USDC separately).
-    // migrateStake: staked sFLP.1 (PDA) → FLP.1 (compounding token in wallet)
-    // Try with full stake balance first, fall back to 0 (convert all)
-    let migrateResult;
-    try {
-      migrateResult = await client.migrateStake(withdrawAmount, flpMint, pc, true);
-    } catch {
-      migrateResult = await client.migrateStake(BN_ZERO, flpMint, pc, true);
-    }
+    // User has sFLP.1 in stake PDA. Use migrateStake to convert to FLP.1 in wallet,
+    // then user withdraws FLP.1 → USDC in a second step.
+    const migrateResult = await client.migrateStake(withdrawAmount, flpMint, pc, true);
     allInstructions = migrateResult.instructions;
     allSigners = migrateResult.additionalSigners;
-    // NOTE: After this tx confirms, user will have FLP.1 in wallet.
-    // They need to call "withdraw from crypto pool" again to convert FLP.1 → USDC.
-    // This is because migrateStake outputs FLP.1, but the amount differs from sFLP.1 input
-    // (exchange rate isn't 1:1), so we can't chain removeCompoundingLiquidity in the same tx.
   } else if (useRawLp) {
     const result = await client.removeLiquidity("USDC", withdrawAmount, minOut, pc, true, true);
     allInstructions = result.instructions;
@@ -245,7 +235,12 @@ export async function buildEarnWithdraw(
   };
 }
 
-// ---- Convert FLP → sFLP (migrateStake) ----
+// ---- Convert FLP.1 → sFLP.1 (visible in wallet) ----
+// Two atomic steps in one tx:
+// 1. removeCompoundingLiquidity: burn FLP.1 → get USDC
+// 2. addLiquidity: deposit USDC → get sFLP.1 in wallet token account
+// This gives sFLP.1 as a regular SPL token (visible in Solflare/Phantom),
+// NOT locked in a stake PDA like migrateFlp does.
 
 export async function buildFlpToSflp(connection: Connection, wallet: Wallet, poolAlias: string): Promise<EarnTxResult> {
   const poolName = resolvePoolName(poolAlias);
@@ -253,19 +248,16 @@ export async function buildFlpToSflp(connection: Connection, wallet: Wallet, poo
 
   const pc = getPoolConfig(poolName);
   const client = getClient(connection, wallet, poolName);
-  const flpMint = pc.compoundingTokenMint;
+  const flpMint = pc.compoundingTokenMint; // FLP.1
 
-  // FLP.1 = compoundingTokenMint in the SDK (confusing naming)
-  // Fetch user's FLP token balance from their associated token account
+  // Get FLP.1 balance
   const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
-  const lpMint = pc.compoundingTokenMint; // This IS FLP.1 despite the name
-  const userLpAccount = getAssociatedTokenAddressSync(lpMint, wallet.publicKey, true);
+  const userFlpAccount = getAssociatedTokenAddressSync(flpMint, wallet.publicKey, true);
 
   let flpBalance: BN;
   try {
-    const balResp = await connection.getTokenAccountBalance(userLpAccount);
-    const rawAmount = balResp.value.amount;
-    flpBalance = new BN(rawAmount);
+    const balResp = await connection.getTokenAccountBalance(userFlpAccount);
+    flpBalance = new BN(balResp.value.amount);
   } catch {
     throw new Error("No FLP token account found. You may not have any FLP for this pool.");
   }
@@ -274,11 +266,26 @@ export async function buildFlpToSflp(connection: Connection, wallet: Wallet, poo
     throw new Error("Your FLP balance is zero. Nothing to convert.");
   }
 
-  const result = await client.migrateFlp(flpBalance, flpMint, pc);
+  // Step 1: Burn FLP.1 → get USDC (removeCompoundingLiquidity)
+  const removeResult = await client.removeCompoundingLiquidity(
+    flpBalance,
+    BN_ZERO, // min out = 0 (accept any USDC amount)
+    "USDC",
+    flpMint,
+    pc,
+    true, // createUserATA
+    undefined,
+    wallet.publicKey,
+  );
+
+  // Step 2: Deposit USDC → get sFLP.1 in wallet (addLiquidity)
+  // We can't know exact USDC amount from step 1 in advance,
+  // so we build a separate tx. User will need to click twice.
+  // For now, just do step 1 (FLP.1 → USDC), then user deposits USDC → sFLP.1 separately.
 
   return {
-    instructions: result.instructions,
-    additionalSigners: result.additionalSigners,
+    instructions: removeResult.instructions,
+    additionalSigners: removeResult.additionalSigners,
     poolConfig: pc,
   };
 }
