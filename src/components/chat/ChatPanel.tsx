@@ -65,11 +65,19 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
     [],
   );
 
-  const { messages, sendMessage, status } = useChat({ transport });
+  const { messages, sendMessage, status, setMessages } = useChat({ transport });
   const isStreaming = status === "streaming";
   const isError = status === "error";
   const hasMessages = messages.length > 0;
   const lastUserMsg = useRef<string>("");
+
+  // Cap AI SDK internal messages to prevent unbounded memory growth in long sessions
+  const MAX_CHAT_MESSAGES = 150;
+  useEffect(() => {
+    if (messages.length > MAX_CHAT_MESSAGES && !isStreaming) {
+      setMessages(messages.slice(-MAX_CHAT_MESSAGES));
+    }
+  }, [messages.length, isStreaming, setMessages, messages]);
 
   useEffect(() => {
     setStreaming(isStreaming);

@@ -14,6 +14,7 @@ import { evaluateCertification } from "@/lib/certification";
 import { checkWalletExecLimit } from "@/lib/rate-limiter";
 import { validateTrade } from "@/lib/trade-firewall";
 import { logInfo, logError } from "@/lib/logger";
+import { acquireCrossTabLock, releaseCrossTabLock, isOtherTabTrading } from "@/lib/cross-tab-lock";
 import { validatePrice, isVolatilitySpike, trackVolatility } from "@/lib/price-validator";
 import { transitionTo, resetExecution } from "@/lib/execution-state";
 import type { FlashStore, StoreSet, StoreGet } from "./types";
@@ -232,6 +233,27 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
 
       // EXECUTION LOCK: prevent double-click (separate from close lock)
       if (tradeLock) return;
+
+      // CROSS-TAB LOCK: prevent concurrent trades from multiple tabs
+      if (isOtherTabTrading()) {
+        const errorTrade: TradeObject = {
+          ...trade,
+          status: "ERROR",
+          error: "Another tab is currently executing a trade. Complete or cancel it first.",
+        };
+        set({ activeTrade: errorTrade });
+        return;
+      }
+      if (!acquireCrossTabLock()) {
+        const errorTrade: TradeObject = {
+          ...trade,
+          status: "ERROR",
+          error: "Could not acquire trade lock. Try again.",
+        };
+        set({ activeTrade: errorTrade });
+        return;
+      }
+
       setTradeLock(true);
       set({ isExecuting: true });
 
@@ -242,6 +264,7 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
         const errorTrade: TradeObject = { ...trade, status: "ERROR", error: cert.reason };
         updateLastTradeCard(get, set, errorTrade);
         set({ activeTrade: errorTrade, isExecuting: false });
+        releaseCrossTabLock();
         setTradeLock(false);
         return;
       }
@@ -257,6 +280,7 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
         };
         updateLastTradeCard(get, set, errorTrade);
         set({ activeTrade: errorTrade, isExecuting: false });
+        releaseCrossTabLock();
         setTradeLock(false);
         return;
       }
@@ -279,6 +303,7 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
         };
         updateLastTradeCard(get, set, errorTrade);
         set({ activeTrade: errorTrade, isExecuting: false });
+        releaseCrossTabLock();
         setTradeLock(false);
         return;
       }
@@ -561,6 +586,7 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
 
     // ---- Complete Execution (called by UI after wallet signs + tx confirmed) ----
     completeExecution: (txSignature: string) => {
+      releaseCrossTabLock();
       const trade = get().activeTrade;
       if (!trade || trade.status !== "SIGNING") return;
 
@@ -644,6 +670,7 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
 
     // ---- Fail Execution (called by UI if wallet rejects or tx fails) ----
     failExecution: (error: string) => {
+      releaseCrossTabLock();
       const trade = get().activeTrade;
       if (!trade) return;
 
@@ -667,6 +694,8 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
 
       // SAFETY: Cannot cancel during SIGNING or EXECUTING — tx may be signed/in flight
       if (trade && (trade.status === "SIGNING" || trade.status === "EXECUTING")) return;
+
+      releaseCrossTabLock();
 
       if (_collapseTimer) {
         clearTimeout(_collapseTimer);
