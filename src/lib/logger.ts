@@ -147,7 +147,7 @@ export function generateTraceId(): string {
 
 // ---- Scrubbing ----
 
-const SENSITIVE_PATTERNS = /sk-ant-[^\s]+|gsk_[^\s]+|api_key=[^\s&]+/g;
+const SENSITIVE_PATTERNS = /sk-ant-[^\s]+|gsk_[^\s]+|api[_-]?key=[^\s&]+|Bearer\s+[^\s]+/gi;
 
 export function scrub(text: string): string {
   return text.replace(SENSITIVE_PATTERNS, "***");

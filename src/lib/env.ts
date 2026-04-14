@@ -20,7 +20,7 @@ const envSchema = z.object({
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
 
   // Auth
-  WALLET_AUTH_SECRET: z.string().min(1, "WALLET_AUTH_SECRET is required for wallet auth"),
+  WALLET_AUTH_SECRET: z.string().min(32, "WALLET_AUTH_SECRET must be at least 32 characters"),
 
   // Optional but recommended
   SIMULATION_MODE: z.string().optional(),

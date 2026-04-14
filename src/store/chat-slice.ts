@@ -425,8 +425,9 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
 
             if (aiIntent.intent === "CLOSE_POSITION" && aiIntent.market) {
               addSystemMsg(`Closing ${aiIntent.market}...`);
-              set({ isProcessing: false });
+              set({ activeTrade: null });
               await get().closePosition(aiIntent.market, side ?? "LONG");
+              set({ isProcessing: false });
               return;
             }
 

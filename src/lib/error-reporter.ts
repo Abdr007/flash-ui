@@ -31,16 +31,24 @@ async function getSentry() {
   }
 }
 
+const SENSITIVE_RE = /sk-ant-[^\s]+|gsk_[^\s]+|api[_-]?key=[^\s&]+|Bearer\s+[^\s]+/gi;
+function scrub(s: string | undefined): string | undefined {
+  return s?.replace(SENSITIVE_RE, "***");
+}
+
 export async function reportError(err: unknown, context?: ErrorContext): Promise<void> {
   // Always log structured error to stdout (Vercel log drain picks this up)
-  const message = err instanceof Error ? err.message : String(err);
-  const stack = err instanceof Error ? err.stack?.split("\n").slice(0, 3).join(" | ") : undefined;
+  const message = scrub(err instanceof Error ? err.message : String(err));
+  const stack = scrub(err instanceof Error ? err.stack?.split("\n").slice(0, 3).join(" | ") : undefined);
+  const safeContext = context
+    ? { ...context, wallet: context.wallet ? `${context.wallet.slice(0, 6)}...` : undefined }
+    : undefined;
   console.error(
     JSON.stringify({
       _type: "error_report",
       message,
       stack,
-      ...context,
+      ...safeContext,
       timestamp: new Date().toISOString(),
     }),
   );
