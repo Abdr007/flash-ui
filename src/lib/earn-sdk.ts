@@ -205,12 +205,23 @@ export async function buildEarnWithdraw(
   let allSigners: Signer[] = [];
 
   if (unstakeFirst) {
-    // Unstake from PDA to token account first, then remove liquidity
+    // Unstake from PDA to sFLP token account, then burn sFLP for USDC
     const unstakeResult = await client.unstakeInstant("USDC", withdrawAmount, pc, wallet.publicKey);
     allInstructions.push(...unstakeResult.instructions);
     allSigners.push(...unstakeResult.additionalSigners);
-    // After unstake, the tokens are in the sFLP token account — use removeLiquidity
-    const removeResult = await client.removeLiquidity("USDC", withdrawAmount, minOut, pc, true, true);
+    // After unstake, sFLP tokens are in the token account — burn them for USDC
+    // removeLiquidity burns stakedLpTokenMint (sFLP) tokens
+    const removeResult = await client.removeLiquidity(
+      "USDC",
+      withdrawAmount,
+      minOut,
+      pc,
+      false, // closeLpATA
+      true, // createUserATA (for USDC)
+      false, // closeWSOL
+      undefined,
+      wallet.publicKey,
+    );
     allInstructions.push(...removeResult.instructions);
     allSigners.push(...removeResult.additionalSigners);
   } else if (useRawLp) {
