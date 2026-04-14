@@ -17,48 +17,31 @@ export default function SystemStatus() {
 
   return (
     <div
-      className="relative flex items-center justify-between px-5 h-11 shrink-0"
+      className="relative flex items-center justify-between px-4 sm:px-5 h-12 shrink-0"
       style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
     >
-      {/* Brand + early badge — left */}
-      <div className="flex items-center gap-2 hidden sm:flex">
+      {/* Brand — left */}
+      <div className="flex items-center gap-2.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/ft-logo.svg" alt="Flash" width={22} height={22} className="rounded-full" />
-        <span className="text-[13px] font-semibold text-text-primary tracking-tight">Flash</span>
-        <span
-          className="text-[9px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded"
-          style={{ background: "rgba(58,255,225,0.1)", color: "rgba(58,255,225,0.5)" }}
-        >
-          EARLY
+        <img src="/ft-logo.svg" alt="Flash Terminal" width={24} height={24} className="rounded-full" />
+        <span className="text-[14px] font-bold tracking-tight" style={{ color: "rgba(255,255,255,0.85)" }}>
+          Flash Terminal
         </span>
       </div>
-      <span className="sm:hidden" />
 
       {/* Wallet — right */}
       {walletConnected ? (
         <button
           onClick={handleWallet}
-          className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-[12px] font-semibold cursor-pointer shrink-0"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[12px] font-semibold cursor-pointer shrink-0 transition-all duration-200 hover:border-[rgba(51,201,161,0.3)] hover:shadow-[0_0_20px_-4px_rgba(51,201,161,0.15)]"
           style={{
             background: "rgba(51, 201, 161, 0.06)",
             color: "var(--color-text-primary)",
             border: "1px solid rgba(51, 201, 161, 0.12)",
-            backdropFilter: "blur(12px)",
-            transition: "all 200ms cubic-bezier(0.34, 1.56, 0.64, 1)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.3)";
-            e.currentTarget.style.boxShadow = "0 0 20px -4px rgba(51, 201, 161, 0.15)";
-            e.currentTarget.style.transform = "translateY(-1px)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "rgba(51, 201, 161, 0.12)";
-            e.currentTarget.style.boxShadow = "none";
-            e.currentTarget.style.transform = "none";
           }}
         >
           <span
-            className="w-2 h-2 rounded-full"
+            className="w-[6px] h-[6px] rounded-full"
             style={{
               background: "var(--color-brand-teal)",
               boxShadow: "0 0 6px rgba(51, 201, 161, 0.5)",
