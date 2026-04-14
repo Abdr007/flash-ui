@@ -71,6 +71,9 @@ function extractSide(input: string): Side | null {
   return null;
 }
 
+// Words to strip before market extraction (not market names themselves)
+const NOISE_WORDS = /\b(open|trade|a|an|the|my|new|position|on|for|with)\b/gi;
+
 function extractMarket(input: string): string | null {
   const lower = input.toLowerCase();
   for (const [alias, symbol] of Object.entries(MARKET_ALIASES)) {
@@ -290,7 +293,7 @@ function parseSingleIntent(input: string): ParseResult {
   }
 
   // ---- QUERY (only if no trade side keyword present) ----
-  const hasTradeKeyword = /\b(long|short|buy|sell)\b/i.test(lower);
+  const hasTradeKeyword = /\b(long|short|buy|sell|open|trade)\b/i.test(lower);
   if (
     !hasTradeKeyword &&
     /\b(show\s+)?(my\s+)?(price|positions?|portfolio|balance|status|help|all\s*prices?|markets?)\b/i.test(lower)

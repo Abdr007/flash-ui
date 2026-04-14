@@ -294,7 +294,7 @@ function createFafStreamResponse(toolName: string, result: Record<string, unknow
 const CONVERSATIONAL_INTENTS: { pattern: RegExp; toolName: string; data: Record<string, unknown> }[] = [
   // ═══ TRADE WIZARD — Single card, 4 steps ═══
   {
-    pattern: /^I want to trade$/i,
+    pattern: /^(?:I want to trade|open (?:a )?(?:trade|position))$/i,
     toolName: "wizard",
     data: {
       type: "wizard",
