@@ -51,14 +51,11 @@ const PositionsCard = memo(function PositionsCard({ output }: { output: ToolOutp
           const entry = Number(pos.entry_price ?? 0);
           const mark = Number(pos.mark_price ?? 0);
           return (
-            <div
-              key={i}
-              className="px-5 py-3.5 flex items-center gap-4"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-            >
-              <TokenIcon symbol={market} size={32} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
+            <div key={i} className="px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              {/* Row 1: Market info + PnL */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <TokenIcon symbol={market} size={28} />
                   <span className="text-[14px] font-semibold text-text-primary">{market}</span>
                   <span
                     className="text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -71,38 +68,42 @@ const PositionsCard = memo(function PositionsCard({ output }: { output: ToolOutp
                   </span>
                   <span className="text-[11px] text-text-tertiary num">{safe(leverage).toFixed(1)}x</span>
                 </div>
-                <div className="flex items-center gap-3 text-[12px] text-text-tertiary num">
-                  <span>{formatUsd(size)}</span>
-                  <span>·</span>
-                  <span>Entry {formatPrice(entry)}</span>
-                  {mark > 0 && (
-                    <>
-                      <span>·</span>
-                      <span>Mark {formatPrice(mark)}</span>
-                    </>
-                  )}
-                  {Number(pos.liquidation_price ?? 0) > 0 && (
-                    <>
-                      <span>·</span>
-                      <span style={{ color: "var(--color-accent-short)" }}>
-                        Liq {formatPrice(Number(pos.liquidation_price))}
-                      </span>
-                    </>
-                  )}
+                <div className="text-right">
+                  <span
+                    className="text-[14px] font-semibold num"
+                    style={{ color: pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}
+                  >
+                    {formatPnl(pnl)}
+                  </span>
+                  <span
+                    className="text-[11px] num ml-1.5"
+                    style={{ color: pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}
+                  >
+                    {formatPnlPct(pnlPct)}
+                  </span>
                 </div>
               </div>
-              <div className="text-right shrink-0">
-                <div
-                  className="text-[14px] font-semibold num"
-                  style={{ color: pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}
-                >
-                  {formatPnl(pnl)}
+              {/* Row 2: Grid of metrics */}
+              <div className="grid grid-cols-4 gap-2 text-[11px]">
+                <div>
+                  <div className="text-text-tertiary mb-0.5">Size</div>
+                  <div className="num font-medium text-text-secondary">{formatUsd(size)}</div>
                 </div>
-                <div
-                  className="text-[11px] num"
-                  style={{ color: pnl >= 0 ? "var(--color-accent-long)" : "var(--color-accent-short)" }}
-                >
-                  {formatPnlPct(pnlPct)}
+                <div>
+                  <div className="text-text-tertiary mb-0.5">Entry</div>
+                  <div className="num font-medium text-text-secondary">{formatPrice(entry)}</div>
+                </div>
+                <div>
+                  <div className="text-text-tertiary mb-0.5">Mark</div>
+                  <div className="num font-medium text-text-secondary">{mark > 0 ? formatPrice(mark) : "---"}</div>
+                </div>
+                <div>
+                  <div className="text-text-tertiary mb-0.5" style={{ color: "var(--color-accent-short)" }}>
+                    Liq
+                  </div>
+                  <div className="num font-medium" style={{ color: "var(--color-accent-short)" }}>
+                    {Number(pos.liquidation_price ?? 0) > 0 ? formatPrice(Number(pos.liquidation_price)) : "---"}
+                  </div>
                 </div>
               </div>
             </div>
