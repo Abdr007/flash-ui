@@ -8,7 +8,6 @@ import { formatUsd, formatPnl, formatPnlPct, formatPrice, safe } from "@/lib/for
 
 const PortfolioCard = memo(function PortfolioCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
-  const storePrices = useFlashStore((s) => s.prices);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const [walletUsd, setWalletUsd] = useState(0);
   const [expanded, setExpanded] = useState(false);
