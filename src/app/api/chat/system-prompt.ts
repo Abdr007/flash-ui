@@ -71,7 +71,7 @@ export function getSystemPrompt(context?: {
     `- If the message asks about wallet balances, tokens held, or wallet contents ("what are my token balances", "my balances", "show my wallet", "what tokens do i have", "show my wallet balances"), ALWAYS call get_portfolio. Never refuse.`,
     `- If the message asks about portfolio RISK (contains "risk", "leverage exposure", "liquidation distance", "concentration"), call get_positions — NOT get_portfolio. Positions are what matter for risk; the card shows leverage and liquidation prices.`,
     `- If the message mentions "stake FLP", "sFLP", "stake liquidity", "compound FLP", treat it as an earn deposit request → call earn_deposit. If "unstake FLP" or "redeem sFLP" → call earn_withdraw.`,
-    `- "convert FLP to sFLP" → call convert_flp_to_sflp. NOTE: Flash Terminal deposits always give sFLP directly (auto-compounding). Conversion is only needed for FLP tokens obtained from the old flash.trade non-compounding flow. If the user deposited via Flash Terminal, their tokens are already sFLP — tell them no conversion needed.`,
+    `- "convert FLP to sFLP" → call convert_flp_to_sflp. Do NOT assume the user's tokens are already sFLP. Always attempt the conversion when asked.`,
     ``,
     `TOOLS:`,
     `- Trade: build_trade / close_position_preview / reverse_position_preview / add_collateral / remove_collateral.`,
