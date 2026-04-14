@@ -210,11 +210,32 @@ export async function buildFlpToSflp(connection: Connection, wallet: Wallet, poo
 
   const pc = getPoolConfig(poolName);
   const client = getClient(connection, wallet, poolName);
-
-  // migrateFlp({ compoundingTokenAmount }) — this is the minimum sFLP to receive (slippage).
-  // Pass 0 to accept any amount — the program converts all staked FLP.
   const flpMint = pc.compoundingTokenMint;
-  const result = await client.migrateFlp(BN_ZERO, flpMint, pc);
+
+  // Fetch user's staked FLP balance from the on-chain stake account
+  const { PublicKey } = await import("@solana/web3.js");
+  const [flpStakeAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from("stake"), wallet.publicKey.toBuffer(), pc.poolAddress.toBuffer()],
+    pc.programId,
+  );
+
+  let stakeAmount: BN;
+  try {
+    const accountData = await client.program.account.flpStake.fetch(flpStakeAccount);
+    stakeAmount = (accountData as { stakeStats?: { activeAmount?: BN } }).stakeStats?.activeAmount ?? BN_ZERO;
+    if (stakeAmount.isZero()) {
+      // Try alternate field name
+      stakeAmount = (accountData as { activeStakeAmount?: BN }).activeStakeAmount ?? BN_ZERO;
+    }
+  } catch {
+    throw new Error("No staked FLP found for this pool. You may already have sFLP.");
+  }
+
+  if (stakeAmount.isZero()) {
+    throw new Error("Your staked FLP balance is zero. Nothing to convert.");
+  }
+
+  const result = await client.migrateFlp(stakeAmount, flpMint, pc);
 
   return {
     instructions: result.instructions,
