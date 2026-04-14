@@ -413,18 +413,18 @@ const CONVERT_POOL_MAP: Record<string, string> = {
 export function createConvertFlpTool(wallet: string) {
   return tool({
     description:
-      "Convert FLP tokens to sFLP (auto-compounding staked FLP). " +
-      "Call when user says 'convert FLP to sFLP', 'stake my FLP', 'migrate FLP'.",
+      "Convert ALL FLP tokens to sFLP (auto-compounding). Converts the user's entire FLP balance for the pool. " +
+      "Call immediately when user says 'convert FLP to sFLP', 'stake my FLP', 'migrate FLP'. " +
+      "Do NOT ask how much — it always converts 100%. Just call with the pool name.",
     inputSchema: z
       .object({
-        pool: z.string().describe("Pool name (crypto, defi, gold, meme, wif, fart, ore, equity)"),
-        amount: z.number().positive().describe("Amount of FLP tokens to convert"),
+        pool: z.string().describe("Pool name or FLP symbol (crypto, FLP.1, FLP.5, etc.)"),
       })
       .strict(),
-    execute: async ({ pool, amount }): Promise<ToolResponse<unknown>> => {
+    execute: async ({ pool }): Promise<ToolResponse<unknown>> => {
       const requestId = makeRequestId();
       const start = Date.now();
-      logToolCall("convert_flp_to_sflp", requestId, wallet, { pool, amount });
+      logToolCall("convert_flp_to_sflp", requestId, wallet, { pool });
 
       if (!wallet) {
         return {
@@ -455,8 +455,8 @@ export function createConvertFlpTool(wallet: string) {
           pool: resolved,
           pool_display: resolved.charAt(0).toUpperCase() + resolved.slice(1) + " Pool",
           flp_symbol: flpSymbol,
-          amount,
-          description: `Convert ${amount} ${flpSymbol} → s${flpSymbol} (auto-compounding)`,
+          amount: 0,
+          description: `Convert all ${flpSymbol} → s${flpSymbol} (auto-compounding)`,
         },
         request_id: requestId,
         latency_ms: Date.now() - start,

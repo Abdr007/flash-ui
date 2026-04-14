@@ -28,7 +28,7 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
   const poolDisplay = String(d.pool_display ?? pool);
   const amount = Number(d.amount ?? 0);
   const flpSymbol = String(d.flp_symbol ?? "FLP");
-  const description = String(d.description ?? `Convert ${amount} ${flpSymbol} to s${flpSymbol}`);
+  const description = String(d.description ?? `Convert all ${flpSymbol} → s${flpSymbol} (auto-compounding)`);
 
   if (status === "success" && txSig) {
     return <TxSuccessCard label={`Converted ${flpSymbol} → s${flpSymbol}`} signature={txSig} variant="long" />;
