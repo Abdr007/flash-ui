@@ -490,9 +490,9 @@ const FafCard = memo(function FafCard({
               >
                 <div
                   className="text-[20px] font-bold num"
-                  style={{ color: usdcR > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}
+                  style={{ color: usdcR + rebate > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}
                 >
-                  ${usdcR.toFixed(2)}
+                  ${(usdcR + rebate).toFixed(2)}
                 </div>
                 <div className="text-[11px] text-text-tertiary mt-1">USDC revenue</div>
               </div>

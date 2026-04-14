@@ -303,6 +303,8 @@ export function createFafClaimTool(wallet: string) {
         const type = claim_type ?? "all";
         const fafRewards = info.pendingRewardsFaf ?? 0;
         const usdcRevenue = info.pendingRevenueUsdc ?? 0;
+        const usdcRebate = info.pendingRebateUsdc ?? 0;
+        const totalUsdc = usdcRevenue + usdcRebate;
 
         if (type === "rewards" && fafRewards <= 0)
           return {
@@ -312,15 +314,15 @@ export function createFafClaimTool(wallet: string) {
             request_id: requestId,
             latency_ms: Date.now() - start,
           };
-        if (type === "revenue" && usdcRevenue <= 0)
+        if (type === "revenue" && totalUsdc <= 0)
           return {
             status: "error",
             data: null,
-            error: "No USDC revenue to claim.",
+            error: "No USDC revenue or rebates to claim.",
             request_id: requestId,
             latency_ms: Date.now() - start,
           };
-        if (type === "all" && fafRewards <= 0 && usdcRevenue <= 0)
+        if (type === "all" && fafRewards <= 0 && totalUsdc <= 0)
           return {
             status: "error",
             data: null,
@@ -335,7 +337,7 @@ export function createFafClaimTool(wallet: string) {
             type: "faf_claim_preview",
             claim_type: type,
             fafRewards: type === "revenue" ? 0 : fafRewards,
-            usdcRevenue: type === "rewards" ? 0 : usdcRevenue,
+            usdcRevenue: type === "rewards" ? 0 : totalUsdc,
           },
           request_id: requestId,
           latency_ms: Date.now() - start,
