@@ -40,8 +40,7 @@ let _client: PerpetualsClient | null = null;
 let _lastWallet: string | null = null;
 
 function getClient(connection: Connection, wallet: Wallet, poolName: string): PerpetualsClient {
-  const walletKey = wallet.publicKey.toBase58();
-  if (_client && _lastWallet === walletKey) return _client;
+  // Always recreate client to ensure wallet context is correct
 
   // Get program IDs FROM the pool config (matching CLI exactly)
   const pc = PoolConfig.fromIdsByName(poolName, "mainnet-beta");
@@ -52,9 +51,9 @@ function getClient(connection: Connection, wallet: Wallet, poolName: string): Pe
     pc.perpComposibilityProgramId,
     pc.fbNftRewardProgramId,
     pc.rewardDistributionProgram.programId,
-    { prioritizationFee: 50_000 },
+    { prioritizationFee: 100 },
   );
-  _lastWallet = walletKey;
+  _lastWallet = wallet.publicKey.toBase58();
   return _client;
 }
 
@@ -207,7 +206,13 @@ export async function buildEarnWithdraw(
   if (unstakeFirst) {
     // User has sFLP.1 in stake PDA. Convert to FLP.1 first (user can then withdraw FLP.1 → USDC separately).
     // migrateStake: staked sFLP.1 (PDA) → FLP.1 (compounding token in wallet)
-    const migrateResult = await client.migrateStake(withdrawAmount, flpMint, pc, true);
+    // Try with full stake balance first, fall back to 0 (convert all)
+    let migrateResult;
+    try {
+      migrateResult = await client.migrateStake(withdrawAmount, flpMint, pc, true);
+    } catch {
+      migrateResult = await client.migrateStake(BN_ZERO, flpMint, pc, true);
+    }
     allInstructions = migrateResult.instructions;
     allSigners = migrateResult.additionalSigners;
     // NOTE: After this tx confirms, user will have FLP.1 in wallet.

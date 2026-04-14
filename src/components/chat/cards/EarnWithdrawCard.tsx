@@ -138,6 +138,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
             const { Connection, VersionedTransaction, ComputeBudgetProgram, MessageV0 } =
               await import("@solana/web3.js");
             const conn = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
+            const { Keypair } = await import("@solana/web3.js");
             const walletObj = {
               publicKey,
               signTransaction,
@@ -146,6 +147,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
                 for (const tx of txs) signed.push(await signTransaction(tx as Parameters<typeof signTransaction>[0]));
                 return signed;
               },
+              payer: Keypair.generate(), // Anchor provider needs this field
             };
             const result = await buildEarnWithdraw(
               conn,
