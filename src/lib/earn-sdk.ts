@@ -225,7 +225,18 @@ export async function buildEarnWithdraw(
     allInstructions = migrateResult.instructions;
     allSigners = migrateResult.additionalSigners;
   } else if (useRawLp) {
-    const result = await client.removeLiquidity("USDC", withdrawAmount, minOut, pc, true, true);
+    // sFLP.1 in wallet token account → burn for USDC
+    const result = await client.removeLiquidity(
+      "USDC",
+      withdrawAmount,
+      minOut,
+      pc,
+      false, // closeLpATA
+      true, // createUserATA (for USDC)
+      false, // closeWSOL
+      undefined,
+      wallet.publicKey,
+    );
     allInstructions = result.instructions;
     allSigners = result.additionalSigners;
   } else {
