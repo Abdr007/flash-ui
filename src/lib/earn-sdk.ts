@@ -205,19 +205,21 @@ export async function buildEarnWithdraw(
   let allSigners: Signer[] = [];
 
   if (unstakeFirst) {
-    // Step 1: withdrawStake — moves staked LP from PDA → sFLP token account
-    const wsResult = await client.withdrawStake(pc, true, true, true, wallet.publicKey);
-    allInstructions.push(...wsResult.instructions);
-    allSigners.push(...wsResult.additionalSigners);
-    // Step 2: removeLiquidity — burns sFLP tokens → receive USDC
-    const removeResult = await client.removeLiquidity(
-      "USDC",
+    // User has sFLP.1 in stake PDA. Two-step atomic:
+    // 1. migrateStake: staked sFLP.1 (PDA) → FLP.1 (compounding token in wallet)
+    // 2. removeCompoundingLiquidity: FLP.1 → USDC
+    const migrateResult = await client.migrateStake(withdrawAmount, flpMint, pc, true);
+    allInstructions.push(...migrateResult.instructions);
+    allSigners.push(...migrateResult.additionalSigners);
+
+    // After migrateStake, user has FLP.1 in wallet — burn it for USDC
+    const removeResult = await client.removeCompoundingLiquidity(
       withdrawAmount,
       minOut,
+      "USDC",
+      flpMint,
       pc,
-      false,
       true,
-      false,
       undefined,
       wallet.publicKey,
     );
