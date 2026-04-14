@@ -217,20 +217,10 @@ export async function buildFlpToSflp(
   const pc = getPoolConfig(poolName);
   const client = getClient(connection, wallet, poolName);
 
-  const nativeAmount = new BN(Math.floor(amountFlp * 1_000_000)); // FLP has 6 decimals
-  if (nativeAmount.isZero()) throw new Error("Amount too small");
-
+  // migrateFlp({ compoundingTokenAmount }) — this is the minimum sFLP to receive (slippage).
+  // Pass 0 to accept any amount — the program converts all staked FLP.
   const flpMint = pc.compoundingTokenMint;
-
-  // Try migrateStake first (converts staked FLP → sFLP with ATA creation)
-  // Falls back to migrateFlp if migrateStake fails
-  let result: { instructions: TransactionInstruction[]; additionalSigners: Signer[] };
-  try {
-    result = await client.migrateStake(nativeAmount, flpMint, pc, true);
-  } catch {
-    // Fallback to migrateFlp
-    result = await client.migrateFlp(nativeAmount, flpMint, pc);
-  }
+  const result = await client.migrateFlp(BN_ZERO, flpMint, pc);
 
   return {
     instructions: result.instructions,
