@@ -212,9 +212,10 @@ export async function buildFlpToSflp(connection: Connection, wallet: Wallet, poo
   const client = getClient(connection, wallet, poolName);
   const flpMint = pc.compoundingTokenMint;
 
-  // Fetch user's FLP token balance directly from their token account
+  // FLP.1 = compoundingTokenMint in the SDK (confusing naming)
+  // Fetch user's FLP token balance from their associated token account
   const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
-  const lpMint = pc.stakedLpTokenMint;
+  const lpMint = pc.compoundingTokenMint; // This IS FLP.1 despite the name
   const userLpAccount = getAssociatedTokenAddressSync(lpMint, wallet.publicKey, true);
 
   let flpBalance: BN;
