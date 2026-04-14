@@ -217,11 +217,17 @@ export async function buildFlpToSflp(
   const pc = getPoolConfig(poolName);
   const client = getClient(connection, wallet, poolName);
 
+  // migrateFlp takes compoundingTokenAmount (sFLP output).
+  // Since FLP → sFLP rate is not 1:1 (sFLP compounds), we need to
+  // estimate the sFLP output. Pass a small minimum to avoid slippage rejection.
+  // The on-chain program converts the user's full FLP stake to sFLP.
   const nativeAmount = new BN(Math.floor(amountFlp * 1_000_000)); // FLP has 6 decimals
   if (nativeAmount.isZero()) throw new Error("Amount too small");
 
+  // Use 1 as minimum output (let the program calculate the actual conversion)
+  const minOut = new BN(1);
   const flpMint = pc.compoundingTokenMint;
-  const result = await client.migrateFlp(nativeAmount, flpMint, pc);
+  const result = await client.migrateFlp(minOut, flpMint, pc);
 
   return {
     instructions: result.instructions,
