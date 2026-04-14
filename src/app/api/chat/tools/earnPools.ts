@@ -250,7 +250,7 @@ export function createEarnPositionsTool(wallet: string) {
           };
         }
 
-        const positions: { pool: string; shares: number; valueUsd: number; apy: number }[] = [];
+        const positions: { pool: string; shares: number; valueUsd: number; apy: number; flpSymbol: string }[] = [];
         let totalValue = 0;
 
         for (const [sym, balance] of Object.entries(balData)) {
@@ -265,6 +265,7 @@ export function createEarnPositionsTool(wallet: string) {
             shares: Math.round(shares * 10000) / 10000,
             valueUsd: Math.round(valueUsd * 100) / 100,
             apy: Math.round(pool.apy * 10) / 10,
+            flpSymbol: sym,
           });
         }
 

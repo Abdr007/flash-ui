@@ -9,7 +9,13 @@ import { formatUsd, safe } from "@/lib/format";
 export const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { output: ToolOutput }) {
   const data = output.data as Record<string, unknown> | null;
   if (!data) return <ToolError toolName="earn_positions" error={output.error} />;
-  const positions = (data.positions ?? []) as { pool: string; shares: number; valueUsd: number; apy: number }[];
+  const positions = (data.positions ?? []) as {
+    pool: string;
+    shares: number;
+    valueUsd: number;
+    apy: number;
+    flpSymbol?: string;
+  }[];
   const totalValue = Number(data.totalValueUsd ?? 0);
 
   if (positions.length === 0) {
@@ -41,7 +47,7 @@ export const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { o
           <div>
             <div className="text-[14px] font-semibold text-text-primary">{p.pool} Pool</div>
             <div className="text-[11px] num mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
-              {p.shares} LP shares
+              {p.shares} {String(p.flpSymbol || "FLP")} shares
             </div>
           </div>
           <div className="text-right">
