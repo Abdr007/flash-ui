@@ -11,7 +11,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
   const data = output.data as Record<string, unknown> | null;
 
   const walletAddress = useFlashStore((s) => s.walletAddress);
-  const { signTransaction, connected } = useWallet();
+  const { signTransaction, connected, publicKey } = useWallet();
   const [status, setStatus] = useState<"idle" | "executing" | "signing" | "confirming" | "success" | "error">("idle");
   const [txSig, setTxSig] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -131,20 +131,21 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
       </div>
       <button
         onClick={async () => {
-          if (!walletAddress || !connected || !signTransaction) return;
+          if (!walletAddress || !connected || !signTransaction || !publicKey) return;
           setStatus("executing");
           try {
             const { buildEarnWithdraw } = await import("@/lib/earn-sdk");
-            const { Connection, Keypair, VersionedTransaction, ComputeBudgetProgram, MessageV0, PublicKey } =
+            const { Connection, VersionedTransaction, ComputeBudgetProgram, MessageV0 } =
               await import("@solana/web3.js");
             const conn = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
-            const pubkey = new PublicKey(walletAddress);
-            const kp = Keypair.generate();
             const walletObj = {
-              publicKey: pubkey,
-              signTransaction: async (tx: unknown) => tx,
-              signAllTransactions: async (txs: unknown[]) => txs,
-              payer: kp,
+              publicKey,
+              signTransaction,
+              signAllTransactions: async (txs: unknown[]) => {
+                const signed = [];
+                for (const tx of txs) signed.push(await signTransaction(tx as Parameters<typeof signTransaction>[0]));
+                return signed;
+              },
             };
             const result = await buildEarnWithdraw(
               conn,
@@ -170,7 +171,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
 
             const { blockhash } = await conn.getLatestBlockhash("confirmed");
             const message = MessageV0.compile({
-              payerKey: pubkey,
+              payerKey: publicKey,
               recentBlockhash: blockhash,
               instructions: allIxs,
               addressLookupTableAccounts: altAccounts,
