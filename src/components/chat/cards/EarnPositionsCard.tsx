@@ -41,7 +41,7 @@ export const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { o
           <div>
             <div className="text-[14px] font-semibold text-text-primary">{p.pool} Pool</div>
             <div className="text-[11px] num mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
-              {p.shares} sFLP shares (auto-compounding)
+              {p.shares} LP shares
             </div>
           </div>
           <div className="text-right">
