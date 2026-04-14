@@ -1,86 +1,93 @@
 <div align="center">
 
+<img src="public/favicon-192.png" alt="Flash Terminal" width="80" />
+
 # Flash Terminal
 
 **AI-Powered Perpetual Trading on Solana**
 
 Chat-first trading terminal built on [Flash Trade](https://flash.trade) protocol.
-Market orders, limit orders with TP/SL, on-chain trigger orders, FAF staking, earn yield, instant transfers — all through natural language.
+34 markets, limit orders with TP/SL, on-chain trigger orders, FAF staking, earn yield, instant transfers — all through natural language.
 
 [![CI](https://github.com/Abdr007/flash-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/Abdr007/flash-ui/actions/workflows/ci.yml)
 
-[Live App](https://flash-ui-eight.vercel.app) &bull; [Flash Trade](https://flash.trade)
+[Live App](https://flash-ui-eight.vercel.app) &bull; [Landing Page](https://flash-ui-eight.vercel.app/landing) &bull; [Flash Trade](https://flash.trade) &bull; [Docs](https://docs.flash.trade)
 
 </div>
 
 ---
 
-## Architecture
+## How It Works
 
 ```
-User Input
-    |
-    v
-+------------------+     +------------------+     +------------------+
-|   Fast-Path      | --> |   FAF Patterns   | --> |  Direct Tool     |
-|   (4 regex       |     |   (40+ patterns) |     |  Match (30+)     |
-|   formats, <5ms) |     |                  |     |                  |
-+------------------+     +------------------+     +------------------+
-    |                         |                         |
-    | miss                    | miss                    | miss
-    v                         v                         v
-+------------------+     +------------------+     +------------------+
-|   NLP Parser     | --> |  Conversational  | --> |   AI Fallback    |
-|   (confidence    |     |  Intents         |     |   Sonnet 4.6     |
-|   threshold 0.8) |     |  (wizards)       |     |   (26 tools)     |
-+------------------+     +------------------+     +------------------+
+User types: "long SOL 5x $100 tp 200 sl 120"
 ```
 
-**65-75% of requests resolve with zero AI inference.** The system is regex-first, AI-fallback.
+```
+Input
+  │
+  ├─ Fast-Path Parser (4 regex formats, <5ms) ──── 65-75% of requests
+  ├─ FAF Patterns (40+ patterns) ────────────────── staking commands
+  ├─ Direct Tool Match (30+ patterns) ───────────── prices, positions, orders
+  ├─ NLP Parser (confidence threshold 0.8) ──────── complex intents
+  ├─ Conversational Intents (wizards) ───────────── guided flows
+  └─ AI Fallback (Claude Sonnet 4.6, 26 tools) ─── everything else
+```
+
+**Most requests resolve with zero AI inference.** The system is regex-first, AI-fallback.
+
+## Markets
+
+| Category | Markets | Max Leverage |
+|----------|---------|-------------|
+| **Crypto (Degen)** | SOL, BTC, ETH | 100x / 500x |
+| **Crypto** | BNB, JUP, PYTH, RAY, KMNO, HYPE, JTO, MET, ZEC | 10-50x |
+| **Meme** | BONK, WIF, PENGU, FARTCOIN, PUMP | 25x |
+| **Forex** | EUR, GBP, USDJPY, USDCNH | 500x |
+| **Metals** | XAU, XAG, XAUt | 100x |
+| **Commodities** | CRUDEOIL, NATGAS | 5-10x |
+| **Equities** | SPY, NVDA, TSLA, AAPL, AMD, AMZN, PLTR | 20x |
+
+All 34 markets verified against Flash Trade SDK PoolConfig.
 
 ## Features
 
 | Category | Capabilities |
 |---|---|
-| **Market Orders** | Long/short any market, 4 input formats, degen mode (500x), TP/SL bundled atomically |
-| **Limit Orders** | On-chain limit orders with TP/SL, step-by-step wizard builder, LIMIT badge on card |
-| **Order Management** | View all orders, cancel limit orders, edit (cancel+replace preserving TP/SL), trigger orders |
-| **Position Management** | Close, partial close (reduce %), reverse/flip, add/remove collateral |
-| **FAF Staking** | Stake, unstake, claim rewards/revenue, VIP tiers, cancel unstake, 91 prompts tested |
-| **Earn Yield** | 11 pools (Crypto/DeFi/Gold/Meme/WIF/FART/TRUMP/Ore/Stable/Equity), deposit, withdraw |
-| **Transfers** | SOL + any SPL token, cheapest fees on Solana (5000 lamports), base58 case-preserved |
-| **Portfolio** | Live PnL with fees, wallet tokens via Helius DAS, 60+ prompt patterns |
-| **Dark/Light Mode** | System preference + manual toggle, CSS variables, localStorage persist |
-| **i18n Ready** | Translation system with 80+ keys, 7 locales prepared |
+| **Trading** | Long/short any market, 4 input formats, degen mode (500x), TP/SL bundled atomically, limit orders with wizard |
+| **Order Management** | View orders, cancel/edit limit orders, trigger orders (TP/SL on existing positions) |
+| **Position Management** | Close, partial close (reduce %), reverse/flip, add/remove collateral, "close all" |
+| **FAF Staking** | Stake, unstake, claim rewards + revenue + rebates, VIP tiers, cancel unstake |
+| **Earn** | 8 pools (Crypto/DeFi/Gold/Meme/WIF/TRUMP/Ore/Equity), deposit, withdraw |
+| **Transfers** | SOL + any SPL token, cheapest fees on Solana, address book |
+| **Portfolio** | Live PnL with fees, wallet tokens via Helius DAS, liquidation prices |
+| **Cross-Tab Safety** | Web Locks API prevents concurrent trades across browser tabs |
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 16 (App Router, Server Components) |
-| Language | TypeScript (strict mode, zero `any`) |
-| AI | Claude Sonnet 4.6 + Haiku 4.5 (runtime fallback) via Vercel AI SDK v6 |
-| State | Zustand (3 domain slices: data, trade, chat) |
+| Framework | Next.js 16 (App Router, Turbopack) |
+| Language | TypeScript (strict mode) |
+| AI | Claude Sonnet 4.6 + Haiku 4.5 fallback via Vercel AI SDK |
+| State | Zustand (3 slices: data, trade, chat) |
 | Blockchain | Solana web3.js, Flash SDK, Pyth oracles (SSE streaming) |
 | Styling | Tailwind CSS 4, custom glass-card design system |
-| Testing | Vitest (231 unit tests), Playwright (5 E2E tests) |
-| CI/CD | GitHub Actions (lint + typecheck + test + build), husky + lint-staged |
-| Security | Zod schemas, trade firewall, rate limiting, TOCTOU protection |
-| Deployment | Vercel (Fluid Compute) |
+| Testing | Vitest (231 tests), Playwright E2E |
+| CI/CD | GitHub Actions, husky + lint-staged |
+| Deployment | Vercel |
 
-## Quality
+## Security
 
-| Metric | Value |
+| Layer | Protection |
 |---|---|
-| Unit tests | 231 |
-| E2E tests | 5 |
-| AI tools | 26 |
-| Card components | 21 |
-| Prompts chaos-tested | 450+ |
-| ESLint warnings | 0 |
-| Prettier | All files formatted |
-| Build | Clean |
-| CI | Green |
+| **Input** | Zod schemas on every API route, sanitized error messages |
+| **Trade Firewall** | Per-market leverage caps, TP/SL direction validation, position conflict detection |
+| **Auth** | Wallet signature auth (HMAC-SHA256), timing-safe token verification |
+| **Rate Limiting** | Per-IP on all routes, per-wallet tool rate limits |
+| **TOCTOU** | Price cross-validation at execution time, volatility circuit breaker |
+| **Transaction** | Pre-sign simulation, cross-tab lock, cancel blocked during signing |
+| **Data** | No synthetic data, 60s price staleness check, cache bounds on all stores |
 
 ## Project Structure
 
@@ -88,76 +95,68 @@ User Input
 src/
   app/
     api/
-      chat/            # AI chat route + 26 tools + system prompt
-        tools/         # buildTrade, closePosition, limitOrderTools, placeTriggerOrder, etc.
-      broadcast/       # Multi-endpoint Solana tx broadcast
-      faf/             # FAF staking tx builder (SDK-powered)
-      health/          # Health check (Flash API + RPC + Pyth + metrics)
-      transfer/        # Universal token transfer builder
-    page.tsx           # Main app shell with Suspense + ErrorBoundary
-    landing/           # Landing page
+      chat/              # AI chat route + 26 tools + system prompt
+        tools/           # buildTrade, limitOrders, triggerOrders, fafTools, earnPools, etc.
+      broadcast/         # Multi-endpoint Solana tx broadcast
+      faf/               # FAF staking tx builder
+      earn/              # Earn pool data
+      transfer/          # Token transfer builder
+      health/            # Health check endpoint
+    landing/             # Landing page with self-typing terminal demo
+    page.tsx             # Main app
   components/
     chat/
-      cards/           # 21 card components (TradePreview, Orders, TriggerOrder, etc.)
-      ChatPanel.tsx    # Chat UI with autocomplete
-    portfolio/         # PortfolioHero with live PnL + skeleton loading
-    earn/              # EarnModal with simulation + signing
-    ui/                # Skeleton, ThemeToggle
-  hooks/               # useExecuteTx, useLivePnl, usePriceStream, useWalletAuth
-  lib/                 # Core: api, parser, trade-firewall, pnl, metrics, errors, env
-  store/               # Zustand: data-slice, trade-slice, chat-slice, types
-  i18n/                # Translation system (en + 6 locale slots)
+      cards/             # 20 card components (TradePreview, Orders, Portfolio, etc.)
+      ChatPanel.tsx      # Chat UI with autocomplete + AI SDK
+      WizardCard.tsx     # Multi-step guided trade wizard
+    portfolio/           # PortfolioHero with spring-animated balance
+    earn/                # EarnPage + EarnModal with simulation
+  hooks/                 # useExecuteTx, useLivePnl, usePriceStream, useWalletAuth, useSpring
+  lib/                   # Core: api, parser, trade-firewall, pnl, cross-tab-lock, certification
+  store/                 # Zustand: data-slice, trade-slice, chat-slice
 ```
 
 ## Setup
 
 ```bash
-# Install dependencies
 npm install
-
-# Development
-npm run dev
-
-# Production build
-npm run build
-
-# Testing
-npm test              # 231 unit tests
-npm run test:e2e      # Playwright E2E (requires: npx playwright install)
-
-# Quality checks
-npm run lint          # ESLint (0 warnings)
-npm run format:check  # Prettier
-npm run type-check    # TypeScript strict
-npm run validate      # All checks + build (full CI gate)
+npm run dev          # Development server
+npm run build        # Production build
+npm test             # 231 unit tests
+npm run validate     # Full CI gate (lint + types + test + build)
 ```
 
-## Environment Variables
+## Environment
 
 ```env
 # Required
 HELIUS_RPC_URL=https://...          # Solana RPC (HTTPS enforced)
-ANTHROPIC_API_KEY=sk-ant-...        # Claude AI (Sonnet + Haiku)
-WALLET_AUTH_SECRET=...              # HMAC signing secret
+ANTHROPIC_API_KEY=sk-ant-...        # Claude AI
+WALLET_AUTH_SECRET=...              # Min 32 chars, HMAC signing
 
 # Optional
 SIMULATION_MODE=false               # Paper trading mode
 TRANSFERS_ENABLED=true              # Transfer kill switch
 TRADING_ENABLED=true                # Trading kill switch
-NEXT_PUBLIC_SENTRY_DSN=...          # Error tracking (Sentry)
-NEXT_PUBLIC_FLASH_API_URL=...       # Flash API override
 ```
 
-## Security
+## Quality
 
-- **Trade Firewall** — Zod strict schema, per-market leverage caps, TP/SL direction validation, position conflict detection
-- **Rate Limiting** — Per-IP with Retry-After headers, per-wallet tool rate limits
-- **TOCTOU Protection** — Price cross-validation at execution time, volatility circuit breaker
-- **Env Validation** — Startup Zod schema, HTTPS enforcement on RPC URLs
-- **Broadcast Security** — Transaction signer verification, base64 size limits
+| Metric | Value |
+|---|---|
+| TypeScript errors | 0 |
+| ESLint warnings | 0 |
+| Tests | 231 passing |
+| Build | Clean |
+| CI | Green |
+| Markets | 34 verified |
+| AI tools | 26 |
+| Card components | 20 |
+| Deep audit rounds | 8 |
+| Issues found & fixed | 89 |
 
 ---
 
 <div align="center">
-  <sub>Built with precision. Shipped with confidence.</sub>
+  <sub>Built on <a href="https://flash.trade">Flash Trade</a> · Powered by <a href="https://solana.com">Solana</a></sub>
 </div>
