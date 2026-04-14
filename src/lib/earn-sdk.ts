@@ -23,7 +23,6 @@ const POOL_MAP: Record<string, string> = {
   meme: "Community.1",
   community: "Community.1",
   wif: "Community.2",
-  stable: "Stable.1",
   trump: "Trump.1",
   fart: "Trump.1",
   ore: "Ore.1",

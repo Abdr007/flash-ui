@@ -48,7 +48,6 @@ export function createEarnPoolsTool(wallet: string) {
           "FLP.3": { name: "DeFi Pool", poolName: "Governance.1" },
           "FLP.4": { name: "Community Pool", poolName: "Community.1" },
           "FLP.5": { name: "WIF Pool", poolName: "Community.2" },
-          "FLP.6": { name: "Stable Pool", poolName: "Stable.1" },
           "FLP.7": { name: "FART/TRUMP Pool", poolName: "Trump.1" },
           "FLP.8": { name: "Ore Pool", poolName: "Ore.1" },
           "FLP.x": { name: "Equity Pool", poolName: "Equity.1" },
@@ -144,7 +143,6 @@ export function createEarnPositionsTool(wallet: string) {
         "FLP.3": "DeFi",
         "FLP.4": "Community",
         "FLP.5": "WIF",
-        "FLP.6": "Stable",
         "FLP.7": "FART/TRUMP",
         "FLP.8": "Ore",
         "FLP.x": "Equity",
@@ -258,7 +256,6 @@ const POOL_FLP_MAP: Record<string, string> = {
   fart: "FLP.7",
   ore: "FLP.8",
   equity: "FLP.x",
-  stable: "FLP.6",
 };
 
 const POOL_NAMES_W: Record<string, string> = {
@@ -272,7 +269,6 @@ const POOL_NAMES_W: Record<string, string> = {
   fart: "FART Pool",
   ore: "Ore Pool",
   equity: "Equity Pool",
-  stable: "Stable Pool",
 };
 
 export function createEarnWithdrawTool(wallet: string) {

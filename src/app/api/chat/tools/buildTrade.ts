@@ -147,6 +147,17 @@ export function createBuildTradeTool(wallet: string) {
           };
         }
 
+        // ---- STEP 4c: Limit order requires limit_price ----
+        if (order_type === "LIMIT" && (limit_price == null || !Number.isFinite(limit_price) || limit_price <= 0)) {
+          return {
+            status: "error",
+            data: null,
+            error: "Limit orders require a trigger price. Example: 'limit long SOL at $120 5x $50'",
+            request_id: requestId,
+            latency_ms: 0,
+          };
+        }
+
         logToolCall("build_trade", requestId, wallet, {
           market: resolved,
           side,

@@ -10,7 +10,7 @@ import type { ToolResponse } from "./shared";
 import { logToolCall, logToolResult } from "./shared";
 import { makeRequestId } from "@/lib/tool-dedup";
 
-const VALID_POOLS = ["crypto", "defi", "gold", "meme", "community", "wif", "fart", "trump", "ore", "equity", "stable"];
+const VALID_POOLS = ["crypto", "defi", "gold", "meme", "community", "wif", "fart", "trump", "ore", "equity"];
 
 const POOL_DISPLAY: Record<string, string> = {
   crypto: "Crypto Pool",
