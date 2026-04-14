@@ -260,12 +260,11 @@ export function createEarnPositionsTool(wallet: string) {
           }
         } catch {}
 
-        // 2. Check Flash stake PDAs (sFLP staked via Flash protocol)
+        // 2. Check Flash stake PDAs — staked LP balance at byte offset 72 (u64 LE, 6 decimals)
         try {
           const { PublicKey } = await import("@solana/web3.js");
           const FLASH_PROGRAM = new PublicKey("FLASH6Lo6h3iasJKWDs2F8TkW2UKf3s15C8PMGuVfgBn");
           const userKey = new PublicKey(wallet);
-          // Pool addresses from PoolConfig
           const poolAddresses: Record<string, string> = {};
           for (const p of poolData.pools ?? []) {
             const sym = String(p.flpTokenSymbol ?? "");
@@ -286,63 +285,22 @@ export function createEarnPositionsTool(wallet: string) {
                   jsonrpc: "2.0",
                   id: 1,
                   method: "getAccountInfo",
-                  params: [stakePda.toBase58(), { encoding: "jsonParsed" }],
+                  params: [stakePda.toBase58(), { encoding: "base64" }],
                 }),
                 signal: AbortSignal.timeout(5000),
               });
               if (accResp.ok) {
                 const accData = await accResp.json();
-                const data = accData?.result?.value?.data;
-                if (data) {
-                  // The stake account has activeStakeAmount as a u64 at a specific offset
-                  // Since we can't easily decode the anchor struct, use the token balance approach
-                  // The staked amount is visible in the pool's staked LP vault change
-                  // For now, add the sFLP symbol entry if the stake PDA exists
-                  const sflpSym = sym.replace("FLP.", "sFLP.");
-                  if (!balData[sflpSym]) {
-                    // Stake PDA exists — user has staked position. Get balance from compounding token account
-                    const compMint = FLP_MINTS[sym]; // FLP mint = compoundingTokenMint
-                    if (compMint) {
-                      const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
-                      const compTokenAccount = getAssociatedTokenAddressSync(new PublicKey(compMint), userKey, true);
-                      const balResp = await fetch(RPC_URL, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          jsonrpc: "2.0",
-                          id: 1,
-                          method: "getTokenAccountBalance",
-                          params: [compTokenAccount.toBase58()],
-                        }),
-                        signal: AbortSignal.timeout(5000),
-                      });
-                      if (balResp.ok) {
-                        const balJson = await balResp.json();
-                        const bal = Number(balJson?.result?.value?.uiAmount ?? 0);
-                        if (bal > 0) balData[sym] = (balData[sym] ?? 0) + bal;
-                      }
-                    }
-                    // Also check the sFLP (stakedLpTokenMint) balance
-                    const sflpMint = FLP_MINTS[sflpSym];
-                    if (sflpMint) {
-                      const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
-                      const sflpTokenAccount = getAssociatedTokenAddressSync(new PublicKey(sflpMint), userKey, true);
-                      const balResp = await fetch(RPC_URL, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          jsonrpc: "2.0",
-                          id: 1,
-                          method: "getTokenAccountBalance",
-                          params: [sflpTokenAccount.toBase58()],
-                        }),
-                        signal: AbortSignal.timeout(5000),
-                      });
-                      if (balResp.ok) {
-                        const balJson = await balResp.json();
-                        const bal = Number(balJson?.result?.value?.uiAmount ?? 0);
-                        if (bal > 0) balData[sflpSym] = (balData[sflpSym] ?? 0) + bal;
-                      }
+                const b64 = accData?.result?.value?.data?.[0];
+                if (b64) {
+                  const buf = Buffer.from(b64, "base64");
+                  if (buf.length >= 80) {
+                    // Active stake amount is a u64 at offset 72
+                    const raw = Number(buf.readBigUInt64LE(72));
+                    const uiAmount = raw / 1_000_000; // 6 decimals
+                    if (uiAmount > 0.0001) {
+                      const sflpSym = sym.replace("FLP.", "sFLP.");
+                      balData[sflpSym] = (balData[sflpSym] ?? 0) + Math.round(uiAmount * 10000) / 10000;
                     }
                   }
                 }
