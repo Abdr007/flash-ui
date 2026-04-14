@@ -204,15 +204,9 @@ export async function buildEarnWithdraw(
 
 // ---- Convert FLP → sFLP (migrateStake) ----
 
-export async function buildFlpToSflp(
-  connection: Connection,
-  wallet: Wallet,
-  amountFlp: number,
-  poolAlias: string,
-): Promise<EarnTxResult> {
+export async function buildFlpToSflp(connection: Connection, wallet: Wallet, poolAlias: string): Promise<EarnTxResult> {
   const poolName = resolvePoolName(poolAlias);
   if (!poolName) throw new Error(`Unknown pool: ${poolAlias}`);
-  if (!Number.isFinite(amountFlp) || amountFlp <= 0) throw new Error("Amount must be positive");
 
   const pc = getPoolConfig(poolName);
   const client = getClient(connection, wallet, poolName);

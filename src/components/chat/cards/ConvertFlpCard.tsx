@@ -56,7 +56,7 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
         },
       };
 
-      const result = await buildFlpToSflp(conn, walletObj as never, amount, pool);
+      const result = await buildFlpToSflp(conn, walletObj as never, pool);
 
       const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
       const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100 });
