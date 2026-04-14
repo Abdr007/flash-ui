@@ -82,13 +82,18 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
       // Simulate
       const simResult = await conn.simulateTransaction(tx, { sigVerify: false, replaceRecentBlockhash: true });
       if (simResult.value.err) {
+        const errJson = JSON.stringify(simResult.value.err);
         const logs = simResult.value.logs?.slice(-3)?.join(" ") ?? "";
+        // Custom:1 = insufficient balance / no FLP tokens (already sFLP)
+        if (errJson.includes('"Custom":1') || logs.includes("insufficient")) {
+          throw new Error(
+            "No FLP tokens found. Your tokens are already sFLP (auto-compounding). No conversion needed.",
+          );
+        }
         throw new Error(
-          logs.includes("insufficient")
-            ? "Insufficient FLP balance"
-            : logs.includes("AccountNotFound")
-              ? "No FLP token account found"
-              : `Simulation failed: ${JSON.stringify(simResult.value.err)}`,
+          logs.includes("AccountNotFound")
+            ? "No FLP token account found for this pool."
+            : `Conversion failed. Your tokens may already be sFLP.`,
         );
       }
 
