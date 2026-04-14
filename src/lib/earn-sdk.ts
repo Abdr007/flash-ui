@@ -212,30 +212,25 @@ export async function buildFlpToSflp(connection: Connection, wallet: Wallet, poo
   const client = getClient(connection, wallet, poolName);
   const flpMint = pc.compoundingTokenMint;
 
-  // Fetch user's staked FLP balance from the on-chain stake account
-  const { PublicKey } = await import("@solana/web3.js");
-  const [flpStakeAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("stake"), wallet.publicKey.toBuffer(), pc.poolAddress.toBuffer()],
-    pc.programId,
-  );
+  // Fetch user's FLP token balance directly from their token account
+  const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
+  const lpMint = pc.stakedLpTokenMint;
+  const userLpAccount = getAssociatedTokenAddressSync(lpMint, wallet.publicKey, true);
 
-  let stakeAmount: BN;
+  let flpBalance: BN;
   try {
-    const accountData = await client.program.account.flpStake.fetch(flpStakeAccount);
-    stakeAmount = (accountData as { stakeStats?: { activeAmount?: BN } }).stakeStats?.activeAmount ?? BN_ZERO;
-    if (stakeAmount.isZero()) {
-      // Try alternate field name
-      stakeAmount = (accountData as { activeStakeAmount?: BN }).activeStakeAmount ?? BN_ZERO;
-    }
+    const balResp = await connection.getTokenAccountBalance(userLpAccount);
+    const rawAmount = balResp.value.amount;
+    flpBalance = new BN(rawAmount);
   } catch {
-    throw new Error("No staked FLP found for this pool. You may already have sFLP.");
+    throw new Error("No FLP token account found. You may not have any FLP for this pool.");
   }
 
-  if (stakeAmount.isZero()) {
-    throw new Error("Your staked FLP balance is zero. Nothing to convert.");
+  if (flpBalance.isZero()) {
+    throw new Error("Your FLP balance is zero. Nothing to convert.");
   }
 
-  const result = await client.migrateFlp(stakeAmount, flpMint, pc);
+  const result = await client.migrateFlp(flpBalance, flpMint, pc);
 
   return {
     instructions: result.instructions,
