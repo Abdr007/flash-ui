@@ -177,6 +177,7 @@ export function createEarnPositionsTool(wallet: string) {
 
       // Mainnet FLP compounding mints (from flash-sdk PoolConfig.json)
       const FLP_MINTS: Record<string, string> = {
+        // FLP (compounding) mints
         "FLP.1": "NUZ3FDWTtN5SP72BsefbsqpnbAY5oe21LE8bCSkqsEK",
         "FLP.2": "AbVzeRUss8QJYzv2WDizDJ2RtsD1jkVyRjNdAzX94JhG",
         "FLP.3": "4PZTRNrHnxWBqLRvX5nuE6m1cNR8RqB4kWvVYjDkMd2H",
@@ -185,16 +186,33 @@ export function createEarnPositionsTool(wallet: string) {
         "FLP.7": "2aAQefifU14gxfc2FQHruFrp2UViLF4TYwzvbfyKFiFa",
         "FLP.8": "EViAVW2WXmbQhGwH4rjAvxAVAtXn1W8g2izbHUQ9s2AW",
         "FLP.x": "HokRUTnsr3FgLj9sq2iw3F6XkPoHn62wytcdNuPZowa7",
+        // sFLP (staked) mints — users get these after converting FLP → sFLP
+        "sFLP.1": "9Fzv4s5t2bNwwJoeeywMwypop3JegsuDb1eDbMnPr4TX",
+        "sFLP.2": "CrdMPbjooMmz6RoVgUnczWoeZka2QF14pikcCTpzRMxz",
+        "sFLP.3": "6afu2XRPMg8JAhzBsJ9DXsQRCFhkzbC4UaFMZepm6AHb",
+        "sFLP.4": "GnxdTsSQNQ3FF72nTyWo4SUt59Tt1MqDkRRfoPtKjMvJ",
+        "sFLP.5": "EsdayVbDQYQdy54TQh5iASMTkCzmhxsx6MpCvyrtYaUZ",
+        "sFLP.7": "GZbxLBmvyQSzay1jozgykotcXFpLu2yKkW6u7huhis8X",
+        "sFLP.8": "E8beq7tRhxegESSGsWSwChRHqfYRKBsBdcydVGvh1KjB",
+        "sFLP.x": "DU5PE3t7FJQEKxzceddj1Y8CB3s9nDJWsM1SWTD9o8iS",
       };
       const POOL_NAME_BY_FLP: Record<string, string> = {
         "FLP.1": "Crypto",
+        "sFLP.1": "Crypto",
         "FLP.2": "Gold",
+        "sFLP.2": "Gold",
         "FLP.3": "DeFi",
+        "sFLP.3": "DeFi",
         "FLP.4": "Community",
+        "sFLP.4": "Community",
         "FLP.5": "WIF",
+        "sFLP.5": "WIF",
         "FLP.7": "FART/TRUMP",
+        "sFLP.7": "FART/TRUMP",
         "FLP.8": "Ore",
+        "sFLP.8": "Ore",
         "FLP.x": "Equity",
+        "sFLP.x": "Equity",
       };
 
       try {
@@ -243,11 +261,15 @@ export function createEarnPositionsTool(wallet: string) {
         const poolMap: Record<string, { name: string; flpPrice: number; apy: number }> = {};
         for (const p of poolData.pools ?? []) {
           const sym = String(p.flpTokenSymbol ?? "");
-          poolMap[sym] = {
+          const entry = {
             name: POOL_NAME_BY_FLP[sym] ?? sym,
             flpPrice: Number(p.flpPrice) || 0,
             apy: Number(p.flpWeeklyApy) || 0,
           };
+          poolMap[sym] = entry;
+          // Also map the sFLP variant to the same pool data
+          const sflpSym = sym.replace("FLP.", "sFLP.");
+          poolMap[sflpSym] = entry;
         }
 
         const positions: { pool: string; shares: number; valueUsd: number; apy: number; flpSymbol: string }[] = [];
