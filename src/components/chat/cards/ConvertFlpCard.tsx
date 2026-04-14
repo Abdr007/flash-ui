@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useRef, useEffect } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
 import { ToolError, TxSuccessCard } from "./shared";
@@ -14,6 +14,7 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
   const lockRef = useRef(false);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const { signTransaction, connected, publicKey } = useWallet();
+  const { connection } = useConnection();
   const unmountedRef = useRef(false);
   const [selectedPct, setSelectedPct] = useState<number | null>(null);
   const [customPct, setCustomPct] = useState("");
@@ -44,8 +45,8 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
 
     try {
       const { buildFlpToSflp } = await import("@/lib/earn-sdk");
-      const { Connection, VersionedTransaction, ComputeBudgetProgram, MessageV0 } = await import("@solana/web3.js");
-      const conn = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
+      const { VersionedTransaction, ComputeBudgetProgram, MessageV0 } = await import("@solana/web3.js");
+      const conn = connection;
       const walletObj = {
         publicKey,
         signTransaction,

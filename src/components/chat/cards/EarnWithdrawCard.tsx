@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
 import { ToolError } from "./shared";
@@ -12,6 +12,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
 
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const { signTransaction, connected, publicKey } = useWallet();
+  const { connection } = useConnection();
   const [status, setStatus] = useState<"idle" | "executing" | "signing" | "confirming" | "success" | "error">("idle");
   const [txSig, setTxSig] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -135,9 +136,8 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
           setStatus("executing");
           try {
             const { buildEarnWithdraw } = await import("@/lib/earn-sdk");
-            const { Connection, VersionedTransaction, ComputeBudgetProgram, MessageV0 } =
-              await import("@solana/web3.js");
-            const conn = new Connection(`${window.location.origin}/api/rpc`, "confirmed");
+            const { VersionedTransaction, ComputeBudgetProgram, MessageV0 } = await import("@solana/web3.js");
+            const conn = connection; // Use wallet adapter connection (direct RPC, not proxy)
             const { Keypair } = await import("@solana/web3.js");
             const walletObj = {
               publicKey,
