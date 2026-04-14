@@ -214,6 +214,24 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
         return;
       }
 
+      // ---- CLOSE ALL POSITIONS ----
+      if (parsed.type === "close_all") {
+        const positions = state.positions;
+        if (positions.length === 0) {
+          addSystemMsg("No open positions to close.");
+          set({ isProcessing: false });
+          return;
+        }
+        addSystemMsg(`Closing all ${positions.length} position${positions.length > 1 ? "s" : ""}...`);
+        set({ activeTrade: null, isProcessing: false });
+        for (const pos of positions) {
+          try {
+            await get().closePosition(pos.market, pos.side as "LONG" | "SHORT");
+          } catch {}
+        }
+        return;
+      }
+
       // ---- CLOSE POSITION ----
       if (parsed.type === "close") {
         const intent = parsed.intent;
@@ -406,12 +424,9 @@ export function createChatSlice(set: StoreSet, get: StoreGet): ChatSlice {
       }
 
       // ---- SL / TP (standalone) ----
+      // Route to AI chat which has the place_trigger_order tool
       if (parsed.type === "sl" || parsed.type === "tp") {
-        // SL/TP requires wallet + open position — defer to future implementation
-        const label = parsed.type === "sl" ? "Stop loss" : "Take profit";
-        addSystemMsg(`${label} noted. Will be applied on next trade execution.`);
-        set({ isProcessing: false });
-        return;
+        // Fall through to AI fallback — the chat route has place_trigger_order
       }
 
       // ---- UNRECOGNIZED: AI fallback ----

@@ -244,11 +244,12 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
         set({ activeTrade: errorTrade });
         return;
       }
-      if (!acquireCrossTabLock()) {
+      const gotLock = await acquireCrossTabLock();
+      if (!gotLock) {
         const errorTrade: TradeObject = {
           ...trade,
           status: "ERROR",
-          error: "Could not acquire trade lock. Try again.",
+          error: "Another tab is executing a trade. Try again.",
         };
         set({ activeTrade: errorTrade });
         return;

@@ -351,8 +351,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(responseBody);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Failed to build transfer";
-    console.error("[transfer/build]", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const raw = err instanceof Error ? err.message : "Failed to build transfer";
+    console.error("[transfer/build]", raw);
+    // Sanitize: don't leak internal details (RPC URLs, program errors) to client
+    const safe = raw.includes("insufficient") ? "Insufficient balance for this transfer" :
+      raw.includes("not found") ? "Token account not found" :
+      "Transfer failed. Please try again.";
+    return NextResponse.json({ error: safe }, { status: 500 });
   }
 }

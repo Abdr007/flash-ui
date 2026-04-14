@@ -26,7 +26,19 @@ function genId(): string {
 }
 
 export interface ParseResult {
-  type: "trade" | "close" | "reduce" | "modify" | "sl" | "tp" | "cancel" | "query" | "earn" | "ambiguous" | "unknown";
+  type:
+    | "trade"
+    | "close"
+    | "close_all"
+    | "reduce"
+    | "modify"
+    | "sl"
+    | "tp"
+    | "cancel"
+    | "query"
+    | "earn"
+    | "ambiguous"
+    | "unknown";
   intent: ParsedIntent;
   trade?: TradeObject;
   /** Chained intents to execute after the primary (e.g., SL/TP after open) */
@@ -370,8 +382,16 @@ function parseSingleIntent(input: string): ParseResult {
     };
   }
 
+  // ---- CLOSE ALL ----
+  if (/\b(close\s*all|flatten\s*all|exit\s*all|close\s+everything)\b/i.test(lower)) {
+    return {
+      type: "close_all",
+      intent: { type: "CLOSE_ALL", raw: trimmed },
+    };
+  }
+
   // ---- CLOSE ----
-  if (/\b(close|exit|flatten|close\s*all)\b/i.test(lower)) {
+  if (/\b(close|exit|flatten)\b/i.test(lower)) {
     const closeMatch = trimmed.match(/\b(?:close|exit|flatten)\b\s+(?:my\s+)?(?:(long|short)\s+)?(\w+)/i);
     let market: string | undefined;
     let side: Side | undefined;

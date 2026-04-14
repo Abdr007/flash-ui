@@ -104,9 +104,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Failed to read FAF state";
-    console.error("[faf/GET]", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const raw = err instanceof Error ? err.message : "Failed to read FAF state";
+    console.error("[faf/GET]", raw);
+    return NextResponse.json({ error: "Failed to load FAF data. Please try again." }, { status: 500 });
   }
 }
 

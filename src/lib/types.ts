@@ -141,6 +141,7 @@ export interface ApiBuildTxResponse {
 export type IntentType =
   | "OPEN_POSITION"
   | "CLOSE_POSITION"
+  | "CLOSE_ALL"
   | "REDUCE_POSITION"
   | "MODIFY_TRADE"
   | "SET_SL"

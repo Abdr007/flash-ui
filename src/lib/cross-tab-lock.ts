@@ -2,31 +2,56 @@
 // Flash UI — Cross-Tab Trade Lock
 // ============================================
 // Prevents simultaneous trade execution across browser tabs.
-// Uses BroadcastChannel + localStorage for coordination.
+// Primary: Web Locks API (atomic, no race condition)
+// Fallback: localStorage with write-verify pattern
 
-const CHANNEL_NAME = "flash-trade-lock";
+const LOCK_NAME = "flash-trade-lock";
 const STORAGE_KEY = "flash_trade_lock";
 const LOCK_TTL_MS = 120_000; // 2 minutes — auto-expire stale locks
+
+const tabId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+// Track whether THIS tab holds the lock
+let _holding = false;
+let _lockRelease: (() => void) | null = null;
 
 interface LockEntry {
   tabId: string;
   timestamp: number;
 }
 
-const tabId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-let channel: BroadcastChannel | null = null;
+// ---- Web Locks API (preferred — truly atomic) ----
 
-function getChannel(): BroadcastChannel | null {
-  if (typeof BroadcastChannel === "undefined") return null;
-  if (!channel) {
-    try {
-      channel = new BroadcastChannel(CHANNEL_NAME);
-    } catch {
-      return null;
-    }
-  }
-  return channel;
+function hasWebLocks(): boolean {
+  return typeof navigator !== "undefined" && "locks" in navigator;
 }
+
+async function acquireWebLock(): Promise<boolean> {
+  return new Promise((resolve) => {
+    navigator.locks.request(LOCK_NAME, { ifAvailable: true }, (lock) => {
+      if (!lock) {
+        resolve(false);
+        return undefined; // lock not acquired
+      }
+      _holding = true;
+      // Return a promise that stays pending until we release
+      return new Promise<void>((releaseLock) => {
+        _lockRelease = () => {
+          _holding = false;
+          _lockRelease = null;
+          releaseLock();
+        };
+        resolve(true);
+      });
+    });
+  });
+}
+
+function releaseWebLock(): void {
+  if (_lockRelease) _lockRelease();
+}
+
+// ---- localStorage fallback (write-then-verify to reduce race window) ----
 
 function readLock(): LockEntry | null {
   try {
@@ -43,44 +68,51 @@ function readLock(): LockEntry | null {
   }
 }
 
-/**
- * Acquire the cross-tab trade lock. Returns true if acquired.
- * Only one tab can hold the lock at a time.
- */
-export function acquireCrossTabLock(): boolean {
+function acquireStorageLock(): boolean {
   const existing = readLock();
-  if (existing && existing.tabId !== tabId) {
-    return false; // another tab holds the lock
-  }
+  if (existing && existing.tabId !== tabId) return false;
   try {
     const entry: LockEntry = { tabId, timestamp: Date.now() };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entry));
-    getChannel()?.postMessage({ type: "lock-acquired", tabId });
+    // Write-then-verify: re-read to check we won the race
+    const verify = readLock();
+    if (!verify || verify.tabId !== tabId) return false;
+    _holding = true;
     return true;
   } catch {
-    return true; // localStorage unavailable — allow (single-tab fallback)
+    // localStorage unavailable or full — allow execution (single-tab assumed)
+    _holding = true;
+    return true;
   }
 }
 
-/**
- * Release the cross-tab trade lock.
- */
-export function releaseCrossTabLock(): void {
+function releaseStorageLock(): void {
   try {
     const existing = readLock();
     if (existing && existing.tabId === tabId) {
       localStorage.removeItem(STORAGE_KEY);
-      getChannel()?.postMessage({ type: "lock-released", tabId });
     }
-  } catch {
-    // Ignore — lock will expire via TTL
+  } catch {}
+  _holding = false;
+}
+
+// ---- Public API ----
+
+export async function acquireCrossTabLock(): Promise<boolean> {
+  if (hasWebLocks()) return acquireWebLock();
+  return acquireStorageLock();
+}
+
+export function releaseCrossTabLock(): void {
+  if (hasWebLocks()) {
+    releaseWebLock();
+  } else {
+    releaseStorageLock();
   }
 }
 
-/**
- * Check if another tab is currently trading.
- */
 export function isOtherTabTrading(): boolean {
+  if (hasWebLocks()) return false; // Web Locks handles this via acquireCrossTabLock
   const existing = readLock();
   return existing !== null && existing.tabId !== tabId;
 }
