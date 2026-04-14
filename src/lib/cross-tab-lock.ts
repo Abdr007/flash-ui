@@ -12,7 +12,6 @@ const LOCK_TTL_MS = 120_000; // 2 minutes — auto-expire stale locks
 const tabId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 // Track whether THIS tab holds the lock
-let _holding = false;
 let _lockRelease: (() => void) | null = null;
 
 interface LockEntry {
@@ -33,11 +32,9 @@ async function acquireWebLock(): Promise<boolean> {
         resolve(false);
         return undefined; // lock not acquired
       }
-      _holding = true;
       // Return a promise that stays pending until we release
       return new Promise<void>((releaseLock) => {
         _lockRelease = () => {
-          _holding = false;
           _lockRelease = null;
           releaseLock();
         };
@@ -77,11 +74,9 @@ function acquireStorageLock(): boolean {
     // Write-then-verify: re-read to check we won the race
     const verify = readLock();
     if (!verify || verify.tabId !== tabId) return false;
-    _holding = true;
     return true;
   } catch {
     // localStorage unavailable or full — allow execution (single-tab assumed)
-    _holding = true;
     return true;
   }
 }
@@ -93,7 +88,6 @@ function releaseStorageLock(): void {
       localStorage.removeItem(STORAGE_KEY);
     }
   } catch {}
-  _holding = false;
 }
 
 // ---- Public API ----
