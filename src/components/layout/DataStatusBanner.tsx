@@ -39,8 +39,8 @@ export default function DataStatusBanner() {
     <div
       className="flex items-center justify-center gap-2 px-4 py-1.5 text-[11px] font-medium shrink-0"
       style={{
-        background: `${color}08`,
-        borderBottom: `1px solid ${color}20`,
+        background: color.includes("short") ? "rgba(255,77,77,0.03)" : "rgba(245,166,35,0.03)",
+        borderBottom: color.includes("short") ? "1px solid rgba(255,77,77,0.12)" : "1px solid rgba(245,166,35,0.12)",
         color,
         animation: "fadeIn 200ms ease-out",
       }}

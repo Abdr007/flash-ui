@@ -15,7 +15,6 @@ import { BalanceSkeleton } from "@/components/ui/Skeleton";
 
 interface PortfolioHeroProps {
   onAction: (command: string) => void;
-  onFillInput?: (text: string) => void;
 }
 
 interface WalletToken {
@@ -384,7 +383,7 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
       )}
 
       {/* ═══ ACTION ROW ═══ */}
-      <div ref={actionRowRef} className="flex items-end justify-center gap-4 sm:gap-7 mb-6 relative z-10">
+      <div ref={actionRowRef} className="flex items-end justify-center gap-3 sm:gap-7 mb-6 relative z-10 flex-wrap">
         <ActionNode
           label="Trade"
           onClick={() => onAction("I want to trade")}

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap");
+/* Wallet adapter font — use app font stack instead of external DM Sans import */
 
 .wallet-adapter-button {
   background-color: transparent;
@@ -7,7 +7,12 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  font-family: "DM Sans", "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Inter",
+    sans-serif;
   font-size: 16px;
   font-weight: 600;
   height: 48px;
@@ -17,7 +22,8 @@
 }
 
 .wallet-adapter-button-trigger {
-  background-color: #512da8;
+  background-color: var(--color-brand-teal);
+  color: #070a0f;
 }
 
 .wallet-adapter-button:not([disabled]):focus-visible {
@@ -82,7 +88,12 @@
     opacity 200ms ease,
     transform 200ms ease,
     visibility 200ms;
-  font-family: "DM Sans", "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Inter",
+    sans-serif;
 }
 
 .wallet-adapter-dropdown-list-active {
@@ -203,7 +214,12 @@
   border-radius: 10px;
   background: #10141f;
   box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.6);
-  font-family: "DM Sans", "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Inter",
+    sans-serif;
   flex: 1;
 }
 
@@ -289,7 +305,8 @@
   cursor: pointer;
   margin-top: 48px;
   width: 100%;
-  background-color: #512da8;
+  background-color: var(--color-brand-teal);
+  color: #070a0f;
   padding: 12px;
   font-size: 18px;
   border: none;

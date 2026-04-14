@@ -354,7 +354,7 @@ export default function EarnModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="earn-modal-title"
-        className="relative w-[420px] glass-card overflow-hidden"
+        className="relative w-full max-w-[420px] mx-4 glass-card overflow-hidden"
         style={{ animation: "slideUp 200ms ease-out" }}
       >
         {/* Header */}

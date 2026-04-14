@@ -11,7 +11,6 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useFlashStore } from "@/store";
 import ToolResultCard from "./ToolResultCard";
-import QuickReply from "./QuickReply";
 import PortfolioHero from "@/components/portfolio/PortfolioHero";
 import { SectionBoundary } from "@/components/ErrorBoundary";
 import { getAutocompleteSuggestions } from "@/lib/predictive-actions";
@@ -258,9 +257,6 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
 
               // Show quick replies only on the FIRST user message (button intent),
               // not on follow-up messages from quick reply clicks (prevents loops)
-              const showQuickReply =
-                message.role === "user" && idx === 0 && messages.length === 1 && !isStreaming && !isExecuting;
-
               // Per-message error boundary — a crashing tool card replaces only
               // its own slot with a small inline fallback. ChatPanel does NOT
               // unmount, so useChat messages survive. Without this, any render
@@ -279,16 +275,7 @@ export default function ChatPanel({ heroCollapsed, onChatStart }: ChatPanelProps
                 >
                   <div className={`${message.role === "user" ? "msg-anim-instant" : "msg-anim"} ${mt}`}>
                     {message.role === "user" ? (
-                      <>
-                        <UserMessage text={userText} />
-                        {showQuickReply && (
-                          <QuickReply
-                            userMessage={userText}
-                            onSelect={handleSubmit}
-                            disabled={isStreaming || isExecuting}
-                          />
-                        )}
-                      </>
+                      <UserMessage text={userText} />
                     ) : (
                       <AssistantMessage
                         parts={(message.parts ?? []) as Record<string, unknown>[]}
