@@ -213,7 +213,7 @@ export const RPC_READ_METHODS = new Set([
   "getMultipleAccounts",
   "getRecentBlockhash",
   "getMinimumBalanceForRentExemption",
-  // simulateTransaction EXCLUDED — allows probing protocol state
+  "simulateTransaction",
   // sendTransaction EXCLUDED — use /api/broadcast with validation
   // getBlock EXCLUDED — heavyweight, can be used for DoS
   // getProgramAccounts EXCLUDED — heavyweight scan, can be used for DoS
