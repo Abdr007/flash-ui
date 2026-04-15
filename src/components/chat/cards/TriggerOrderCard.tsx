@@ -4,7 +4,7 @@ import { memo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
-import { Cell, ToolError, TxSuccessCard } from "./shared";
+import { Cell, ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 import type { ToolOutput } from "./types";
 import { formatPrice, formatUsd } from "@/lib/format";
 
@@ -109,6 +109,7 @@ export const TriggerOrderCard = memo(function TriggerOrderCard({ output }: { out
         <Cell label="Position Size" value={formatUsd(sizeUsd)} />
       </div>
 
+      <TxDisclaimer />
       <div className="flex border-t border-border-subtle">
         <button
           onClick={execute}

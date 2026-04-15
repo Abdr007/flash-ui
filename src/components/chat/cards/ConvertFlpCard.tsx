@@ -4,7 +4,7 @@ import { memo, useState, useRef, useEffect } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
-import { ToolError, TxSuccessCard } from "./shared";
+import { ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 
 export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
@@ -144,6 +144,7 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
         </div>
       )}
 
+      <TxDisclaimer />
       <div className="flex border-t border-border-subtle">
         <button
           onClick={handleConvert}

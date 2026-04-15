@@ -9,7 +9,7 @@ import { useFlashStore } from "@/store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { formatPrice, formatUsd, safe } from "@/lib/format";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
-import { Cell, ToolError, TxSuccessCard } from "./shared";
+import { Cell, ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 import { SlippageSelector } from "./SlippageSelector";
 import type { ToolOutput } from "./types";
 
@@ -157,6 +157,7 @@ export const CollateralCard = memo(function CollateralCard({ output }: { output:
       )}
 
       {/* Execute + Cancel buttons */}
+      <TxDisclaimer />
       <div className="flex border-t border-border-subtle">
         <button
           onClick={handleExecute}

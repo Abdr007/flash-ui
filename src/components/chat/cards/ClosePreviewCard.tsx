@@ -9,7 +9,7 @@ import { useFlashStore } from "@/store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { formatPrice, formatUsd, formatPnl } from "@/lib/format";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
-import { Cell, ToolError, TxSuccessCard } from "./shared";
+import { Cell, ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 import { SlippageSelector } from "./SlippageSelector";
 import type { ToolOutput } from "./types";
 
@@ -151,6 +151,7 @@ export const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { out
         </div>
       )}
 
+      <TxDisclaimer />
       <div className="flex border-t border-border-subtle">
         <button
           onClick={handleClose}

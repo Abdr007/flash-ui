@@ -5,7 +5,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import { formatUsd, safe } from "@/lib/format";
 import type { ToolOutput } from "./types";
-import { Cell, ToolError, TxSuccessCard } from "./shared";
+import { Cell, ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 import { SlippageSelector } from "./SlippageSelector";
 
 export const EarnDepositCard = memo(function EarnDepositCard({ output }: { output: ToolOutput }) {
@@ -183,6 +183,7 @@ export const EarnDepositCard = memo(function EarnDepositCard({ output }: { outpu
         </div>
       )}
 
+      <TxDisclaimer />
       {status === "preview" && (
         <div className="flex border-t border-border-subtle">
           <button

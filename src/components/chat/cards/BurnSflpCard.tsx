@@ -4,7 +4,7 @@ import { memo, useState, useRef, useEffect } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
-import { ToolError, TxSuccessCard } from "./shared";
+import { ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 import { SlippageSelector } from "./SlippageSelector";
 
 export const BurnSflpCard = memo(function BurnSflpCard({ output }: { output: ToolOutput }) {
@@ -189,6 +189,7 @@ export const BurnSflpCard = memo(function BurnSflpCard({ output }: { output: Too
         </div>
       )}
 
+      <TxDisclaimer />
       <div className="flex border-t border-border-subtle">
         <button
           onClick={handleBurn}

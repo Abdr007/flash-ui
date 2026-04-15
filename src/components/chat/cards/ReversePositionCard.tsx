@@ -9,7 +9,7 @@ import { useFlashStore } from "@/store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { formatUsd, formatPnl, formatLeverage } from "@/lib/format";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
-import { Cell, ToolError, TxSuccessCard } from "./shared";
+import { Cell, ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 import { SlippageSelector } from "./SlippageSelector";
 import type { ToolOutput } from "./types";
 
@@ -150,6 +150,7 @@ export const ReversePositionCard = memo(function ReversePositionCard({ output }:
         <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} />
       </div>
 
+      <TxDisclaimer />
       <div className="flex border-t border-border-subtle">
         <button
           onClick={handleReverse}

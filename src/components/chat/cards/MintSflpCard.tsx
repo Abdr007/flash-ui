@@ -4,7 +4,7 @@ import { memo, useState, useRef, useEffect } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
-import { ToolError, TxSuccessCard } from "./shared";
+import { ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 import { SlippageSelector } from "./SlippageSelector";
 
 export const MintSflpCard = memo(function MintSflpCard({ output }: { output: ToolOutput }) {
@@ -144,6 +144,7 @@ export const MintSflpCard = memo(function MintSflpCard({ output }: { output: Too
         </div>
       )}
 
+      <TxDisclaimer />
       <div className="flex border-t border-border-subtle">
         <button
           onClick={handleMint}

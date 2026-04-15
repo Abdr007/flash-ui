@@ -94,6 +94,17 @@ export const StreamingSteps = memo(function StreamingSteps({
   );
 });
 
+// ---- Transaction disclaimer ----
+export function TxDisclaimer() {
+  return (
+    <div className="px-5 py-2" style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}>
+      <p className="text-[10px] text-text-tertiary leading-relaxed opacity-60">
+        Early access — always verify trade details before signing. Flash Terminal is not liable for any losses.
+      </p>
+    </div>
+  );
+}
+
 // ---- Unified transaction success card ----
 // Used by every card that transitions to a "tx broadcast, on-chain" state
 // (trade open, position close, collateral add/remove, earn deposit, etc).

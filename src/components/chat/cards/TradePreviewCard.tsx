@@ -23,7 +23,7 @@ import {
   recordSuggestionAccepted,
 } from "@/lib/user-patterns";
 
-import { Cell, ConfidenceBadge, ToolError, TxSuccessCard, validateTpSlAgainstEntry } from "./shared";
+import { Cell, ConfidenceBadge, ToolError, TxDisclaimer, TxSuccessCard, validateTpSlAgainstEntry } from "./shared";
 import { SlippageSelector } from "./SlippageSelector";
 import type { ToolOutput } from "./types";
 
@@ -668,6 +668,7 @@ const TradePreviewCard = memo(function TradePreviewCard({
       )}
 
       {/* Actions */}
+      <TxDisclaimer />
       <div className="flex border-t border-border-subtle">
         <button
           onClick={handleConfirm}

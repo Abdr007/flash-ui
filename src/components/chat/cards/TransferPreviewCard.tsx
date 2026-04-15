@@ -3,7 +3,7 @@
 import { memo, useState, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
-import { ToolError, TxSuccessCard } from "./shared";
+import { ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 import type { ToolOutput } from "./types";
 
 // ---- Address Intelligence ----
@@ -377,6 +377,7 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
             <div className="text-[12px] text-text-tertiary mt-2">{suggestion}</div>
           </div>
         </div>
+        <TxDisclaimer />
         <div className="flex border-t" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
           <button
             onClick={() => {

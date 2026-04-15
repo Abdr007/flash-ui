@@ -4,7 +4,7 @@ import { memo, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
-import { ToolError, TxSuccessCard } from "./shared";
+import { ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 import { SlippageSelector } from "./SlippageSelector";
 
 // ═══ EARN WITHDRAW PREVIEW ═══
@@ -40,6 +40,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
           <div className="text-[14px] font-semibold text-accent-short mb-1">Withdrawal Failed</div>
           <div className="text-[12px] text-text-tertiary">{error}</div>
         </div>
+        <TxDisclaimer />
         <div className="flex border-t border-border-subtle">
           <button
             onClick={() => {
