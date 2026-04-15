@@ -10,7 +10,7 @@ const PositionsCard = memo(function PositionsCard({ output }: { output: ToolOutp
   if (!data || !Array.isArray(data)) return <ToolError toolName="get_positions" error="No position data" />;
   if (data.length === 0)
     return (
-      <div className="w-full max-w-[420px] glass-card overflow-hidden px-5 py-5">
+      <div className="w-full max-w-[460px] glass-card overflow-hidden px-5 py-5">
         <div className="text-[14px] font-semibold text-text-primary mb-1">No Open Positions</div>
         <div className="text-[12px] text-text-tertiary mb-3">Start trading to see your positions here.</div>
       </div>

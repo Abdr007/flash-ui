@@ -25,7 +25,7 @@ export const EarnPoolsCard = memo(function EarnPoolsCard({
 
   if (pools.length === 0)
     return (
-      <div className="glass-card-solid overflow-hidden px-5 py-5 max-w-[500px]">
+      <div className="glass-card overflow-hidden px-5 py-5 max-w-[460px]">
         <div className="text-[14px] font-semibold text-text-primary mb-1">No Earn Pools Available</div>
         <div className="text-[12px] text-text-tertiary">Pool data is temporarily unavailable. Try again shortly.</div>
       </div>
@@ -35,7 +35,7 @@ export const EarnPoolsCard = memo(function EarnPoolsCard({
     n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n}`;
 
   return (
-    <div className="glass-card-solid overflow-hidden w-full max-w-[500px]">
+    <div className="glass-card overflow-hidden w-full max-w-[460px]">
       <div
         className="px-5 py-3.5 text-[14px] font-semibold text-text-primary"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}

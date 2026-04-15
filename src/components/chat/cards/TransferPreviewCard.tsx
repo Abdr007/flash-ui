@@ -351,7 +351,7 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
   if (status === "error" && error) {
     const { message, suggestion } = humanizeError(error);
     return (
-      <div className="glass-card-solid overflow-hidden" style={{ borderColor: "rgba(255,77,77,0.15)" }}>
+      <div className="glass-card overflow-hidden w-full max-w-[460px]" style={{ borderColor: "rgba(255,77,77,0.15)" }}>
         <div className="px-5 py-5 flex items-start gap-3">
           <span
             className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5"
@@ -395,7 +395,7 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
 
   // ======== PREVIEW STATE ========
   return (
-    <div className="glass-card-solid overflow-hidden">
+    <div className="glass-card overflow-hidden w-full max-w-[460px]">
       {/* ---- Header: "You are sending..." ---- */}
       <div className="px-5 pt-5 pb-4">
         <div className="flex items-center gap-3 mb-4">

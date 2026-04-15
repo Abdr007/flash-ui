@@ -228,7 +228,7 @@ const FafCard = memo(function FafCard({
   // Error state
   if (status === "error") {
     return (
-      <div className="glass-card-solid overflow-hidden" style={{ borderColor: "rgba(255,77,77,0.15)" }}>
+      <div className="glass-card overflow-hidden w-full max-w-[460px]" style={{ borderColor: "rgba(255,77,77,0.15)" }}>
         <div className="px-5 py-4">
           <div className="text-[14px] font-semibold text-accent-short mb-1">Failed</div>
           <div className="text-[12px] text-text-tertiary">{error}</div>
@@ -251,7 +251,7 @@ const FafCard = memo(function FafCard({
   // In-flight
   if (status !== "idle") {
     return (
-      <div className="glass-card-solid overflow-hidden px-5 py-4 flex items-center gap-3">
+      <div className="glass-card overflow-hidden w-full max-w-[460px] px-5 py-4 flex items-center gap-3">
         <span
           className="w-4 h-4 border-2 border-accent-blue border-t-transparent rounded-full"
           style={{ animation: "spin 0.8s linear infinite" }}
@@ -325,7 +325,7 @@ const FafCard = memo(function FafCard({
   if (type === "faf_dashboard") {
     if (!data.hasAccount)
       return (
-        <div className="glass-card-solid overflow-hidden">
+        <div className="glass-card overflow-hidden w-full max-w-[460px]">
           <div className="px-5 py-5">
             <div className="flex items-center gap-3 mb-3">
               <span
@@ -366,7 +366,7 @@ const FafCard = memo(function FafCard({
     const tierProgress = tierRange > 0 ? Math.min(100, Math.max(0, ((staked - currentReq) / tierRange) * 100)) : 100;
 
     return (
-      <div className="glass-card overflow-hidden" style={{ maxWidth: "480px" }}>
+      <div className="glass-card overflow-hidden w-full max-w-[460px]">
         {/* Header with tier badge */}
         <div className="px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -563,7 +563,7 @@ const FafCard = memo(function FafCard({
     const tierChanged = data.tierChanged as boolean;
 
     return (
-      <div className="glass-card-solid overflow-hidden">
+      <div className="glass-card overflow-hidden w-full max-w-[460px]">
         <div className="px-5 py-4">
           <div className="text-[11px] uppercase tracking-wider text-text-tertiary mb-1">You are staking</div>
           <div className="text-[22px] font-bold num text-text-primary">{amount.toLocaleString()} FAF</div>
@@ -601,7 +601,7 @@ const FafCard = memo(function FafCard({
     const amount = safe(data.amount as number);
 
     return (
-      <div className="glass-card-solid overflow-hidden">
+      <div className="glass-card overflow-hidden w-full max-w-[460px]">
         <div className="px-5 py-4">
           <div className="text-[11px] uppercase tracking-wider text-text-tertiary mb-1">You are unstaking</div>
           <div className="text-[22px] font-bold num text-text-primary">{amount.toLocaleString()} FAF</div>
@@ -648,7 +648,7 @@ const FafCard = memo(function FafCard({
     const claimType = String(data.claim_type ?? "all");
 
     return (
-      <div className="glass-card-solid overflow-hidden">
+      <div className="glass-card overflow-hidden w-full max-w-[460px]">
         <div className="px-5 py-4">
           <div className="text-[15px] font-semibold text-text-primary">Claim Rewards</div>
         </div>
@@ -695,13 +695,13 @@ const FafCard = memo(function FafCard({
     const requests = (data.requests as Record<string, unknown>[]) ?? [];
     if (requests.length === 0)
       return (
-        <div className="glass-card-solid overflow-hidden px-5 py-5">
+        <div className="glass-card overflow-hidden w-full max-w-[460px] px-5 py-5">
           <div className="text-[14px] text-text-secondary">No pending unstake requests.</div>
         </div>
       );
 
     return (
-      <div className="glass-card-solid overflow-hidden">
+      <div className="glass-card overflow-hidden w-full max-w-[460px]">
         <div className="px-5 py-4">
           <div className="text-[15px] font-semibold text-text-primary">Unstake Requests</div>
           <div className="text-[12px] text-text-tertiary">{requests.length} pending</div>
@@ -761,7 +761,7 @@ const FafCard = memo(function FafCard({
     const idx = safe(data.index as number);
 
     return (
-      <div className="glass-card-solid overflow-hidden">
+      <div className="glass-card overflow-hidden w-full max-w-[460px]">
         <div className="px-5 py-4">
           <div className="text-[15px] font-semibold text-text-primary">Cancel Unstake Request #{idx}</div>
           <div className="text-[13px] text-text-tertiary mt-1">
@@ -789,7 +789,7 @@ const FafCard = memo(function FafCard({
     const staked = safe(data.stakedAmount as number);
 
     return (
-      <div className="glass-card-solid overflow-hidden">
+      <div className="glass-card overflow-hidden w-full max-w-[460px]">
         <div className="px-5 py-4">
           <div className="text-[15px] font-semibold text-text-primary">VIP Tiers</div>
           <div className="text-[12px] text-text-tertiary">You have {staked.toLocaleString()} FAF staked</div>

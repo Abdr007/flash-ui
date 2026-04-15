@@ -20,7 +20,7 @@ export const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { o
 
   if (positions.length === 0) {
     return (
-      <div className="glass-card-solid overflow-hidden px-5 py-4 max-w-[500px]">
+      <div className="glass-card overflow-hidden px-5 py-4 max-w-[460px]">
         <div className="text-[14px] font-semibold text-text-primary mb-1">No Earn Positions</div>
         <div className="text-[12px] text-text-tertiary">Deposit USDC into a pool to start earning yield.</div>
       </div>
@@ -28,7 +28,7 @@ export const EarnPositionsCard = memo(function EarnPositionsCard({ output }: { o
   }
 
   return (
-    <div className="glass-card-solid overflow-hidden w-full max-w-[500px]">
+    <div className="glass-card overflow-hidden w-full max-w-[460px]">
       <div
         className="px-5 py-3.5 flex items-center justify-between"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}

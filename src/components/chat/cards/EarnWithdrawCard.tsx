@@ -35,7 +35,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
 
   if (status === "error") {
     return (
-      <div className="glass-card-solid overflow-hidden max-w-[460px]" style={{ borderColor: "rgba(255,77,77,0.15)" }}>
+      <div className="glass-card overflow-hidden max-w-[460px]" style={{ borderColor: "rgba(255,77,77,0.15)" }}>
         <div className="px-5 py-4">
           <div className="text-[14px] font-semibold text-accent-short mb-1">Withdrawal Failed</div>
           <div className="text-[12px] text-text-tertiary">{error}</div>
@@ -58,7 +58,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
 
   if (status !== "idle") {
     return (
-      <div className="glass-card-solid overflow-hidden px-5 py-4 flex items-center gap-3 max-w-[460px]">
+      <div className="glass-card overflow-hidden px-5 py-4 flex items-center gap-3 max-w-[460px]">
         <span
           className="w-4 h-4 border-2 border-accent-blue border-t-transparent rounded-full"
           style={{ animation: "spin 0.8s linear infinite" }}
@@ -71,7 +71,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
   }
 
   return (
-    <div className="glass-card-solid overflow-hidden w-full max-w-[460px]">
+    <div className="glass-card overflow-hidden w-full max-w-[460px]">
       <div
         className="px-5 py-4 flex items-center justify-between"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}

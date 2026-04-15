@@ -9,7 +9,7 @@ const MarketInfoCard = memo(function MarketInfoCard({ output }: { output: ToolOu
   const d = output.data as Record<string, unknown> | null;
   if (!d) return <ToolError toolName="get_market_info" error="No market data returned" />;
   return (
-    <div className="w-full max-w-[380px] glass-card overflow-hidden">
+    <div className="w-full max-w-[460px] glass-card overflow-hidden">
       <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
         <Cell label="Market" value={String(d.market ?? "")} />
         <Cell label="Pool" value={String(d.pool ?? "")} />
