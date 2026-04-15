@@ -647,6 +647,11 @@ function matchDirectTool(input: string): DirectToolMatch | null {
   if (m) return { toolName: "get_market_info", params: { market: resolveMarket(m[1]) } };
 
   // ── Close position (explicit market) ──
+  // "close all" → get_positions (show positions, user closes from there)
+  if (/^(?:close|exit|flatten)\s+all(?:\s+(?:positions?|trades?))?$/i.test(t)) {
+    return { toolName: "get_positions", params: {} };
+  }
+
   m = /^(?:close|exit|flatten)\s+(?:my\s+)?(\w+)(?:\s+(?:position|trade|long|short))?$/i.exec(t);
   if (m && resolveMarket(m[1])) return { toolName: "close_position_preview", params: { market: resolveMarket(m[1]) } };
 
