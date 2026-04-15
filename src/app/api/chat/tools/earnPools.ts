@@ -611,6 +611,144 @@ export function createMintSflpTool(wallet: string) {
 }
 
 // ============================================
+// Tool: convert_sflp_to_flp (sFLP → FLP via migrateStake)
+// ============================================
+
+export function createConvertSflpToFlpTool(wallet: string) {
+  return tool({
+    description:
+      "Convert staked sFLP back to FLP. " +
+      "Call when user says 'convert sflp to flp', 'sflp to flp', 'unstake sflp to flp', 'migrate sflp'.",
+    inputSchema: z
+      .object({
+        pool: z.string().describe("Pool name or symbol (crypto, FLP.1, sFLP.1, etc.)"),
+        percent: z.number().min(1).max(100).default(100).describe("Percentage of staked sFLP to convert"),
+      })
+      .strict(),
+    execute: async ({ pool, percent }): Promise<ToolResponse<unknown>> => {
+      const requestId = makeRequestId();
+      const start = Date.now();
+      logToolCall("convert_sflp_to_flp", requestId, wallet, { pool, percent });
+
+      if (!wallet) {
+        return { status: "error", data: null, error: "Connect your wallet.", request_id: requestId, latency_ms: 0 };
+      }
+
+      const resolved = resolvePoolAlias(pool) ?? (pool ?? "").toLowerCase();
+      const sflpMap: Record<string, string> = {
+        crypto: "sFLP.1",
+        gold: "sFLP.2",
+        defi: "sFLP.3",
+        meme: "sFLP.4",
+        community: "sFLP.4",
+        wif: "sFLP.5",
+        trump: "sFLP.7",
+        fart: "sFLP.7",
+        ore: "sFLP.8",
+        equity: "sFLP.x",
+      };
+      const flpMap: Record<string, string> = {
+        crypto: "FLP.1",
+        gold: "FLP.2",
+        defi: "FLP.3",
+        meme: "FLP.4",
+        community: "FLP.4",
+        wif: "FLP.5",
+        trump: "FLP.7",
+        fart: "FLP.7",
+        ore: "FLP.8",
+        equity: "FLP.x",
+      };
+      const sflpSymbol = sflpMap[resolved];
+      const flpSymbol = flpMap[resolved];
+      if (!sflpSymbol || !flpSymbol) {
+        return { status: "error", data: null, error: `Unknown pool: ${pool}`, request_id: requestId, latency_ms: 0 };
+      }
+
+      const poolNames: Record<string, string> = {
+        crypto: "Crypto",
+        gold: "Gold",
+        defi: "DeFi",
+        meme: "Community",
+        wif: "WIF",
+        trump: "TRUMP",
+        fart: "FART",
+        ore: "Ore",
+        equity: "Equity",
+      };
+
+      return {
+        status: "success",
+        data: {
+          type: "convert_sflp_to_flp_preview",
+          pool: resolved,
+          pool_name: poolNames[resolved] ?? resolved,
+          sflp_symbol: sflpSymbol,
+          flp_symbol: flpSymbol,
+          percent,
+        },
+        request_id: requestId,
+        latency_ms: Date.now() - start,
+      };
+    },
+  });
+}
+
+// ============================================
+// Tool: collect_stake_rewards (collect USDC from staked sFLP)
+// ============================================
+
+export function createCollectStakeRewardsTool(wallet: string) {
+  return tool({
+    description:
+      "Collect USDC rewards from staked sFLP position. " +
+      "Call when user says 'collect rewards', 'claim earn rewards', 'collect stake fees', 'claim staking rewards'.",
+    inputSchema: z
+      .object({
+        pool: z.string().describe("Pool name or symbol (crypto, FLP.1, sFLP.1, etc.)"),
+      })
+      .strict(),
+    execute: async ({ pool }): Promise<ToolResponse<unknown>> => {
+      const requestId = makeRequestId();
+      const start = Date.now();
+      logToolCall("collect_stake_rewards", requestId, wallet, { pool });
+
+      if (!wallet) {
+        return { status: "error", data: null, error: "Connect your wallet.", request_id: requestId, latency_ms: 0 };
+      }
+
+      const resolved = resolvePoolAlias(pool) ?? (pool ?? "").toLowerCase();
+      const poolNames: Record<string, string> = {
+        crypto: "Crypto",
+        gold: "Gold",
+        defi: "DeFi",
+        meme: "Community",
+        wif: "WIF",
+        trump: "TRUMP",
+        fart: "FART",
+        ore: "Ore",
+        equity: "Equity",
+      };
+      const poolName = poolNames[resolved];
+      if (!poolName) {
+        return { status: "error", data: null, error: `Unknown pool: ${pool}`, request_id: requestId, latency_ms: 0 };
+      }
+
+      return {
+        status: "success",
+        data: {
+          type: "collect_rewards_preview",
+          pool: resolved,
+          pool_name: poolName,
+        },
+        request_id: requestId,
+        latency_ms: Date.now() - start,
+      };
+    },
+  });
+}
+
+// ============================================
 // Tool: convert_flp_to_sflp
 // ============================================
 

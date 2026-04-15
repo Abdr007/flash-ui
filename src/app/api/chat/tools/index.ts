@@ -22,6 +22,8 @@ import {
   createConvertFlpTool,
   createBurnSflpTool,
   createMintSflpTool,
+  createConvertSflpToFlpTool,
+  createCollectStakeRewardsTool,
 } from "./earnPools";
 import { createTransferPreviewTool } from "./transferPreview";
 import { createTransferHistoryTool } from "./transferHistory";
@@ -56,6 +58,8 @@ export function buildTools(wallet: string) {
     convert_flp_to_sflp: createConvertFlpTool(wallet),
     burn_sflp: createBurnSflpTool(wallet),
     mint_sflp: createMintSflpTool(wallet),
+    convert_sflp_to_flp: createConvertSflpToFlpTool(wallet),
+    collect_stake_rewards: createCollectStakeRewardsTool(wallet),
     transfer_preview: createTransferPreviewTool(wallet),
     transfer_history: createTransferHistoryTool(wallet),
     faf_dashboard: createFafDashboardTool(wallet),

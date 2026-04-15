@@ -254,6 +254,115 @@ export async function buildBurnSflp(
   };
 }
 
+// ---- Convert sFLP → FLP (migrateStake) ----
+// Takes staked sFLP.1 from stake PDA, outputs FLP.1 (compoundingTokenMint) to wallet ATA
+
+export async function buildSflpToFlp(
+  connection: Connection,
+  wallet: Wallet,
+  percent: number,
+  poolAlias: string,
+): Promise<EarnTxResult> {
+  const poolName = resolvePoolName(poolAlias);
+  if (!poolName) throw new Error(`Unknown pool: ${poolAlias}`);
+
+  if (!Number.isFinite(percent) || percent < 1 || percent > 100) throw new Error("Percent must be 1-100");
+
+  const pc = getPoolConfig(poolName);
+  const client = getClient(connection, wallet, poolName);
+
+  // Read staked balance from PDA at offset 72 (u64 LE, 6 decimals)
+  const FLASH_PROGRAM = pc.programId;
+  const userKey = wallet.publicKey;
+  const poolKey = pc.poolAddress;
+
+  const [stakePda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("stake"), userKey.toBuffer(), poolKey.toBuffer()],
+    FLASH_PROGRAM,
+  );
+
+  const accInfo = await connection.getAccountInfo(stakePda);
+  if (!accInfo || accInfo.data.length < 80) {
+    throw new Error("No staked position found for this pool.");
+  }
+
+  const raw = Number(accInfo.data.readBigUInt64LE(72));
+  const totalStaked = new BN(raw.toString());
+  if (totalStaked.isZero()) throw new Error("Staked balance is zero.");
+
+  const migrateAmount = totalStaked.mul(new BN(Math.floor(percent))).div(new BN(100));
+  if (migrateAmount.isZero()) throw new Error(`${percent}% rounds to zero.`);
+
+  const result = await client.migrateStake(
+    migrateAmount,
+    pc.compoundingTokenMint,
+    pc,
+    true, // createUserATA
+  );
+
+  return {
+    instructions: result.instructions,
+    additionalSigners: result.additionalSigners,
+    poolConfig: pc,
+  };
+}
+
+// ---- Collect Stake Rewards (collectStakeFees) ----
+// Collects accumulated USDC fee rewards from staked sFLP position
+
+export async function buildCollectRewards(
+  connection: Connection,
+  wallet: Wallet,
+  poolAlias: string,
+): Promise<EarnTxResult> {
+  const poolName = resolvePoolName(poolAlias);
+  if (!poolName) throw new Error(`Unknown pool: ${poolAlias}`);
+
+  const pc = getPoolConfig(poolName);
+  const client = getClient(connection, wallet, poolName);
+
+  // Check if stake PDA exists (offset 72 > 0)
+  const FLASH_PROGRAM = pc.programId;
+  const userKey = wallet.publicKey;
+  const poolKey = pc.poolAddress;
+
+  const [stakePda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("stake"), userKey.toBuffer(), poolKey.toBuffer()],
+    FLASH_PROGRAM,
+  );
+
+  const accInfo = await connection.getAccountInfo(stakePda);
+  if (!accInfo || accInfo.data.length < 80) {
+    throw new Error("No staked position found for this pool.");
+  }
+
+  const raw = Number(accInfo.data.readBigUInt64LE(72));
+  if (raw === 0) throw new Error("No staked position found.");
+
+  // Find tokenStakeAccount PDA
+  const [tokenStakeAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from("token_stake"), userKey.toBuffer()],
+    FLASH_PROGRAM,
+  );
+
+  // Check if tokenStakeAccount exists
+  const tsaInfo = await connection.getAccountInfo(tokenStakeAccount);
+  const tsaPubkey = tsaInfo ? tokenStakeAccount : undefined;
+
+  const result = await client.collectStakeFees(
+    "USDC",
+    pc,
+    tsaPubkey,
+    true, // createUserATA
+  );
+
+  return {
+    instructions: result.instructions,
+    additionalSigners: result.additionalSigners,
+    poolConfig: pc,
+  };
+}
+
 // ---- Convert FLP.1 → sFLP.1 (visible in wallet) ----
 // Step 1 tx: removeCompoundingLiquidity (FLP.1 → USDC)
 // Step 2 tx: addLiquidity (USDC → sFLP.1 in wallet)
