@@ -295,8 +295,8 @@ export function createEarnPositionsTool(wallet: string) {
                 if (b64) {
                   const buf = Buffer.from(b64, "base64");
                   if (buf.length >= 88) {
-                    // active_amount is u64 at offset 80 (not 72 which is pending_activation)
-                    const raw = Number(buf.readBigUInt64LE(80));
+                    // Sum pending_activation (72) + active_amount (80) — freshly staked tokens are in pending
+                    const raw = Number(buf.readBigUInt64LE(72)) + Number(buf.readBigUInt64LE(80));
                     const uiAmount = raw / 1_000_000; // 6 decimals
                     if (uiAmount > 0.0001) {
                       const sflpSym = sym.replace("FLP.", "sFLP.");

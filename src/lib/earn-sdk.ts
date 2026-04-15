@@ -289,7 +289,7 @@ export async function buildSflpToFlp(
   // Check stake PDA first
   let stakedBalance = BN_ZERO;
   if (accInfo && accInfo.data.length >= 80) {
-    const raw = Number(accInfo.data.readBigUInt64LE(80));
+    const raw = Number(accInfo.data.readBigUInt64LE(72)) + Number(accInfo.data.readBigUInt64LE(80));
     stakedBalance = new BN(raw.toString());
   }
 
@@ -365,7 +365,7 @@ export async function buildCollectRewards(
     throw new Error("No staked position found for this pool.");
   }
 
-  const raw = Number(accInfo.data.readBigUInt64LE(80));
+  const raw = Number(accInfo.data.readBigUInt64LE(72)) + Number(accInfo.data.readBigUInt64LE(80));
   if (raw === 0) throw new Error("No staked position found.");
 
   // Find tokenStakeAccount PDA
