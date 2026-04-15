@@ -182,7 +182,7 @@ const FAF_PATTERNS: {
     extract: () => ({ claim_type: "all" }),
   },
   {
-    pattern: /^(?:collect|harvest)\s+(?:my\s+)?(?:faf\s+)?(?:rewards?|earnings?)?/i,
+    pattern: /^(?:collect|harvest)\s+(?:my\s+)?(?:faf\s+)?(?:rewards?|earnings?)?\s*$/i,
     action: "claim",
     toolName: "faf_claim",
     extract: () => ({ claim_type: "all" }),

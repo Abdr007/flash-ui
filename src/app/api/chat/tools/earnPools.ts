@@ -294,9 +294,9 @@ export function createEarnPositionsTool(wallet: string) {
                 const b64 = accData?.result?.value?.data?.[0];
                 if (b64) {
                   const buf = Buffer.from(b64, "base64");
-                  if (buf.length >= 80) {
-                    // Active stake amount is a u64 at offset 72
-                    const raw = Number(buf.readBigUInt64LE(72));
+                  if (buf.length >= 88) {
+                    // active_amount is u64 at offset 80 (not 72 which is pending_activation)
+                    const raw = Number(buf.readBigUInt64LE(80));
                     const uiAmount = raw / 1_000_000; // 6 decimals
                     if (uiAmount > 0.0001) {
                       const sflpSym = sym.replace("FLP.", "sFLP.");
