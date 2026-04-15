@@ -21,9 +21,9 @@ export default function SystemStatus() {
       style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
     >
       {/* Brand — left */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         {/* FT mark — brand kit angular lightning bolt */}
-        <svg width="28" height="24" viewBox="5 16 58 38" fill="none" aria-hidden="true">
+        <svg width="36" height="30" viewBox="5 16 58 38" fill="none" aria-hidden="true">
           <path
             d="M49.88 19.7C49.88 20.6 49.94 26.35 49.94 27.58H33.28c-.66 0-1.09.19-1.56.65L19.06 40.89c-.47.47-.9.65-1.55.62h-6.22v-5.69c0-.49.09-.84.47-1.21L26.19 20.2c.31-.34.62-.53 1.09-.53h22.6z"
             fill="url(#ft-h1)"
@@ -43,9 +43,9 @@ export default function SystemStatus() {
             </linearGradient>
           </defs>
         </svg>
-        <div className="flex flex-col leading-[1.15]">
-          <span className="text-[13px] font-extrabold tracking-[0.14em] text-white italic">FLASH</span>
-          <span className="text-[13px] font-extrabold tracking-[0.14em] text-white italic">TERMINAL</span>
+        <div className="flex flex-col leading-[1.1]">
+          <span className="text-[15px] font-black tracking-[0.08em] text-white">FLASH</span>
+          <span className="text-[15px] font-black tracking-[0.08em] text-white">TERMINAL</span>
         </div>
       </div>
 
