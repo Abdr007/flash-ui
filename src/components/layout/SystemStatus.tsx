@@ -43,13 +43,9 @@ export default function SystemStatus() {
             </linearGradient>
           </defs>
         </svg>
-        <div className="flex flex-col leading-[1.1]">
-          <span className="text-[14px] font-bold tracking-[0.18em] text-white/90" style={{ fontWeight: 300 }}>
-            FLASH
-          </span>
-          <span className="text-[14px] tracking-[0.18em] text-white/50" style={{ fontWeight: 200 }}>
-            TERMINAL
-          </span>
+        <div className="flex flex-col leading-[1.15]">
+          <span className="text-[13px] font-extrabold tracking-[0.14em] text-white italic">FLASH</span>
+          <span className="text-[13px] font-extrabold tracking-[0.14em] text-white italic">TERMINAL</span>
         </div>
       </div>
 
