@@ -495,7 +495,7 @@ const FafNode = memo(function FafNode({ onClick }: { onClick: () => void }) {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
         </svg>
       </button>
       <span className="text-[11px] font-semibold" style={{ color: "rgba(200,245,71,0.5)" }}>
