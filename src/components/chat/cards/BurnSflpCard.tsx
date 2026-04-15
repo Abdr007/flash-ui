@@ -34,8 +34,6 @@ export const BurnSflpCard = memo(function BurnSflpCard({ output }: { output: Too
   const pool = String(d.pool ?? "");
   const poolName = String(d.pool_name ?? pool);
   const sflpSymbol = String(d.sflp_symbol ?? "sFLP");
-  const percent = Number(d.percent ?? 100);
-
   if (status === "success" && txSig) {
     return <TxSuccessCard label={`Burned ${sflpSymbol} → USDC`} signature={txSig} variant="long" />;
   }
