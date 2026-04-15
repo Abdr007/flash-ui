@@ -59,7 +59,7 @@ export function getSystemPrompt(context?: {
     ``,
     `DOMAIN:`,
     `- Trading: long/short, leverage, liquidation, PnL, collateral, fees.`,
-    `- Earn: pool-based liquidity, APY, impermanent exposure. Depositing USDC gives sFLP (staked/compounding FLP). Pools can be referenced by name (crypto, defi, gold) OR FLP symbol (FLP.1, FLP.2, sFLP.5, etc.). "stake FLP" or "sFLP" = earn_deposit. "unstake FLP" = earn_withdraw. "convert FLP to sFLP" = convert_flp_to_sflp.`,
+    `- Earn: pool-based liquidity, APY. Depositing USDC gives FLP (auto-compounding). Pools by name (crypto, defi, gold) or symbol (FLP.1, FLP.2). "deposit" = earn_deposit. "withdraw" = earn_withdraw. "convert FLP to sFLP" = convert_flp_to_sflp. Both FLP and sFLP can be withdrawn to USDC.`,
     `- FAF: stake/unstake (90-day linear unlock), USDC revenue share, VIP tiers (L1–L6), cancelable unstake.`,
     `- Transfer: SOL + any SPL token. Cross-chain → wormhole.com / debridge.finance.`,
     ``,

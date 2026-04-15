@@ -226,10 +226,11 @@ export async function buildEarnWithdraw(
     allSigners = migrateResult.additionalSigners;
   } else if (useRawLp) {
     // sFLP.1 in wallet token account → burn for USDC
+    // Use minOut=0 because sFLP price differs from FLP price (slippage calc was wrong)
     const result = await client.removeLiquidity(
       "USDC",
       withdrawAmount,
-      minOut,
+      BN_ZERO,
       pc,
       false, // closeLpATA
       true, // createUserATA (for USDC)
