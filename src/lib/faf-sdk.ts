@@ -51,6 +51,10 @@ export interface FafStakeInfo {
   tradeCounter: number;
   nextTier: (typeof VIP_TIERS)[number] | null;
   amountToNextTier: number;
+  lastRewardEpoch: number;
+  updateTimestamp: number;
+  rebateRate: number;
+  maxRebateUsd: number;
 }
 
 export interface FafUnstakeRequest {
@@ -159,6 +163,10 @@ export async function getFafStakeInfo(
     tradeCounter: safe(account.tradeCounter),
     nextTier: next?.tier ?? null,
     amountToNextTier: next?.amountNeeded ?? 0,
+    lastRewardEpoch: safe(account.lastRewardEpochCount),
+    updateTimestamp: safe(account.updateTimestamp) * 1000, // convert to ms
+    rebateRate: bnToUi(account.rebateRate),
+    maxRebateUsd: bnToUi(account.maxRebateUsd),
   };
 }
 

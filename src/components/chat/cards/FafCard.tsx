@@ -435,34 +435,56 @@ const FafCard = memo(function FafCard({
           </div>
         )}
 
+        {/* Staking epoch info */}
+        <div className="px-6 py-3" style={{ borderTop: "1px solid rgba(51,201,161,0.04)" }}>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-widest text-text-tertiary font-medium">Staking Epoch</span>
+            <span className="text-[12px] num font-semibold" style={{ color: "var(--color-brand-teal)" }}>
+              RE{safe(data.lastRewardEpoch as number)}
+            </span>
+          </div>
+        </div>
+
         {/* Rewards section */}
         <div style={{ borderTop: "1px solid rgba(51,201,161,0.04)" }}>
           <div className="px-6 py-4">
             <div className="text-[10px] uppercase tracking-widest text-text-tertiary mb-3 font-medium">Earnings</div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div
-                className="rounded-xl px-4 py-3"
+                className="rounded-xl px-3 py-3"
                 style={{ background: "rgba(51,201,161,0.03)", border: "1px solid rgba(51,201,161,0.06)" }}
               >
                 <div
-                  className="text-[20px] font-bold num"
+                  className="text-[16px] font-bold num"
                   style={{ color: fafR > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}
                 >
                   {fafR.toFixed(2)}
                 </div>
-                <div className="text-[11px] text-text-tertiary mt-1">FAF rewards</div>
+                <div className="text-[10px] text-text-tertiary mt-1">FAF rewards</div>
               </div>
               <div
-                className="rounded-xl px-4 py-3"
+                className="rounded-xl px-3 py-3"
                 style={{ background: "rgba(51,201,161,0.03)", border: "1px solid rgba(51,201,161,0.06)" }}
               >
                 <div
-                  className="text-[20px] font-bold num"
-                  style={{ color: usdcR + rebate > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}
+                  className="text-[16px] font-bold num"
+                  style={{ color: usdcR > 0 ? "var(--color-accent-long)" : "var(--color-text-secondary)" }}
                 >
-                  ${(usdcR + rebate).toFixed(2)}
+                  ${usdcR.toFixed(2)}
                 </div>
-                <div className="text-[11px] text-text-tertiary mt-1">USDC revenue</div>
+                <div className="text-[10px] text-text-tertiary mt-1">USDC revenue</div>
+              </div>
+              <div
+                className="rounded-xl px-3 py-3"
+                style={{ background: "rgba(51,201,161,0.03)", border: "1px solid rgba(51,201,161,0.06)" }}
+              >
+                <div
+                  className="text-[16px] font-bold num"
+                  style={{ color: rebate > 0 ? "var(--color-accent-lime)" : "var(--color-text-secondary)" }}
+                >
+                  ${rebate.toFixed(2)}
+                </div>
+                <div className="text-[10px] text-text-tertiary mt-1">Rebates</div>
               </div>
             </div>
           </div>
