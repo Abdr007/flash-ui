@@ -953,7 +953,7 @@ export async function POST(req: Request) {
             type: "faf_amount_picker",
             action: "unstake",
             question: "How much FAF do you want to unstake?",
-            amounts: [50, 100, 200, 305],
+            amounts: [50, 100, 250, 500],
           },
           request_id: `faf_up_${Date.now()}`,
           latency_ms: 0,
