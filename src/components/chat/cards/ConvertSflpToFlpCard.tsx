@@ -45,8 +45,10 @@ export const ConvertSflpToFlpCard = memo(function ConvertSflpToFlpCard({ output 
     setErrorMsg("");
 
     try {
-      const { buildSflpToFlp } = await import("@/lib/earn-sdk");
+      const { buildSflpToFlp, buildEarnDeposit, resolvePoolName } = await import("@/lib/earn-sdk");
       const { VersionedTransaction, ComputeBudgetProgram, MessageV0 } = await import("@solana/web3.js");
+      const { PoolConfig } = await import("flash-sdk/dist/PoolConfig");
+      const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
       const conn = connection;
       const walletObj = {
         publicKey,
@@ -58,6 +60,22 @@ export const ConvertSflpToFlpCard = memo(function ConvertSflpToFlpCard({ output 
         },
       };
 
+      // Read USDC balance before step 1
+      let usdcBefore = 0;
+      try {
+        const poolName = resolvePoolName(pool);
+        if (poolName) {
+          const pc = PoolConfig.fromIdsByName(poolName, "mainnet-beta");
+          const usdcCustody = pc.custodies.find((c: { symbol: string }) => c.symbol === "USDC");
+          if (usdcCustody) {
+            const usdcAta = getAssociatedTokenAddressSync(usdcCustody.mintKey, publicKey, true);
+            const bal = await conn.getTokenAccountBalance(usdcAta);
+            usdcBefore = Number(bal.value.uiAmount ?? 0);
+          }
+        }
+      } catch {}
+
+      // Step 1: sFLP → USDC (or staked sFLP → FLP via migrateStake)
       const result = await buildSflpToFlp(conn, walletObj as never, effectivePct ?? 100, pool);
 
       const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
@@ -111,8 +129,69 @@ export const ConvertSflpToFlpCard = memo(function ConvertSflpToFlpCard({ output 
         }
         await new Promise((r) => setTimeout(r, 2000));
       }
-      if (!confirmed) throw new Error("Not confirmed in 45s. Check Solscan.");
+      if (!confirmed) throw new Error("Step 1 not confirmed in 45s.");
 
+      // Step 2: If step 1 was removeLiquidity (sFLP→USDC), deposit USDC→FLP
+      try {
+        const poolName = resolvePoolName(pool);
+        if (poolName) {
+          const pc = PoolConfig.fromIdsByName(poolName, "mainnet-beta");
+          const usdcCustody = pc.custodies.find((c: { symbol: string }) => c.symbol === "USDC");
+          if (usdcCustody) {
+            const usdcAta = getAssociatedTokenAddressSync(usdcCustody.mintKey, publicKey, true);
+            const usdcBal = await conn.getTokenAccountBalance(usdcAta);
+            const usdcAfter = Number(usdcBal.value.uiAmount ?? 0);
+            const gained = Math.max(0, usdcAfter - usdcBefore);
+            if (gained >= 0.01) {
+              // Deposit gained USDC as FLP (not sFLP)
+              const step2 = await buildEarnDeposit(conn, walletObj as never, gained, pool, 0, 0.75, false);
+              const cu2 = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
+              const cp2 = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100 });
+              const ixs2 = [cu2, cp2, ...step2.instructions];
+              const alts2 = [];
+              for (const addr of step2.poolConfig.addressLookupTableAddresses ?? []) {
+                try {
+                  const a = await conn.getAddressLookupTable(addr);
+                  if (a.value) alts2.push(a.value);
+                } catch {}
+              }
+              const { blockhash: bh2 } = await conn.getLatestBlockhash("confirmed");
+              const m2 = MessageV0.compile({
+                payerKey: publicKey,
+                recentBlockhash: bh2,
+                instructions: ixs2,
+                addressLookupTableAccounts: alts2,
+              });
+              const t2 = new VersionedTransaction(m2);
+              if (step2.additionalSigners.length > 0) t2.sign(step2.additionalSigners);
+              const s2 = await signTransaction(t2);
+              const b2 = Buffer.from(s2.serialize()).toString("base64");
+              const r2 = await fetch("/api/broadcast", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ transaction: b2 }),
+              });
+              const j2 = await r2.json();
+              if (r2.ok && j2.signature) {
+                const st2 = Date.now();
+                while (Date.now() - st2 < 45000) {
+                  if (unmountedRef.current) break;
+                  try {
+                    const { value: v } = await conn.getSignatureStatuses([j2.signature]);
+                    if (v[0]?.confirmationStatus === "confirmed" || v[0]?.confirmationStatus === "finalized") break;
+                  } catch {}
+                  await new Promise((r) => setTimeout(r, 2000));
+                }
+                setTxSig(j2.signature);
+                setStatus("success");
+                return;
+              }
+            }
+          }
+        }
+      } catch {}
+
+      // If step 2 failed or wasn't needed (migrateStake path), show step 1 success
       setTxSig(bJson.signature);
       setStatus("success");
     } catch (err) {

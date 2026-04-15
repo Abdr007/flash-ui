@@ -709,6 +709,11 @@ function matchDirectTool(input: string): DirectToolMatch | null {
     return { toolName: "transfer_history", params: {} };
   }
 
+  // ── Collect earn/stake rewards ──
+  if (/^(?:collect\s+(?:earn|stake)\s+(?:rewards?|fees?)|collect\s+stake\s*fees)$/i.test(t)) {
+    return { toolName: "collect_stake_rewards", params: { pool: "crypto" } };
+  }
+
   // ── Help ──
   if (/^(?:help|what\s+can\s+you\s+do|commands?|what\s+(?:do|can)\s+(?:you|i)\s+(?:do|use))$/i.test(t)) {
     return null; // Let AI handle help
