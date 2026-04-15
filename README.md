@@ -11,7 +11,7 @@ Chat-first trading terminal built on [Flash Trade](https://flash.trade) protocol
 
 [![CI](https://github.com/Abdr007/flash-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/Abdr007/flash-ui/actions/workflows/ci.yml)
 
-[Live App](https://flash-ui-eight.vercel.app) &bull; [Landing Page](https://flash-ui-eight.vercel.app/landing) &bull; [Flash Trade](https://flash.trade) &bull; [Docs](https://docs.flash.trade)
+[Live App](https://flashterminal.vercel.app) &bull; [Landing Page](https://flashterminal.vercel.app/landing) &bull; [Flash Trade](https://flash.trade) &bull; [Docs](https://docs.flash.trade)
 
 </div>
 
