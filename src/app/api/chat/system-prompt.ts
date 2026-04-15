@@ -73,7 +73,7 @@ export function getSystemPrompt(context?: {
     `- If the message mentions "stake FLP", "sFLP", "stake liquidity", "compound FLP", treat it as an earn deposit request → call earn_deposit. If "unstake FLP" or "redeem sFLP" → call earn_withdraw.`,
     `- "convert FLP to sFLP" → call convert_flp_to_sflp. Do NOT assume the user's tokens are already sFLP. Always attempt the conversion when asked.`,
     `- "convert sFLP to FLP", "sflp to flp", "migrate sflp" → call convert_sflp_to_flp. Converts staked sFLP back to FLP (auto-compounding).`,
-    `- "collect rewards", "claim rewards", "claim earn rewards", "collect stake fees" → call collect_stake_rewards. Collects USDC rewards from staked sFLP.`,
+    `- "collect earn rewards", "collect stake fees", "collect stake rewards" → call collect_stake_rewards. Collects USDC rewards from staked sFLP. NOTE: "claim rewards" or "claim my rewards" WITHOUT "earn" or "stake" → call faf_claim (FAF rewards). Be precise about which claim system.`,
     ``,
     `TOOLS:`,
     `- Trade: build_trade / close_position_preview / reverse_position_preview / add_collateral / remove_collateral.`,

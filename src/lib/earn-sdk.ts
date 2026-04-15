@@ -286,25 +286,54 @@ export async function buildSflpToFlp(
     throw new Error("No staked position found for this pool.");
   }
 
-  const raw = Number(accInfo.data.readBigUInt64LE(72));
-  const totalStaked = new BN(raw.toString());
-  if (totalStaked.isZero()) throw new Error("Staked balance is zero.");
+  // Check stake PDA first
+  let stakedBalance = BN_ZERO;
+  if (accInfo && accInfo.data.length >= 80) {
+    const raw = Number(accInfo.data.readBigUInt64LE(72));
+    stakedBalance = new BN(raw.toString());
+  }
 
-  const migrateAmount = totalStaked.mul(new BN(Math.floor(percent))).div(new BN(100));
-  if (migrateAmount.isZero()) throw new Error(`${percent}% rounds to zero.`);
+  // If stake PDA has balance, use migrateStake (PDA → FLP)
+  if (!stakedBalance.isZero()) {
+    const migrateAmount = stakedBalance.mul(new BN(Math.floor(percent))).div(new BN(100));
+    if (migrateAmount.isZero()) throw new Error(`${percent}% rounds to zero.`);
 
-  const result = await client.migrateStake(
-    migrateAmount,
-    pc.compoundingTokenMint,
+    const result = await client.migrateStake(migrateAmount, pc.compoundingTokenMint, pc, true);
+    return { instructions: result.instructions, additionalSigners: result.additionalSigners, poolConfig: pc };
+  }
+
+  // Fallback: check sFLP in wallet token account
+  const { getAssociatedTokenAddress, getAccount } = await import("@solana/spl-token");
+  const sflpMint = pc.stakedLpTokenMint;
+  let sflpBalance = BN_ZERO;
+  try {
+    const ata = await getAssociatedTokenAddress(sflpMint, userKey);
+    const account = await getAccount(connection, ata);
+    sflpBalance = new BN(account.amount.toString());
+  } catch {}
+
+  if (sflpBalance.isZero()) {
+    throw new Error("No sFLP found (neither in wallet nor staked). Nothing to convert.");
+  }
+
+  // sFLP in wallet → burn for USDC (removeLiquidity), user then deposits USDC → FLP separately
+  const burnAmount = sflpBalance.mul(new BN(Math.floor(percent))).div(new BN(100));
+  if (burnAmount.isZero()) throw new Error(`${percent}% rounds to zero.`);
+
+  const result = await client.removeLiquidity(
+    "USDC",
+    burnAmount,
+    BN_ZERO,
     pc,
-    true, // createUserATA
+    false,
+    true,
+    false,
+    undefined,
+    userKey,
+    false,
+    true,
   );
-
-  return {
-    instructions: result.instructions,
-    additionalSigners: result.additionalSigners,
-    poolConfig: pc,
-  };
+  return { instructions: result.instructions, additionalSigners: result.additionalSigners, poolConfig: pc };
 }
 
 // ---- Collect Stake Rewards (collectStakeFees) ----
