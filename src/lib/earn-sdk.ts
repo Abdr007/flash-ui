@@ -234,8 +234,10 @@ export async function buildEarnWithdraw(
       false, // closeLpATA
       true, // createUserATA (for USDC)
       false, // closeWSOL
-      undefined,
+      undefined, // ephemeralSignerPubkey
       wallet.publicKey,
+      false, // isWhitelistedUser
+      true, // includeRemainingAccounts
     );
     allInstructions = result.instructions;
     allSigners = result.additionalSigners;
