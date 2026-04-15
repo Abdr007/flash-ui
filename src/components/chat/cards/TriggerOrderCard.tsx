@@ -5,14 +5,12 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
 import { Cell, ToolError, TxSuccessCard } from "./shared";
-import { SlippageSelector } from "./SlippageSelector";
 import type { ToolOutput } from "./types";
 import { formatPrice, formatUsd } from "@/lib/format";
 
 export const TriggerOrderCard = memo(function TriggerOrderCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
   const [cancelled, setCancelled] = useState(false);
-  const [slippageBps, setSlippageBps] = useState(80);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const refreshPositions = useFlashStore((s) => s.refreshPositions);
   useWallet();
@@ -109,10 +107,6 @@ export const TriggerOrderCard = memo(function TriggerOrderCard({ output }: { out
           color={distance < 5 ? "var(--color-accent-warn)" : undefined}
         />
         <Cell label="Position Size" value={formatUsd(sizeUsd)} />
-      </div>
-
-      <div className="px-5 pb-2">
-        <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} />
       </div>
 
       <div className="flex border-t border-border-subtle">

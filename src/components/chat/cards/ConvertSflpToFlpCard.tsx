@@ -5,7 +5,6 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
 import { ToolError, TxSuccessCard } from "./shared";
-import { SlippageSelector } from "./SlippageSelector";
 
 export const ConvertSflpToFlpCard = memo(function ConvertSflpToFlpCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
@@ -17,7 +16,6 @@ export const ConvertSflpToFlpCard = memo(function ConvertSflpToFlpCard({ output 
   const { signTransaction, connected, publicKey } = useWallet();
   const { connection } = useConnection();
   const unmountedRef = useRef(false);
-  const [slippageBps, setSlippageBps] = useState(75);
   const [selectedPct, setSelectedPct] = useState<number | null>(null);
   const [customPct, setCustomPct] = useState("");
   useEffect(
@@ -255,10 +253,6 @@ export const ConvertSflpToFlpCard = memo(function ConvertSflpToFlpCard({ output 
           />
           <span className="text-[12px] text-text-tertiary">%</span>
         </div>
-      </div>
-
-      <div className="px-5 pb-2">
-        <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} />
       </div>
 
       {status === "error" && errorMsg && (

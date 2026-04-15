@@ -5,14 +5,12 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
 import { ToolError, TxSuccessCard } from "./shared";
-import { SlippageSelector } from "./SlippageSelector";
 
 export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
   const [status, setStatus] = useState<"preview" | "executing" | "success" | "error">("preview");
   const [errorMsg, setErrorMsg] = useState("");
   const [txSig, setTxSig] = useState("");
-  const [slippageBps, setSlippageBps] = useState(75);
   const lockRef = useRef(false);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const { signTransaction, connected, publicKey } = useWallet();
@@ -135,10 +133,6 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
         <div className="text-[11px] text-text-tertiary uppercase tracking-wider mb-1">Convert FLP → sFLP</div>
         <div className="text-[16px] font-semibold text-text-primary">{poolDisplay}</div>
         <div className="text-[13px] text-text-secondary mt-1">{description}</div>
-      </div>
-
-      <div className="px-5 pb-2">
-        <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} />
       </div>
 
       {status === "error" && errorMsg && (

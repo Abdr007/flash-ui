@@ -202,6 +202,7 @@ export async function buildEarnWithdraw(
 export async function buildBurnSflp(
   connection: Connection,
   wallet: Wallet,
+  slippagePct: number,
   percent: number,
   poolAlias: string,
 ): Promise<EarnTxResult> {
@@ -227,10 +228,13 @@ export async function buildBurnSflp(
   const burnAmount = sflpBalance.mul(new BN(Math.floor(percent))).div(new BN(100));
   if (burnAmount.isZero()) throw new Error(`${percent}% rounds to zero.`);
 
+  // minOut = 0 for sFLP burns — we don't have the sFLP→USDC price ratio
+  // The on-chain program handles fair value. Slippage param accepted but not
+  // applied here (would need sFLP price oracle to calculate correctly).
   const result = await client.removeLiquidity(
     "USDC",
     burnAmount,
-    BN_ZERO, // accept any USDC output (sFLP price differs from FLP price)
+    BN_ZERO,
     pc,
     false, // closeLpATA
     true, // createUserATA

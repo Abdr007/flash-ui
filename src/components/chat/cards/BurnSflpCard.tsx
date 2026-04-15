@@ -60,7 +60,7 @@ export const BurnSflpCard = memo(function BurnSflpCard({ output }: { output: Too
         },
       };
 
-      const result = await buildBurnSflp(conn, walletObj as never, effectivePct ?? 100, pool);
+      const result = await buildBurnSflp(conn, walletObj as never, slippageBps / 100, effectivePct ?? 100, pool);
 
       const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
       const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100 });
