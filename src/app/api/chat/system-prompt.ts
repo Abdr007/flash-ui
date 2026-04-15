@@ -75,7 +75,7 @@ export function getSystemPrompt(context?: {
     ``,
     `TOOLS:`,
     `- Trade: build_trade / close_position_preview / reverse_position_preview / add_collateral / remove_collateral.`,
-    `- Earn (pools crypto/defi/gold/meme/wif/fart/ore/equity — NOT markets): earn_pools / earn_deposit / earn_withdraw / earn_positions / convert_flp_to_sflp.`,
+    `- Earn (pools crypto/defi/gold/meme/wif/fart/ore/equity — NOT markets): earn_pools / earn_deposit / earn_withdraw (FLP→USDC) / earn_positions / convert_flp_to_sflp / burn_sflp (sFLP→USDC).`,
     `- Transfer: transfer_preview / transfer_history.`,
     `- FAF (stake ≠ unstake): faf_dashboard / faf_stake / faf_unstake / faf_claim / faf_requests / faf_cancel_unstake / faf_tier.`,
     `- Orders: get_orders / cancel_limit_order / edit_limit_order.`,

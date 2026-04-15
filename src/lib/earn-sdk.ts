@@ -164,48 +164,17 @@ export async function buildEarnWithdraw(
     }
   };
 
-  // Check compounding FLP balance first
+  // FLP.1 (compounding token) withdrawal only. sFLP handled by burn_sflp.
   const flpMint = pc.compoundingTokenMint;
-  let flpBalance = await getTokenBal(flpMint);
-  let useRawLp = false;
-  let unstakeFirst = false;
+  const flpBalance = await getTokenBal(flpMint);
 
-  // Fallback: check raw LP tokens (sFLP in token account)
   if (flpBalance.isZero()) {
-    const rawLpMint = pc.stakedLpTokenMint;
-    flpBalance = await getTokenBal(rawLpMint);
-    if (!flpBalance.isZero()) {
-      useRawLp = true;
-    }
+    throw new Error("No FLP tokens found. If you have sFLP, say 'burn sflp' instead.");
   }
 
-  // Fallback: check stake PDA (sFLP staked in Flash protocol)
-  if (flpBalance.isZero()) {
-    try {
-      const { PublicKey: PK } = await import("@solana/web3.js");
-      const [stakePda] = PK.findProgramAddressSync(
-        [Buffer.from("stake"), wallet.publicKey.toBuffer(), pc.poolAddress.toBuffer()],
-        pc.programId,
-      );
-      const accInfo = await connection.getAccountInfo(stakePda);
-      if (accInfo && accInfo.data.length >= 80) {
-        const raw = Number(accInfo.data.readBigUInt64LE(72));
-        if (raw > 0) {
-          flpBalance = new BN(raw);
-          unstakeFirst = true;
-        }
-      }
-    } catch {}
-    if (flpBalance.isZero()) {
-      throw new Error("No FLP or sFLP found. Deposit first.");
-    }
-  }
-
-  // Calculate withdraw amount from percentage
   const withdrawAmount = flpBalance.mul(new BN(Math.floor(percent))).div(new BN(100));
   if (withdrawAmount.isZero()) throw new Error(`${percent}% of balance rounds to zero`);
 
-  // Slippage protection: calculate minimum USDC out
   let minOut = BN_ZERO;
   if (flpPrice > 0 && slippagePct > 0) {
     const sharesUi = parseInt(withdrawAmount.toString()) / 1_000_000;
@@ -214,35 +183,7 @@ export async function buildEarnWithdraw(
     minOut = new BN(Math.floor(minUsdc * 1_000_000));
   }
 
-  // Build transaction
-  let allInstructions: TransactionInstruction[] = [];
-  let allSigners: Signer[] = [];
-
-  if (unstakeFirst) {
-    // User has sFLP.1 in stake PDA. Use migrateStake to convert to FLP.1 in wallet,
-    // then user withdraws FLP.1 → USDC in a second step.
-    const migrateResult = await client.migrateStake(withdrawAmount, flpMint, pc, true);
-    allInstructions = migrateResult.instructions;
-    allSigners = migrateResult.additionalSigners;
-  } else if (useRawLp) {
-    // sFLP.1 in wallet token account → burn for USDC
-    // Use minOut=0 because sFLP price differs from FLP price (slippage calc was wrong)
-    const result = await client.removeLiquidity(
-      "USDC",
-      withdrawAmount,
-      BN_ZERO,
-      pc,
-      false, // closeLpATA
-      true, // createUserATA (for USDC)
-      false, // closeWSOL
-      undefined, // ephemeralSignerPubkey
-      wallet.publicKey,
-      false, // isWhitelistedUser
-      true, // includeRemainingAccounts
-    );
-    allInstructions = result.instructions;
-    allSigners = result.additionalSigners;
-  } else {
+  {
     const result = await client.removeCompoundingLiquidity(
       withdrawAmount,
       minOut,
@@ -253,13 +194,62 @@ export async function buildEarnWithdraw(
       undefined,
       wallet.publicKey,
     );
-    allInstructions = result.instructions;
-    allSigners = result.additionalSigners;
+
+    return {
+      instructions: result.instructions,
+      additionalSigners: result.additionalSigners,
+      poolConfig: pc,
+    };
   }
+}
+
+// ---- Burn sFLP → USDC (removeLiquidity) ----
+
+export async function buildBurnSflp(
+  connection: Connection,
+  wallet: Wallet,
+  percent: number,
+  poolAlias: string,
+): Promise<EarnTxResult> {
+  const poolName = resolvePoolName(poolAlias);
+  if (!poolName) throw new Error(`Unknown pool: ${poolAlias}`);
+
+  const pc = getPoolConfig(poolName);
+  const client = getClient(connection, wallet, poolName);
+
+  const { getAssociatedTokenAddress, getAccount } = await import("@solana/spl-token");
+  const sflpMint = pc.stakedLpTokenMint; // sFLP.1
+
+  let sflpBalance: BN;
+  try {
+    const ata = await getAssociatedTokenAddress(sflpMint, wallet.publicKey);
+    const account = await getAccount(connection, ata);
+    sflpBalance = new BN(account.amount.toString());
+  } catch {
+    throw new Error("No sFLP tokens found in your wallet.");
+  }
+  if (sflpBalance.isZero()) throw new Error("sFLP balance is zero.");
+
+  const burnAmount = sflpBalance.mul(new BN(Math.floor(percent))).div(new BN(100));
+  if (burnAmount.isZero()) throw new Error(`${percent}% rounds to zero.`);
+
+  const result = await client.removeLiquidity(
+    "USDC",
+    burnAmount,
+    BN_ZERO, // accept any USDC output (sFLP price differs from FLP price)
+    pc,
+    false, // closeLpATA
+    true, // createUserATA
+    false, // closeWSOL
+    undefined,
+    wallet.publicKey,
+    false, // isWhitelistedUser
+    true, // includeRemainingAccounts
+  );
 
   return {
-    instructions: allInstructions,
-    additionalSigners: allSigners,
+    instructions: result.instructions,
+    additionalSigners: result.additionalSigners,
     poolConfig: pc,
   };
 }

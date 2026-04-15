@@ -467,6 +467,77 @@ export function createEarnWithdrawTool(wallet: string) {
 }
 
 // ============================================
+// Tool: burn_sflp (sFLP → USDC)
+// ============================================
+
+export function createBurnSflpTool(wallet: string) {
+  return tool({
+    description:
+      "Burn sFLP tokens to receive USDC. This is separate from FLP withdrawal. " +
+      "Call when user says 'burn sflp', 'redeem sflp', 'sell sflp', 'sflp to usdc', 'withdraw sflp'.",
+    inputSchema: z
+      .object({
+        pool: z.string().describe("Pool name or FLP symbol (crypto, FLP.1, sFLP.1, etc.)"),
+        percent: z.number().min(1).max(100).default(100).describe("Percentage of sFLP to burn"),
+      })
+      .strict(),
+    execute: async ({ pool, percent }): Promise<ToolResponse<unknown>> => {
+      const requestId = makeRequestId();
+      const start = Date.now();
+      logToolCall("burn_sflp", requestId, wallet, { pool, percent });
+
+      if (!wallet) {
+        return { status: "error", data: null, error: "Connect your wallet.", request_id: requestId, latency_ms: 0 };
+      }
+
+      const resolved = resolvePoolAlias(pool) ?? (pool ?? "").toLowerCase();
+      // Map pool name to sFLP symbol
+      const sflpMap: Record<string, string> = {
+        crypto: "sFLP.1",
+        gold: "sFLP.2",
+        defi: "sFLP.3",
+        meme: "sFLP.4",
+        community: "sFLP.4",
+        wif: "sFLP.5",
+        trump: "sFLP.7",
+        fart: "sFLP.7",
+        ore: "sFLP.8",
+        equity: "sFLP.x",
+      };
+      const sflpSymbol = sflpMap[resolved];
+      if (!sflpSymbol) {
+        return { status: "error", data: null, error: `Unknown pool: ${pool}`, request_id: requestId, latency_ms: 0 };
+      }
+
+      const poolNames: Record<string, string> = {
+        crypto: "Crypto",
+        gold: "Gold",
+        defi: "DeFi",
+        meme: "Community",
+        wif: "WIF",
+        trump: "TRUMP",
+        fart: "FART",
+        ore: "Ore",
+        equity: "Equity",
+      };
+
+      return {
+        status: "success",
+        data: {
+          type: "burn_sflp_preview",
+          pool: resolved,
+          pool_name: poolNames[resolved] ?? resolved,
+          sflp_symbol: sflpSymbol,
+          percent,
+        },
+        request_id: requestId,
+        latency_ms: Date.now() - start,
+      };
+    },
+  });
+}
+
+// ============================================
 // Tool: convert_flp_to_sflp
 // ============================================
 

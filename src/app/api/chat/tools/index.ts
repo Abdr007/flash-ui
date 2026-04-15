@@ -20,6 +20,7 @@ import {
   createEarnPositionsTool,
   createEarnWithdrawTool,
   createConvertFlpTool,
+  createBurnSflpTool,
 } from "./earnPools";
 import { createTransferPreviewTool } from "./transferPreview";
 import { createTransferHistoryTool } from "./transferHistory";
@@ -52,6 +53,7 @@ export function buildTools(wallet: string) {
     earn_positions: createEarnPositionsTool(wallet),
     earn_withdraw: createEarnWithdrawTool(wallet),
     convert_flp_to_sflp: createConvertFlpTool(wallet),
+    burn_sflp: createBurnSflpTool(wallet),
     transfer_preview: createTransferPreviewTool(wallet),
     transfer_history: createTransferHistoryTool(wallet),
     faf_dashboard: createFafDashboardTool(wallet),
