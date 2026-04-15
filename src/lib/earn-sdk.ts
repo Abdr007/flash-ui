@@ -392,17 +392,11 @@ export async function buildCollectRewards(
   };
 }
 
-// ---- Convert FLP.1 → sFLP.1 (visible in wallet) ----
-// Step 1 tx: removeCompoundingLiquidity (FLP.1 → USDC)
-// Step 2 tx: addLiquidity (USDC → sFLP.1 in wallet)
-// Must be two separate transactions because we can't know the exact USDC
-// output from step 1 to use as input for step 2 in the same tx.
+// ---- Convert FLP.1 → sFLP.1 (single tx via migrateFlp) ----
+// Burns FLP.1 from wallet, credits sFLP.1 in stake PDA.
+// One instruction, one signature. sFLP visible in earn positions (not wallet).
 
-export async function buildFlpToSflpStep1(
-  connection: Connection,
-  wallet: Wallet,
-  poolAlias: string,
-): Promise<EarnTxResult> {
+export async function buildFlpToSflp(connection: Connection, wallet: Wallet, poolAlias: string): Promise<EarnTxResult> {
   const poolName = resolvePoolName(poolAlias);
   if (!poolName) throw new Error(`Unknown pool: ${poolAlias}`);
 
@@ -422,26 +416,8 @@ export async function buildFlpToSflpStep1(
   }
   if (flpBalance.isZero()) throw new Error("Your FLP.1 balance is zero.");
 
-  const result = await client.removeCompoundingLiquidity(
-    flpBalance,
-    BN_ZERO,
-    "USDC",
-    flpMint,
-    pc,
-    true,
-    undefined,
-    wallet.publicKey,
-  );
+  // migrateFlp: FLP.1 (wallet) → sFLP.1 (stake PDA). Single instruction.
+  const result = await client.migrateFlp(flpBalance, flpMint, pc);
 
   return { instructions: result.instructions, additionalSigners: result.additionalSigners, poolConfig: pc };
-}
-
-export async function buildFlpToSflpStep2(
-  connection: Connection,
-  wallet: Wallet,
-  usdcAmount: number,
-  poolAlias: string,
-): Promise<EarnTxResult> {
-  // Deposit USDC → sFLP.1 (visible in wallet)
-  return buildEarnDeposit(connection, wallet, usdcAmount, poolAlias, 0, 0.75, true);
 }

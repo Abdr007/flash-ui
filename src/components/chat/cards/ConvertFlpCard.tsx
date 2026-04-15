@@ -44,7 +44,7 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
     setErrorMsg("");
 
     try {
-      const { buildFlpToSflpStep1, buildFlpToSflpStep2 } = await import("@/lib/earn-sdk");
+      const { buildFlpToSflp } = await import("@/lib/earn-sdk");
       const { VersionedTransaction, ComputeBudgetProgram, MessageV0 } = await import("@solana/web3.js");
       const conn = connection;
       const walletObj = {
@@ -57,24 +57,8 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
         },
       };
 
-      // Read USDC balance BEFORE step 1 (so we only deposit the difference after)
-      let usdcBefore = 0;
-      try {
-        const { getAssociatedTokenAddressSync: getAta } = await import("@solana/spl-token");
-        const pc0 = (await import("flash-sdk/dist/PoolConfig")).PoolConfig.fromIdsByName(
-          (await import("@/lib/earn-sdk")).resolvePoolName(pool) ?? "",
-          "mainnet-beta",
-        );
-        const usdcCustody = pc0.custodies.find((c: { symbol: string }) => c.symbol === "USDC");
-        if (usdcCustody) {
-          const usdcAta = getAta(usdcCustody.mintKey, publicKey, true);
-          const bal = await conn.getTokenAccountBalance(usdcAta);
-          usdcBefore = Number(bal.value.uiAmount ?? 0);
-        }
-      } catch {}
-
-      // Step 1: FLP.1 → USDC
-      const result = await buildFlpToSflpStep1(conn, walletObj as never, pool);
+      // Single step: FLP.1 → sFLP.1 (via migrateFlp — stake PDA)
+      const result = await buildFlpToSflp(conn, walletObj as never, pool);
 
       const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
       const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100 });
@@ -133,72 +117,8 @@ export const ConvertFlpCard = memo(function ConvertFlpCard({ output }: { output:
         }
         await new Promise((r) => setTimeout(r, 2000));
       }
-      if (!confirmed) throw new Error("Step 1 not confirmed in 45s. Check Solscan.");
+      if (!confirmed) throw new Error("Not confirmed in 45s. Check Solscan.");
 
-      // Step 2: USDC → sFLP.1 (deposit the USDC we just got as sFLP)
-      // Get the USDC balance to deposit
-      const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
-      const usdcMint = await (async () => {
-        const pc = result.poolConfig;
-        const usdcCustody = pc.custodies.find((c: { symbol: string }) => c.symbol === "USDC");
-        return usdcCustody?.mintKey;
-      })();
-      if (usdcMint) {
-        try {
-          const usdcAta = getAssociatedTokenAddressSync(usdcMint, publicKey, true);
-          const usdcBal = await conn.getTokenAccountBalance(usdcAta);
-          const usdcAfter = Number(usdcBal.value.uiAmount ?? 0);
-          // Only deposit the USDC gained from step 1, NOT the full balance
-          const usdcAmount = Math.max(0, usdcAfter - usdcBefore);
-          if (usdcAmount >= 0.01) {
-            const step2Result = await buildFlpToSflpStep2(conn, walletObj as never, usdcAmount, pool);
-            const cuLimit2 = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
-            const cuPrice2 = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100 });
-            const allIxs2 = [cuLimit2, cuPrice2, ...step2Result.instructions];
-            const altAccounts2 = [];
-            for (const addr of step2Result.poolConfig.addressLookupTableAddresses ?? []) {
-              try {
-                const alt = await conn.getAddressLookupTable(addr);
-                if (alt.value) altAccounts2.push(alt.value);
-              } catch {}
-            }
-            const { blockhash: bh2 } = await conn.getLatestBlockhash("confirmed");
-            const msg2 = MessageV0.compile({
-              payerKey: publicKey,
-              recentBlockhash: bh2,
-              instructions: allIxs2,
-              addressLookupTableAccounts: altAccounts2,
-            });
-            const tx2 = new VersionedTransaction(msg2);
-            if (step2Result.additionalSigners.length > 0) tx2.sign(step2Result.additionalSigners);
-            const signed2 = await signTransaction(tx2);
-            const signedB64_2 = Buffer.from(signed2.serialize()).toString("base64");
-            const bResp2 = await fetch("/api/broadcast", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ transaction: signedB64_2 }),
-            });
-            const bJson2 = await bResp2.json();
-            if (bResp2.ok && bJson2.signature) {
-              // Wait for step 2 confirmation
-              const start2 = Date.now();
-              while (Date.now() - start2 < 45000) {
-                if (unmountedRef.current) break;
-                try {
-                  const { value: v2 } = await conn.getSignatureStatuses([bJson2.signature]);
-                  if (v2[0]?.confirmationStatus === "confirmed" || v2[0]?.confirmationStatus === "finalized") break;
-                  if (v2[0]?.err) break;
-                } catch {}
-                await new Promise((r) => setTimeout(r, 2000));
-              }
-              setTxSig(bJson2.signature);
-              setStatus("success");
-              return;
-            }
-          }
-        } catch {}
-      }
-      // If step 2 fails, still show step 1 success
       setTxSig(bJson.signature);
       setStatus("success");
     } catch (err) {
