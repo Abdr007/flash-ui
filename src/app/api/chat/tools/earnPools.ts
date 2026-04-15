@@ -538,6 +538,79 @@ export function createBurnSflpTool(wallet: string) {
 }
 
 // ============================================
+// Tool: mint_sflp (USDC → sFLP directly)
+// ============================================
+
+export function createMintSflpTool(wallet: string) {
+  return tool({
+    description:
+      "Deposit USDC to mint sFLP tokens directly (visible in wallet). " +
+      "Call when user says 'mint sflp', 'buy sflp', 'deposit as sflp', 'get sflp tokens'.",
+    inputSchema: z
+      .object({
+        pool: z.string().describe("Pool name or symbol (crypto, FLP.1, etc.)"),
+        amount_usdc: z.number().positive().describe("Amount of USDC to deposit"),
+      })
+      .strict(),
+    execute: async ({ pool, amount_usdc }): Promise<ToolResponse<unknown>> => {
+      const requestId = makeRequestId();
+      const start = Date.now();
+      logToolCall("mint_sflp", requestId, wallet, { pool, amount_usdc });
+
+      if (!wallet) {
+        return { status: "error", data: null, error: "Connect your wallet.", request_id: requestId, latency_ms: 0 };
+      }
+
+      const resolved = resolvePoolAlias(pool) ?? (pool ?? "").toLowerCase();
+      const sflpMap: Record<string, string> = {
+        crypto: "sFLP.1",
+        gold: "sFLP.2",
+        defi: "sFLP.3",
+        meme: "sFLP.4",
+        community: "sFLP.4",
+        wif: "sFLP.5",
+        trump: "sFLP.7",
+        fart: "sFLP.7",
+        ore: "sFLP.8",
+        equity: "sFLP.x",
+      };
+      const sflpSymbol = sflpMap[resolved];
+      if (!sflpSymbol) {
+        return { status: "error", data: null, error: `Unknown pool: ${pool}`, request_id: requestId, latency_ms: 0 };
+      }
+      if (amount_usdc < 1) {
+        return { status: "error", data: null, error: "Minimum deposit is $1", request_id: requestId, latency_ms: 0 };
+      }
+
+      const poolNames: Record<string, string> = {
+        crypto: "Crypto",
+        gold: "Gold",
+        defi: "DeFi",
+        meme: "Community",
+        wif: "WIF",
+        trump: "TRUMP",
+        fart: "FART",
+        ore: "Ore",
+        equity: "Equity",
+      };
+
+      return {
+        status: "success",
+        data: {
+          type: "mint_sflp_preview",
+          pool: resolved,
+          pool_name: poolNames[resolved] ?? resolved,
+          sflp_symbol: sflpSymbol,
+          amount_usdc,
+        },
+        request_id: requestId,
+        latency_ms: Date.now() - start,
+      };
+    },
+  });
+}
+
+// ============================================
 // Tool: convert_flp_to_sflp
 // ============================================
 

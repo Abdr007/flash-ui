@@ -30,6 +30,7 @@ import OrdersCard from "./cards/OrdersCard";
 import OrderActionCard from "./cards/OrderActionCard";
 import { ConvertFlpCard } from "./cards/ConvertFlpCard";
 import { BurnSflpCard } from "./cards/BurnSflpCard";
+import { MintSflpCard } from "./cards/MintSflpCard";
 import WizardCard from "./WizardCard";
 
 // ---- Wizard Tool Card (thin wrapper) ----
@@ -130,6 +131,9 @@ const ToolResultCard = memo(function ToolResultCard({
       break;
     case "burn_sflp":
       card = <BurnSflpCard output={output} />;
+      break;
+    case "mint_sflp":
+      card = <MintSflpCard output={output} />;
       break;
     case "transfer_preview":
       card = <TransferPreviewCard output={output} />;
