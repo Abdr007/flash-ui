@@ -24,6 +24,7 @@ import {
 } from "@/lib/user-patterns";
 
 import { Cell, ConfidenceBadge, ToolError, TxSuccessCard, validateTpSlAgainstEntry } from "./shared";
+import { SlippageSelector } from "./SlippageSelector";
 import type { ToolOutput } from "./types";
 
 // ---- Trade Hints (internal) ----
@@ -201,6 +202,8 @@ const TradePreviewCard = memo(function TradePreviewCard({
   const initialSl = previewData?.stop_loss_price ? String(previewData.stop_loss_price) : "";
   const [tpDraft, setTpDraft] = useState<string>(initialTp);
   const [slDraft, setSlDraft] = useState<string>(initialSl);
+  const initialSlippage = typeof previewData?.slippage_bps === "number" ? previewData.slippage_bps : 80;
+  const [slippageBps, setSlippageBps] = useState<number>(initialSlippage);
   const positions = useFlashStore((s) => s.positions);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const setTradeFromAI = useFlashStore((s) => s.setTradeFromAI);
@@ -327,6 +330,7 @@ const TradePreviewCard = memo(function TradePreviewCard({
     // validation and makes the Confirm button appear to do nothing. Only
     // spread the keys when the user actually provided a value.
     const enriched: Record<string, unknown> = { ...(output.data as Record<string, unknown>) };
+    enriched.slippage_bps = slippageBps;
     if (tpParsed != null) enriched.take_profit_price = tpParsed;
     else delete enriched.take_profit_price;
     if (slParsed != null) enriched.stop_loss_price = slParsed;
@@ -428,6 +432,13 @@ const TradePreviewCard = memo(function TradePreviewCard({
           value={t.fee_rate != null ? `${formatUsd(t.fees)} (${formatPercent(t.fee_rate)})` : formatUsd(t.fees)}
         />
       </div>
+
+      {/* Slippage selector */}
+      {!submitting && (
+        <div className="px-5 py-2.5 border-t border-border-subtle">
+          <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} disabled={submitting} />
+        </div>
+      )}
 
       {/* Inline TP/SL inputs — bundled atomically into the open-position tx. */}
       {!submitting && (

@@ -10,11 +10,13 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { formatUsd, formatPnl, formatLeverage } from "@/lib/format";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
 import { Cell, ToolError, TxSuccessCard } from "./shared";
+import { SlippageSelector } from "./SlippageSelector";
 import type { ToolOutput } from "./types";
 
 export const ReversePositionCard = memo(function ReversePositionCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
   const [cancelled, setCancelled] = useState(false);
+  const [slippageBps, setSlippageBps] = useState(80);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const refreshPositions = useFlashStore((s) => s.refreshPositions);
   useWallet(); // ensure wallet context is available
@@ -43,6 +45,7 @@ export const ReversePositionCard = memo(function ReversePositionCard({ output }:
       const apiResult = await buildReversePosition({
         positionKey,
         owner: walletAddress,
+        slippagePercentage: (slippageBps / 100).toString(),
       });
 
       if (apiResult.err) throw new Error(apiResult.err);
@@ -141,6 +144,10 @@ export const ReversePositionCard = memo(function ReversePositionCard({ output }:
           value={newSide}
           color={newSide === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)"}
         />
+      </div>
+
+      <div className="px-5 pb-2">
+        <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} />
       </div>
 
       <div className="flex border-t border-border-subtle">

@@ -6,6 +6,7 @@ import { useFlashStore } from "@/store";
 import { formatUsd, safe } from "@/lib/format";
 import type { ToolOutput } from "./types";
 import { Cell, ToolError, TxSuccessCard } from "./shared";
+import { SlippageSelector } from "./SlippageSelector";
 
 export const EarnDepositCard = memo(function EarnDepositCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
@@ -15,6 +16,7 @@ export const EarnDepositCard = memo(function EarnDepositCard({ output }: { outpu
   const [errorMsg, setErrorMsg] = useState("");
   const [txSig, setTxSig] = useState("");
   const [cancelled, setCancelled] = useState(false);
+  const [slippageBps, setSlippageBps] = useState(75);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const { connection } = useConnection();
   const { signTransaction, connected } = useWallet();
@@ -49,7 +51,14 @@ export const EarnDepositCard = memo(function EarnDepositCard({ output }: { outpu
         },
       };
 
-      const result = await buildEarnDeposit(connection, walletObj as never, amountUsdc, poolAlias, flpPrice, 0.75);
+      const result = await buildEarnDeposit(
+        connection,
+        walletObj as never,
+        amountUsdc,
+        poolAlias,
+        flpPrice,
+        slippageBps / 100,
+      );
 
       const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
       const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100 });
@@ -155,7 +164,9 @@ export const EarnDepositCard = memo(function EarnDepositCard({ output }: { outpu
         <Cell label="Amount" value={formatUsd(amountUsdc)} />
         <Cell label="Expected FLP" value={`≈ ${safe(expectedShares).toFixed(4)}`} />
         <Cell label="FLP Price" value={`$${safe(flpPrice).toFixed(4)}`} />
-        <Cell label="Slippage" value="0.75%" />
+        <div className="bg-bg-card px-5 py-3">
+          <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} disabled={isLive} />
+        </div>
       </div>
 
       {isLive && (

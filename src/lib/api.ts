@@ -291,6 +291,7 @@ export interface BuildAddCollateralParams {
   depositAmountUi: string;
   depositTokenSymbol: string;
   owner: string;
+  slippageBps?: number;
 }
 
 export interface CollateralResult {
@@ -313,6 +314,7 @@ export interface BuildRemoveCollateralParams {
   withdrawAmountUsdUi: string;
   withdrawTokenSymbol: string;
   owner: string;
+  slippageBps?: number;
 }
 
 export async function buildRemoveCollateral(params: BuildRemoveCollateralParams): Promise<CollateralResult> {
@@ -329,6 +331,7 @@ export interface BuildCloseWithTxParams {
   closePercent: number;
   inputUsdUi: string;
   withdrawTokenSymbol: string;
+  slippageBps?: number;
 }
 
 export async function buildClosePositionTx(params: BuildCloseWithTxParams): Promise<{

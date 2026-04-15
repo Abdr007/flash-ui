@@ -10,11 +10,13 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { formatPrice, formatUsd, formatPnl } from "@/lib/format";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
 import { Cell, ToolError, TxSuccessCard } from "./shared";
+import { SlippageSelector } from "./SlippageSelector";
 import type { ToolOutput } from "./types";
 
 export const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
   const [receivedUsd, setReceivedUsd] = useState("");
+  const [slippageBps, setSlippageBps] = useState(80);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const refreshPositions = useFlashStore((s) => s.refreshPositions);
   useWallet(); // ensure wallet context is available
@@ -48,6 +50,7 @@ export const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { out
         closePercent,
         inputUsdUi: String(closingSize),
         withdrawTokenSymbol: "USDC",
+        slippageBps,
       });
 
       if (apiResult.err) throw new Error(apiResult.err);
@@ -141,6 +144,12 @@ export const ClosePreviewCard = memo(function ClosePreviewCard({ output }: { out
         <Cell label="Fees" value={formatUsd(Number(d.estimated_fees ?? 0))} />
         <Cell label="Net PnL" value={formatPnl(netPnl)} color={accent} />
       </div>
+
+      {status === "preview" && (
+        <div className="px-5 py-2.5 border-t border-border-subtle">
+          <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} />
+        </div>
+      )}
 
       <div className="flex border-t border-border-subtle">
         <button

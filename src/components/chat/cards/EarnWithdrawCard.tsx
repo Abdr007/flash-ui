@@ -5,6 +5,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
 import { ToolError, TxSuccessCard } from "./shared";
+import { SlippageSelector } from "./SlippageSelector";
 
 // ═══ EARN WITHDRAW PREVIEW ═══
 export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: ToolOutput }) {
@@ -17,6 +18,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
   const [txSig, setTxSig] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelled, setCancelled] = useState(false);
+  const [slippageBps, setSlippageBps] = useState(75);
 
   if (!data) return <ToolError toolName="earn_withdraw" error={output.error} />;
 
@@ -100,8 +102,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
           <div className="text-[16px] num font-semibold text-text-primary">${flpPrice.toFixed(4)}</div>
         </div>
         <div className="px-5 py-3 bg-bg-card-solid">
-          <div className="text-[11px] text-text-tertiary mb-1">Slippage</div>
-          <div className="text-[16px] num font-semibold text-text-primary">0.75%</div>
+          <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} disabled={status !== "idle"} />
         </div>
         <div className="px-5 py-3 bg-bg-card-solid">
           <div className="text-[11px] text-text-tertiary mb-1">Receive</div>
@@ -133,7 +134,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
               percent,
               String(data.pool),
               flpPrice,
-              0.75,
+              slippageBps / 100,
             );
 
             const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });

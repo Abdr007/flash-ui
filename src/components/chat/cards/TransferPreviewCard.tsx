@@ -4,6 +4,7 @@ import { memo, useState, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import { ToolError, TxSuccessCard } from "./shared";
+import { SlippageSelector } from "./SlippageSelector";
 import type { ToolOutput } from "./types";
 
 // ---- Address Intelligence ----
@@ -105,6 +106,7 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<"addr" | "tx" | null>(null);
   const [confirmInput, setConfirmInput] = useState("");
+  const [slippageBps, setSlippageBps] = useState(80);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const { signTransaction: walletSignTransaction } = useWallet();
   // Execution lock — prevents double-click across renders
@@ -611,6 +613,11 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
           </div>
         </div>
       )}
+
+      {/* ---- Slippage selector ---- */}
+      <div className="px-5 py-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} />
+      </div>
 
       {/* ---- Recipient full address (copyable) ---- */}
       <div

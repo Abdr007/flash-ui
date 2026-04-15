@@ -10,11 +10,13 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { formatPrice, formatUsd, safe } from "@/lib/format";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
 import { Cell, ToolError, TxSuccessCard } from "./shared";
+import { SlippageSelector } from "./SlippageSelector";
 import type { ToolOutput } from "./types";
 
 export const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
   const [cancelled, setCancelled] = useState(false);
+  const [slippageBps, setSlippageBps] = useState(80);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const refreshPositions = useFlashStore((s) => s.refreshPositions);
   useWallet(); // ensure wallet context is available
@@ -45,12 +47,14 @@ export const CollateralCard = memo(function CollateralCard({ output }: { output:
             depositAmountUi: String(amountUsd),
             depositTokenSymbol: "USDC",
             owner: walletAddress,
+            slippageBps,
           })
         : await buildRemoveCollateral({
             positionKey,
             withdrawAmountUsdUi: String(amountUsd),
             withdrawTokenSymbol: "USDC",
             owner: walletAddress,
+            slippageBps,
           });
 
       if (apiResult.err) throw new Error(apiResult.err);
@@ -143,6 +147,12 @@ export const CollateralCard = memo(function CollateralCard({ output }: { output:
           {output.warnings.map((w, i) => (
             <div key={i}>⚠ {w}</div>
           ))}
+        </div>
+      )}
+
+      {status === "preview" && (
+        <div className="px-5 py-2.5 border-t border-border-subtle">
+          <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} />
         </div>
       )}
 

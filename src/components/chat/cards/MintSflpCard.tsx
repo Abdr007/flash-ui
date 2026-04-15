@@ -5,12 +5,14 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
 import { ToolError, TxSuccessCard } from "./shared";
+import { SlippageSelector } from "./SlippageSelector";
 
 export const MintSflpCard = memo(function MintSflpCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
   const [status, setStatus] = useState<"preview" | "executing" | "success" | "error">("preview");
   const [errorMsg, setErrorMsg] = useState("");
   const [txSig, setTxSig] = useState("");
+  const [slippageBps, setSlippageBps] = useState(75);
   const lockRef = useRef(false);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const { signTransaction, connected, publicKey } = useWallet();
@@ -55,7 +57,7 @@ export const MintSflpCard = memo(function MintSflpCard({ output }: { output: Too
       };
 
       // asSflp = true → uses addLiquidity instead of addCompoundingLiquidity
-      const result = await buildEarnDeposit(conn, walletObj as never, amountUsdc, pool, 0, 0.75, true);
+      const result = await buildEarnDeposit(conn, walletObj as never, amountUsdc, pool, 0, slippageBps / 100, true);
 
       const cuLimit = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
       const cuPrice = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100 });
@@ -127,6 +129,10 @@ export const MintSflpCard = memo(function MintSflpCard({ output }: { output: Too
         <div className="text-[13px] text-text-secondary mt-1">
           Deposit ${amountUsdc.toFixed(2)} USDC → receive {sflpSymbol} tokens in your wallet
         </div>
+      </div>
+
+      <div className="px-5 pb-2">
+        <SlippageSelector valueBps={slippageBps} onChange={setSlippageBps} />
       </div>
 
       {status === "error" && errorMsg && (

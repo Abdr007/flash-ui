@@ -477,6 +477,7 @@ export function createTradeSlice(set: StoreSet, get: StoreGet): TradeSlice {
             collateral,
             leverage,
             owner: wallet,
+            slippageBps: trade.slippage_bps ?? 80,
             takeProfitPrice: trade.take_profit_price ?? undefined,
             stopLossPrice: trade.stop_loss_price ?? undefined,
             orderType: trade.order_type?.toUpperCase() === "LIMIT" ? "LIMIT" : "MARKET",
