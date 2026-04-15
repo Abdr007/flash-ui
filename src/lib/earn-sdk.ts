@@ -298,8 +298,19 @@ export async function buildSflpToFlp(
     const migrateAmount = stakedBalance.mul(new BN(Math.floor(percent))).div(new BN(100));
     if (migrateAmount.isZero()) throw new Error(`${percent}% rounds to zero.`);
 
+    // Prepend refreshStake to activate any pending tokens before migration
+    const [stakePda2] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stake"), userKey.toBuffer(), poolKey.toBuffer()],
+      FLASH_PROGRAM,
+    );
+    let refreshIx;
+    try {
+      refreshIx = await client.refreshStakeWithTokenStake("USDC", pc, stakePda2, userKey);
+    } catch {}
+
     const result = await client.migrateStake(migrateAmount, pc.compoundingTokenMint, pc, true);
-    return { instructions: result.instructions, additionalSigners: result.additionalSigners, poolConfig: pc };
+    const allIxs = refreshIx ? [refreshIx, ...result.instructions] : result.instructions;
+    return { instructions: allIxs, additionalSigners: result.additionalSigners, poolConfig: pc };
   }
 
   // Fallback: check sFLP in wallet token account
