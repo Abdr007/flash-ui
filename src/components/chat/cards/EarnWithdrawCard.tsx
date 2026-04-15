@@ -4,7 +4,7 @@ import { memo, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import type { ToolOutput } from "./types";
-import { ToolError } from "./shared";
+import { ToolError, TxSuccessCard } from "./shared";
 
 // ═══ EARN WITHDRAW PREVIEW ═══
 export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { output: ToolOutput }) {
@@ -28,29 +28,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
   if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Withdrawal cancelled.</div>;
 
   if (status === "success" && txSig) {
-    return (
-      <div
-        className="glass-card-solid overflow-hidden success-glow max-w-[460px]"
-        style={{ borderColor: "rgba(0,210,106,0.15)" }}
-      >
-        <div className="px-5 py-4 flex items-center gap-3">
-          <span className="text-[14px]" style={{ color: "var(--color-accent-long)" }}>
-            &#10003;
-          </span>
-          <div>
-            <div className="text-[14px] font-semibold text-text-primary">Withdrawn from {poolName}</div>
-            <a
-              href={`https://solscan.io/tx/${txSig}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[12px] font-mono text-accent-blue hover:underline"
-            >
-              View on Solscan &rarr;
-            </a>
-          </div>
-        </div>
-      </div>
-    );
+    return <TxSuccessCard label={`Withdrawn from ${poolName}`} signature={txSig} variant="long" />;
   }
 
   if (status === "error") {

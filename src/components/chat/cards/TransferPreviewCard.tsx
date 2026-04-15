@@ -3,7 +3,7 @@
 import { memo, useState, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
-import { ToolError } from "./shared";
+import { ToolError, TxSuccessCard } from "./shared";
 import type { ToolOutput } from "./types";
 
 // ---- Address Intelligence ----
@@ -65,36 +65,6 @@ function saveTransferHistory(record: TransferRecord) {
   } catch {}
 }
 
-function ConfirmStep({ done, label }: { done: boolean; label: string }) {
-  return (
-    <div className="flex items-center gap-2 mb-2">
-      <span
-        className="w-4 h-4 rounded-full flex items-center justify-center"
-        style={{
-          background: done ? "rgba(0,210,106,0.15)" : "rgba(59,130,246,0.12)",
-        }}
-      >
-        {done ? (
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-long)" strokeWidth="3">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        ) : (
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{ background: "var(--color-accent-blue)", animation: "pulseDot 1s infinite" }}
-          />
-        )}
-      </span>
-      <span
-        className="text-[12px]"
-        style={{ color: done ? "var(--color-text-secondary)" : "var(--color-accent-blue)" }}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
 function humanizeError(raw: string): { message: string; suggestion: string } {
   const lower = raw.toLowerCase();
   if (lower.includes("insufficient sol"))
@@ -132,7 +102,6 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
     "preview",
   );
   const [txSig, setTxSig] = useState<string | null>(null);
-  const [txConfirmed, setTxConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<"addr" | "tx" | null>(null);
   const [confirmInput, setConfirmInput] = useState("");
@@ -340,8 +309,6 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
         await new Promise((r) => setTimeout(r, POLL_MS));
       }
 
-      setTxConfirmed(confirmed);
-
       if (confirmed) {
         setStatus("success");
         // Only save as success when ACTUALLY confirmed on-chain
@@ -376,118 +343,7 @@ const TransferPreviewCard = memo(function TransferPreviewCard({ output }: { outp
   // ======== SUCCESS STATE ========
   if (status === "success" && txSig) {
     return (
-      <div className="glass-card-solid overflow-hidden success-glow" style={{ borderColor: "rgba(0,210,106,0.15)" }}>
-        {/* Success header */}
-        <div className="px-5 py-5 flex items-center gap-4">
-          <span
-            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: "rgba(0,210,106,0.1)", border: "1px solid rgba(0,210,106,0.2)" }}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--color-accent-long)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </span>
-          <div>
-            <div className="text-[15px] font-semibold text-text-primary">Transfer Complete</div>
-            <div className="text-[13px] text-text-tertiary mt-0.5">
-              {data.amount_display} sent to {recipientDisplay}
-            </div>
-          </div>
-        </div>
-
-        {/* Confirmation steps — honest status */}
-        <div className="px-5 pb-2">
-          <ConfirmStep done label="Transaction signed" />
-          <ConfirmStep done label="Broadcast to Solana" />
-          <ConfirmStep done={txConfirmed} label={txConfirmed ? "Confirmed on-chain" : "Awaiting confirmation..."} />
-        </div>
-
-        {/* Explorer + copy + trust signal */}
-        <div className="px-5 pb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <a
-              href={`https://solscan.io/tx/${txSig}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[12px] font-medium text-accent-blue hover:underline flex items-center gap-1.5"
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              >
-                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
-              </svg>
-              View on Solscan
-            </a>
-            <button
-              onClick={() => copyToClipboard(txSig!, "tx")}
-              className="text-[11px] font-mono text-text-tertiary hover:text-text-secondary cursor-pointer flex items-center gap-1 transition-colors"
-            >
-              {copied === "tx" ? (
-                <>
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--color-accent-long)"
-                    strokeWidth="2.5"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>{" "}
-                  Copied
-                </>
-              ) : (
-                <>
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="9" y="9" width="13" height="13" rx="2" />
-                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                  </svg>{" "}
-                  Copy hash
-                </>
-              )}
-            </button>
-          </div>
-          <div className="flex items-center gap-1.5 text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <rect x="3" y="11" width="18" height="11" rx="2" />
-              <path d="M7 11V7a5 5 0 0110 0v4" />
-            </svg>
-            Secured and verified on the Solana network
-          </div>
-        </div>
-      </div>
+      <TxSuccessCard label={`${data.amount_display} sent to ${recipientDisplay}`} signature={txSig} variant="long" />
     );
   }
 

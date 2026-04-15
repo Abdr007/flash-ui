@@ -24,7 +24,6 @@ const POOL_DISPLAY: Record<string, string> = {
   trump: "TRUMP Pool",
   ore: "Ore Pool",
   equity: "Equity Pool",
-  stable: "Stable Pool",
 };
 
 export function createEarnDepositTool(wallet: string) {
@@ -32,11 +31,11 @@ export function createEarnDepositTool(wallet: string) {
     description:
       "Build a deposit preview for an earn/liquidity pool. " +
       "User deposits USDC and receives FLP tokens. " +
-      "Supported pools: crypto, defi, gold, meme, wif, fart, ore, stable. " +
+      "Supported pools: crypto, defi, gold, meme, wif, fart, ore, equity. " +
       "Example: 'deposit 100 usdc into crypto pool'",
     inputSchema: z
       .object({
-        pool: z.string().describe("Pool name (crypto, defi, gold, meme, wif, fart, ore, stable)"),
+        pool: z.string().describe("Pool name (crypto, defi, gold, meme, wif, fart, ore, equity)"),
         amount_usdc: z.number().positive().describe("Amount in USDC to deposit"),
       })
       .strict(),
@@ -77,7 +76,6 @@ export function createEarnDepositTool(wallet: string) {
               meme: "FLP.4",
               community: "FLP.4",
               wif: "FLP.5",
-              stable: "FLP.6",
               trump: "FLP.7",
               fart: "FLP.7",
               ore: "FLP.8",

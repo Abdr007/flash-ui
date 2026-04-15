@@ -709,6 +709,13 @@ function matchDirectTool(input: string): DirectToolMatch | null {
     return { toolName: "transfer_history", params: {} };
   }
 
+  // ── Burn sFLP: "burn sflp crypto", "redeem sflp", "sell sflp", "sflp to usdc" ──
+  m = /^(?:burn|redeem|sell|withdraw)\s+s?flp(?:\s+(?:from\s+)?(\w+))?(?:\s+(?:pool|tokens?))?$/i.exec(t);
+  if (m) return { toolName: "burn_sflp", params: { pool: m[1]?.toLowerCase() ?? "crypto", percent: 100 } };
+
+  m = /^s?flp\s+to\s+usdc(?:\s+(?:from\s+)?(\w+))?$/i.exec(t);
+  if (m) return { toolName: "burn_sflp", params: { pool: m[1]?.toLowerCase() ?? "crypto", percent: 100 } };
+
   // ── Collect earn/stake rewards ──
   if (/^(?:collect\s+(?:earn|stake)\s+(?:rewards?|fees?)|collect\s+stake\s*fees)$/i.test(t)) {
     return { toolName: "collect_stake_rewards", params: { pool: "crypto" } };

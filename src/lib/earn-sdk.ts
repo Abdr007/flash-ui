@@ -36,16 +36,12 @@ export function resolvePoolName(alias: string): string | null {
 
 // ---- SDK Client Initialization ----
 
-let _client: PerpetualsClient | null = null;
-let _lastWallet: string | null = null;
-
 function getClient(connection: Connection, wallet: Wallet, poolName: string): PerpetualsClient {
   // Always recreate client to ensure wallet context is correct
-
   // Get program IDs FROM the pool config (matching CLI exactly)
   const pc = PoolConfig.fromIdsByName(poolName, "mainnet-beta");
   const provider = new AnchorProvider(connection, wallet, { commitment: "confirmed" });
-  _client = new PerpetualsClient(
+  return new PerpetualsClient(
     provider,
     pc.programId,
     pc.perpComposibilityProgramId,
@@ -53,8 +49,6 @@ function getClient(connection: Connection, wallet: Wallet, poolName: string): Pe
     pc.rewardDistributionProgram.programId,
     { prioritizationFee: 100 },
   );
-  _lastWallet = wallet.publicKey.toBase58();
-  return _client;
 }
 
 function getPoolConfig(poolName: string): PoolConfig {
@@ -282,16 +276,13 @@ export async function buildSflpToFlp(
   );
 
   const accInfo = await connection.getAccountInfo(stakePda);
-  if (!accInfo || accInfo.data.length < 80) {
+  if (!accInfo || accInfo.data.length < 88) {
     throw new Error("No staked position found for this pool.");
   }
 
-  // Check stake PDA first
-  let stakedBalance = BN_ZERO;
-  if (accInfo && accInfo.data.length >= 80) {
-    const raw = Number(accInfo.data.readBigUInt64LE(72)) + Number(accInfo.data.readBigUInt64LE(80));
-    stakedBalance = new BN(raw.toString());
-  }
+  // Read staked balance: pending_activation (offset 72) + active_amount (offset 80)
+  const raw = Number(accInfo.data.readBigUInt64LE(72)) + Number(accInfo.data.readBigUInt64LE(80));
+  const stakedBalance = new BN(raw.toString());
 
   // If stake PDA has balance, use migrateStake (PDA → FLP)
   if (!stakedBalance.isZero()) {
@@ -299,13 +290,9 @@ export async function buildSflpToFlp(
     if (migrateAmount.isZero()) throw new Error(`${percent}% rounds to zero.`);
 
     // Prepend refreshStake to activate any pending tokens before migration
-    const [stakePda2] = PublicKey.findProgramAddressSync(
-      [Buffer.from("stake"), userKey.toBuffer(), poolKey.toBuffer()],
-      FLASH_PROGRAM,
-    );
     let refreshIx;
     try {
-      refreshIx = await client.refreshStakeWithTokenStake("USDC", pc, stakePda2, userKey);
+      refreshIx = await client.refreshStakeWithTokenStake("USDC", pc, stakePda, userKey);
     } catch {}
 
     const result = await client.migrateStake(migrateAmount, pc.compoundingTokenMint, pc, true);
@@ -372,7 +359,7 @@ export async function buildCollectRewards(
   );
 
   const accInfo = await connection.getAccountInfo(stakePda);
-  if (!accInfo || accInfo.data.length < 80) {
+  if (!accInfo || accInfo.data.length < 88) {
     throw new Error("No staked position found for this pool.");
   }
 

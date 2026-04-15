@@ -9,12 +9,11 @@ import { useFlashStore } from "@/store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { formatPrice, formatUsd, safe } from "@/lib/format";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
-import { Cell, ToolError } from "./shared";
+import { Cell, ToolError, TxSuccessCard } from "./shared";
 import type { ToolOutput } from "./types";
 
 export const CollateralCard = memo(function CollateralCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
-  const [postExecData, setPostExecData] = useState<Record<string, unknown> | null>(null);
   const [cancelled, setCancelled] = useState(false);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const refreshPositions = useFlashStore((s) => s.refreshPositions);
@@ -72,32 +71,8 @@ export const CollateralCard = memo(function CollateralCard({ output }: { output:
 
       return cleanData.txBase64;
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       refreshPositions();
-
-      // Fetch real post-execution position data
-      try {
-        await new Promise((r) => setTimeout(r, 2000)); // wait for chain to update
-        // Fallback: use flash API directly
-        const posResp = await fetch(
-          `https://flashapi.trade/positions/owner/${walletAddress}?includePnlInLeverageDisplay=true`,
-        );
-        if (posResp.ok) {
-          const positions = await posResp.json().catch(() => null);
-          const pos = Array.isArray(positions)
-            ? positions.find(
-                (p: Record<string, unknown>) => p.marketSymbol === market && String(p.sideUi).toUpperCase() === side,
-              )
-            : null;
-          if (pos) {
-            setPostExecData({
-              collateral: safe(pos.collateralUsdUi),
-              leverage: safe(pos.leverageUi),
-              liqPrice: safe(pos.liquidationPriceUi),
-            });
-          }
-        }
-      } catch {}
     },
   });
 
@@ -105,57 +80,12 @@ export const CollateralCard = memo(function CollateralCard({ output }: { output:
   if (!d) return <ToolError toolName="collateral" error="No collateral data returned" />;
 
   if (status === "success") {
-    const realCollateral = postExecData ? Number(postExecData.collateral) : Number(d.new_collateral ?? 0);
-    const realLeverage = postExecData ? Number(postExecData.leverage) : Number(d.new_leverage ?? 0);
-    const realLiqPrice = postExecData ? Number(postExecData.liqPrice) : Number(d.new_liq_price ?? 0);
-    const realMarkPrice = Number(d.mark_price ?? 0);
-    const realLiqDist =
-      realMarkPrice > 0
-        ? side === "LONG"
-          ? ((realMarkPrice - realLiqPrice) / realMarkPrice) * 100
-          : ((realLiqPrice - realMarkPrice) / realMarkPrice) * 100
-        : Number(d.new_liq_distance_pct ?? 0);
-
     return (
-      <div className="w-full max-w-[460px] glass-card overflow-hidden success-glow">
-        <div
-          className="px-5 py-3.5 flex items-center gap-2.5 border-b border-border-subtle"
-          style={{ background: "rgba(16,185,129,0.06)" }}
-        >
-          <span className="text-[14px]" style={{ color: "var(--color-accent-long)" }}>
-            ✓
-          </span>
-          <span className="text-[14px] font-medium" style={{ color: "var(--color-accent-long)" }}>
-            Collateral {isAdd ? "added" : "removed"} — {isAdd ? "+" : "-"}${safe(amountUsd).toFixed(2)}
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-px" style={{ background: "var(--color-border-subtle)" }}>
-          <Cell label="Collateral" value={formatUsd(realCollateral)} />
-          <Cell
-            label="Leverage"
-            value={`${safe(realLeverage).toFixed(2)}x`}
-            color={realLeverage >= 10 ? "var(--color-accent-warn)" : undefined}
-          />
-          <Cell label="Liq Price" value={formatPrice(realLiqPrice)} />
-          <Cell
-            label="Liq Distance"
-            value={`${safe(realLiqDist).toFixed(1)}%`}
-            color={realLiqDist < 10 ? "var(--color-accent-short)" : undefined}
-          />
-        </div>
-        {txSig && (
-          <div className="px-4 py-2 border-t border-border-subtle">
-            <a
-              href={`https://solscan.io/tx/${txSig}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[12px] text-text-secondary hover:text-text-primary underline"
-            >
-              View on Solscan →
-            </a>
-          </div>
-        )}
-      </div>
+      <TxSuccessCard
+        label={`Collateral ${isAdd ? "added" : "removed"} — ${isAdd ? "+" : "-"}$${safe(amountUsd).toFixed(2)}`}
+        signature={txSig}
+        variant="long"
+      />
     );
   }
 

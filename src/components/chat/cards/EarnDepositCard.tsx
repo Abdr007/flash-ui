@@ -5,7 +5,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useFlashStore } from "@/store";
 import { formatUsd, safe } from "@/lib/format";
 import type { ToolOutput } from "./types";
-import { Cell, ToolError } from "./shared";
+import { Cell, ToolError, TxSuccessCard } from "./shared";
 
 export const EarnDepositCard = memo(function EarnDepositCard({ output }: { output: ToolOutput }) {
   const d = output.data as Record<string, unknown> | null;
@@ -108,28 +108,7 @@ export const EarnDepositCard = memo(function EarnDepositCard({ output }: { outpu
 
   if (status === "success") {
     return (
-      <div className="w-full max-w-[460px] glass-card overflow-hidden success-glow">
-        <div className="px-5 py-3.5 flex items-center gap-2.5" style={{ background: "rgba(16,185,129,0.06)" }}>
-          <span className="text-[14px]" style={{ color: "var(--color-accent-long)" }}>
-            ✓
-          </span>
-          <span className="text-[14px] font-medium" style={{ color: "var(--color-accent-long)" }}>
-            Deposited ${amountUsdc} into {poolName}
-          </span>
-        </div>
-        {txSig && (
-          <div className="px-4 py-2 border-t border-border-subtle">
-            <a
-              href={`https://solscan.io/tx/${txSig}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[12px] text-text-secondary hover:text-text-primary underline"
-            >
-              View on Solscan →
-            </a>
-          </div>
-        )}
-      </div>
+      <TxSuccessCard label={`Deposited $${amountUsdc} into ${poolName}`} signature={txSig || null} variant="long" />
     );
   }
 

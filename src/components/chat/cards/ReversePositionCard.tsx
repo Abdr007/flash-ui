@@ -9,7 +9,7 @@ import { useFlashStore } from "@/store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { formatUsd, formatPnl, formatLeverage } from "@/lib/format";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
-import { Cell, ToolError } from "./shared";
+import { Cell, ToolError, TxSuccessCard } from "./shared";
 import type { ToolOutput } from "./types";
 
 export const ReversePositionCard = memo(function ReversePositionCard({ output }: { output: ToolOutput }) {
@@ -71,6 +71,24 @@ export const ReversePositionCard = memo(function ReversePositionCard({ output }:
   if (cancelled) return <div className="text-[13px] text-text-tertiary py-2">Position reversal cancelled.</div>;
   if (!d) return <ToolError toolName="reverse_position" error="No position data returned" />;
 
+  if (status === "success") {
+    return (
+      <TxSuccessCard
+        label={`Reversed ${market} — ${currentSide} to ${newSide}`}
+        signature={txSig}
+        variant={newSide === "LONG" ? "long" : "short"}
+      />
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="w-full max-w-[460px] glass-card overflow-hidden px-5 py-3.5">
+        <div className="text-[13px] text-accent-short mb-2">{errorMsg}</div>
+      </div>
+    );
+  }
+
   const isLive = status === "executing" || status === "signing" || status === "confirming";
 
   return (
@@ -78,8 +96,6 @@ export const ReversePositionCard = memo(function ReversePositionCard({ output }:
       <div className="px-5 py-4">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[11px] text-text-tertiary tracking-wider uppercase">Reverse Position</span>
-          {status === "success" && <span className="text-[11px] text-accent-long font-medium">Confirmed</span>}
-          {status === "error" && <span className="text-[11px] text-accent-short font-medium">Failed</span>}
           {isLive && (
             <span className="text-[11px] text-text-secondary animate-pulse">
               {status === "executing" ? "Building..." : status === "signing" ? "Sign in wallet..." : "Confirming..."}
@@ -138,13 +154,7 @@ export const ReversePositionCard = memo(function ReversePositionCard({ output }:
             color: newSide === "LONG" ? "var(--color-accent-long)" : "var(--color-accent-short)",
           }}
         >
-          {isLive
-            ? "Processing..."
-            : status === "success"
-              ? "Reversed"
-              : status === "error"
-                ? "Failed"
-                : `Reverse to ${newSide}`}
+          {isLive ? "Processing..." : `Reverse to ${newSide}`}
         </button>
         {status === "preview" && (
           <button
@@ -155,22 +165,6 @@ export const ReversePositionCard = memo(function ReversePositionCard({ output }:
           </button>
         )}
       </div>
-
-      {status === "error" && errorMsg && (
-        <div className="px-4 py-2 text-[12px] text-accent-short bg-accent-short/5">{errorMsg}</div>
-      )}
-      {status === "success" && txSig && (
-        <div className="px-4 py-2 text-[12px] text-text-secondary">
-          <a
-            href={`https://solscan.io/tx/${txSig}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-text-primary"
-          >
-            View on Solscan →
-          </a>
-        </div>
-      )}
     </div>
   );
 });

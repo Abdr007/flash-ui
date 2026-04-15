@@ -45,8 +45,6 @@ const FLP_TO_POOL: Record<string, string> = {
   "sflp.x": "equity",
   flpx: "equity",
   sflpx: "equity",
-  "flp.r": "remora",
-  "sflp.r": "remora",
 };
 
 /** Resolve pool alias from user input — handles names, FLP symbols, sFLP symbols */
@@ -506,7 +504,13 @@ export function createBurnSflpTool(wallet: string) {
       };
       const sflpSymbol = sflpMap[resolved];
       if (!sflpSymbol) {
-        return { status: "error", data: null, error: `Unknown pool: ${pool}`, request_id: requestId, latency_ms: 0 };
+        return {
+          status: "error",
+          data: null,
+          error: `Unknown pool: ${pool}. Valid: crypto, defi, gold, meme, wif, fart, ore, equity`,
+          request_id: requestId,
+          latency_ms: 0,
+        };
       }
 
       const poolNames: Record<string, string> = {
@@ -576,7 +580,13 @@ export function createMintSflpTool(wallet: string) {
       };
       const sflpSymbol = sflpMap[resolved];
       if (!sflpSymbol) {
-        return { status: "error", data: null, error: `Unknown pool: ${pool}`, request_id: requestId, latency_ms: 0 };
+        return {
+          status: "error",
+          data: null,
+          error: `Unknown pool: ${pool}. Valid: crypto, defi, gold, meme, wif, fart, ore, equity`,
+          request_id: requestId,
+          latency_ms: 0,
+        };
       }
       if (amount_usdc < 1) {
         return { status: "error", data: null, error: "Minimum deposit is $1", request_id: requestId, latency_ms: 0 };
@@ -662,7 +672,13 @@ export function createConvertSflpToFlpTool(wallet: string) {
       const sflpSymbol = sflpMap[resolved];
       const flpSymbol = flpMap[resolved];
       if (!sflpSymbol || !flpSymbol) {
-        return { status: "error", data: null, error: `Unknown pool: ${pool}`, request_id: requestId, latency_ms: 0 };
+        return {
+          status: "error",
+          data: null,
+          error: `Unknown pool: ${pool}. Valid: crypto, defi, gold, meme, wif, fart, ore, equity`,
+          request_id: requestId,
+          latency_ms: 0,
+        };
       }
 
       const poolNames: Record<string, string> = {
@@ -731,7 +747,13 @@ export function createCollectStakeRewardsTool(wallet: string) {
       };
       const poolName = poolNames[resolved];
       if (!poolName) {
-        return { status: "error", data: null, error: `Unknown pool: ${pool}`, request_id: requestId, latency_ms: 0 };
+        return {
+          status: "error",
+          data: null,
+          error: `Unknown pool: ${pool}. Valid: crypto, defi, gold, meme, wif, fart, ore, equity`,
+          request_id: requestId,
+          latency_ms: 0,
+        };
       }
 
       return {
