@@ -181,19 +181,7 @@ export const EarnWithdrawCard = memo(function EarnWithdrawCard({ output }: { out
             const tx = new VersionedTransaction(message);
             if (result.additionalSigners.length > 0) tx.sign(result.additionalSigners);
 
-            // Simulate before signing
-            const simResult = await conn.simulateTransaction(tx, { sigVerify: false, replaceRecentBlockhash: true });
-            if (simResult.value.err) {
-              const logs = simResult.value.logs?.slice(-3)?.join(" ") ?? "";
-              throw new Error(
-                logs.includes("insufficient")
-                  ? "Insufficient FLP balance"
-                  : logs.includes("AccountNotFound")
-                    ? "No FLP tokens found — deposit first"
-                    : `Simulation failed: ${JSON.stringify(simResult.value.err).slice(0, 80)}`,
-              );
-            }
-
+            // Skip simulation — let the on-chain program validate directly
             setStatus("signing");
             const signed = await signTransaction(tx);
             const signedB64 = Buffer.from(signed.serialize()).toString("base64");
