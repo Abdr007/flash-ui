@@ -21,7 +21,15 @@ export function getClientIp(req: NextRequest): string {
 // 2. Rate Limiter (reusable, per-route)
 // ============================================
 // Each route creates its own limiter instance with custom limits.
-// In-memory with lazy cleanup — works on serverless (shared across warm invocations).
+// In-memory with lazy cleanup.
+//
+// SERVERLESS CAVEAT (Vercel): the limiter is per-instance, not global. With
+// multiple warm lambda instances, an attacker can effectively get N× the
+// configured rate before all instances start rejecting. This is acceptable
+// for casual abuse-mitigation but is NOT a hard cap. If you need a true
+// global cap, plug in Vercel KV / Upstash Redis (use the same `check(key)`
+// signature so callers don't change). The limits below are sized assuming
+// best-effort, not strict enforcement.
 
 interface RateLimitEntry {
   count: number;
@@ -88,12 +96,63 @@ export function rateLimitResponse(retryAfterSeconds = 60): NextResponse {
 // 3. Body Size Validation
 // ============================================
 
+/**
+ * Cheap pre-check via Content-Length header. Useful as a fast-path reject
+ * before any body parsing — but it can be bypassed by chunked-transfer or
+ * a missing/lying header. ALWAYS pair with `readBoundedBody` for routes that
+ * actually consume the body.
+ */
 export function checkBodySize(req: NextRequest, maxBytes: number): NextResponse | null {
   const contentLength = req.headers.get("content-length");
   if (contentLength && parseInt(contentLength, 10) > maxBytes) {
     return NextResponse.json({ error: "Request too large" }, { status: 413 });
   }
   return null;
+}
+
+/**
+ * Reads the request body as text, enforcing the byte cap as bytes are consumed.
+ * Returns either the decoded text or a 413 NextResponse — callers should check
+ * the return type before parsing JSON. This is the safe alternative to
+ * `req.json()` when the body comes from untrusted input.
+ *
+ * NOTE: returns a Response on overflow rather than throwing — keeps route
+ * handlers free of try/catch around body reads.
+ */
+export async function readBoundedBody(req: NextRequest, maxBytes: number): Promise<string | NextResponse> {
+  // Fast-path: trust Content-Length when it claims overflow, reject early.
+  const contentLength = req.headers.get("content-length");
+  if (contentLength && parseInt(contentLength, 10) > maxBytes) {
+    return NextResponse.json({ error: "Request too large" }, { status: 413 });
+  }
+
+  const reader = req.body?.getReader();
+  if (!reader) {
+    // No body at all — return empty string so callers can json-parse safely.
+    return "";
+  }
+
+  const decoder = new TextDecoder("utf-8");
+  let received = 0;
+  let out = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    received += value.byteLength;
+    if (received > maxBytes) {
+      // Stop reading and free the underlying stream.
+      try {
+        await reader.cancel();
+      } catch {
+        // Stream cancellation can throw on already-closed streams.
+      }
+      return NextResponse.json({ error: "Request too large" }, { status: 413 });
+    }
+    out += decoder.decode(value, { stream: true });
+  }
+  out += decoder.decode();
+  return out;
 }
 
 // ============================================
@@ -214,6 +273,18 @@ export const RPC_READ_METHODS = new Set([
   "getRecentBlockhash",
   "getMinimumBalanceForRentExemption",
   "simulateTransaction",
+  // ---- Methods used by wallet adapters (Solflare, Phantom) during connect / signing ----
+  // Without these whitelisted, the wallet's internal Connection retries with
+  // backoff and the user perceives "stuck connecting".
+  "getEpochInfo",
+  "getVersion",
+  "getGenesisHash",
+  "isBlockhashValid",
+  "getFeeForMessage",
+  "getRecentPerformanceSamples",
+  "getSignaturesForAddress",
+  "getTokenSupply",
+  "getTokenLargestAccounts",
   // sendTransaction EXCLUDED — use /api/broadcast with validation
   // getBlock EXCLUDED — heavyweight, can be used for DoS
   // getProgramAccounts EXCLUDED — heavyweight scan, can be used for DoS

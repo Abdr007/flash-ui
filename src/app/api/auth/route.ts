@@ -13,7 +13,7 @@ import { PublicKey } from "@solana/web3.js";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 import { generateNonce, consumeNonce, getSignMessage, createAuthToken } from "@/lib/wallet-auth";
-import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, isValidSolanaAddress } from "@/lib/api-security";
+import { getClientIp, RateLimiter, rateLimitResponse, readBoundedBody, isValidSolanaAddress } from "@/lib/api-security";
 
 // Rate limits — tighter than data endpoints since auth is infrequent
 const nonceLimiter = new RateLimiter(10); // 10 nonce requests/min
@@ -49,11 +49,15 @@ export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!verifyLimiter.check(ip)) return rateLimitResponse();
 
-  const sizeCheck = checkBodySize(req, 2_000);
-  if (sizeCheck) return sizeCheck;
+  const bodyText = await readBoundedBody(req, 2_000);
+  if (bodyText instanceof NextResponse) return bodyText;
 
   try {
-    const { wallet, signature, nonce } = await req.json();
+    const { wallet, signature, nonce } = JSON.parse(bodyText) as {
+      wallet?: unknown;
+      signature?: unknown;
+      nonce?: unknown;
+    };
 
     // Validate inputs
     if (!wallet || typeof wallet !== "string" || !isValidSolanaAddress(wallet)) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logInfo, logError } from "@/lib/logger";
-import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, isValidSolanaAddress } from "@/lib/api-security";
+import { getClientIp, RateLimiter, rateLimitResponse, readBoundedBody, isValidSolanaAddress } from "@/lib/api-security";
 
 const TokenPricesBody = z.object({ wallet: z.string().min(32).max(50) });
 
@@ -41,13 +41,13 @@ export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!limiter.check(ip)) return rateLimitResponse();
 
-  // ---- Body Size Limit ----
-  const sizeCheck = checkBodySize(req, MAX_BODY_BYTES);
-  if (sizeCheck) return sizeCheck;
+  // ---- Body Size Limit (real read, not header-only) ----
+  const bodyText = await readBoundedBody(req, MAX_BODY_BYTES);
+  if (bodyText instanceof NextResponse) return bodyText;
 
   const start = Date.now();
   try {
-    const body = await req.json();
+    const body = JSON.parse(bodyText);
     let wallet: string;
     try {
       ({ wallet } = TokenPricesBody.parse(body));

@@ -85,6 +85,13 @@ export interface FlashStore {
   };
   setDataError: (source: "prices" | "positions", error: string | null) => void;
 
+  // ---- Wallet Connection Status ----
+  // Surfaced when wallet adapter throws — e.g. Phantom/Solflare locked,
+  // user rejected, extension not installed, autoConnect failed after a
+  // browser-storage wipe. Auto-clears when wallet successfully connects.
+  walletError: string | null;
+  setWalletError: (message: string | null) => void;
+
   // ---- Existing Actions (UNTOUCHED) ----
   sendMessage: (input: string) => Promise<void>;
   setTriggers: (tradeId: string, triggers: { tp?: number | null; sl?: number | null }) => Promise<void>;

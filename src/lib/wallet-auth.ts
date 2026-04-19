@@ -4,17 +4,21 @@
 // Server-side verification of wallet ownership via signed messages.
 //
 // Flow:
-// 1. Client calls GET /api/auth/nonce?wallet=<pubkey> → gets a nonce
+// 1. Client calls GET /api/auth?wallet=<pubkey> → gets a stateless nonce
 // 2. Client signs the nonce message with their wallet
-// 3. Client calls POST /api/auth/verify with { wallet, signature, nonce }
-// 4. Server verifies and returns a short-lived auth token
+// 3. Client calls POST /api/auth with { wallet, signature, nonce }
+// 4. Server verifies HMAC + ed25519 signature and returns a short-lived auth token
 // 5. Client includes token in Authorization header on subsequent requests
 // 6. Server-side middleware verifies token on protected endpoints
 //
-// The token is a base64-encoded JSON { wallet, exp, hmac } — NOT a JWT
-// (no external dependency needed). HMAC uses a server-side secret.
+// Both nonces and tokens are stateless HMAC-signed payloads — they verify
+// against AUTH_SECRET without any shared store. This is required on Vercel
+// because successive requests can hit different lambda instances. A best-effort
+// in-memory replay-guard prevents the same nonce from being consumed twice
+// during the warm lifetime of a single instance; for full replay protection
+// across cold starts, set up Vercel KV (see comment near `usedNonces`).
 
-import { createHmac, randomBytes } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual as nodeTimingSafeEqual } from "crypto";
 
 // ============================================
 // Configuration
@@ -22,48 +26,128 @@ import { createHmac, randomBytes } from "crypto";
 
 const TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const NONCE_TTL_MS = 2 * 60 * 1000; // 2 minutes (must sign quickly)
-const MAX_NONCES = 5000; // Memory cap
+const REPLAY_GUARD_MAX_ENTRIES = 10_000;
 
-// Server-side secret for HMAC signing — falls back to random per-deploy
-// (tokens invalidate on redeploy, which is fine for security)
-const AUTH_SECRET = process.env.WALLET_AUTH_SECRET || randomBytes(32).toString("hex");
+// Server-side secret for HMAC signing.
+// PRODUCTION: WALLET_AUTH_SECRET MUST be set as a Vercel env var (same value
+// across all instances and regions) — without it, tokens issued by one lambda
+// instance fail HMAC verification on another, causing random 401s.
+// DEV/PREVIEW: falls back to a per-process random secret (tokens invalidate on
+// every restart, which is fine locally).
+const AUTH_SECRET = (() => {
+  const fromEnv = process.env.WALLET_AUTH_SECRET?.trim();
+  if (fromEnv && fromEnv.length >= 32) return fromEnv;
+
+  const isProd = process.env.NODE_ENV === "production" && process.env.VERCEL_ENV === "production";
+  if (isProd) {
+    // Refuse to boot in real production without an explicit secret. This is
+    // intentional: silently falling back here causes auth to fail randomly
+    // across serverless instances and is much harder to diagnose later.
+    throw new Error(
+      "WALLET_AUTH_SECRET is missing or too short (min 32 chars) in production. " +
+        "Set it in Vercel project settings — value must be identical across all envs/regions.",
+    );
+  }
+  if (fromEnv) {
+    console.warn(
+      "[wallet-auth] WALLET_AUTH_SECRET shorter than 32 chars — generating random fallback for this process.",
+    );
+  } else {
+    console.warn(
+      "[wallet-auth] WALLET_AUTH_SECRET not set — using random per-process secret. Set it before going to production.",
+    );
+  }
+  return randomBytes(32).toString("hex");
+})();
 
 // ============================================
-// Nonce Store (in-memory, per-instance)
+// Stateless HMAC Nonce
 // ============================================
+// A nonce is a base64url-encoded payload `{wallet, exp, rand}` plus an HMAC.
+// generateNonce: server signs and returns to client.
+// consumeNonce:  server verifies HMAC, checks expiry, ensures single-use.
 
-const nonceStore = new Map<string, { nonce: string; expires: number }>();
+interface NoncePayload {
+  wallet: string;
+  exp: number; // ms epoch
+  rand: string; // 16-byte hex — uniqueness per issuance
+}
+
+function b64url(buf: Buffer | string): string {
+  return (typeof buf === "string" ? Buffer.from(buf) : buf)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+function b64urlDecode(s: string): Buffer {
+  const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - (s.length % 4));
+  return Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/") + pad, "base64");
+}
+
+function hmacHex(input: string): string {
+  return createHmac("sha256", AUTH_SECRET).update(input).digest("hex");
+}
 
 export function generateNonce(wallet: string): string {
-  cleanupNonces();
-  const nonce = randomBytes(16).toString("hex");
-  nonceStore.set(wallet, { nonce, expires: Date.now() + NONCE_TTL_MS });
-  return nonce;
+  const payload: NoncePayload = {
+    wallet,
+    exp: Date.now() + NONCE_TTL_MS,
+    rand: randomBytes(16).toString("hex"),
+  };
+  const data = b64url(JSON.stringify(payload));
+  const sig = hmacHex(data);
+  return `${data}.${sig}`;
+}
+
+// Best-effort replay guard. Stops a captured nonce from being verified twice
+// within a warm-instance lifetime. Cross-instance / cross-cold-start replays
+// are still possible until you wire this to Vercel KV — the underlying defense
+// for that case is the 2-minute TTL and the requirement to also forge the
+// wallet's ed25519 signature.
+const usedNonces = new Map<string, number>();
+
+function markNonceUsed(rand: string, exp: number) {
+  // Lazy cleanup
+  if (usedNonces.size > REPLAY_GUARD_MAX_ENTRIES / 2) {
+    const now = Date.now();
+    for (const [k, e] of usedNonces) {
+      if (now > e) usedNonces.delete(k);
+    }
+    while (usedNonces.size > REPLAY_GUARD_MAX_ENTRIES) {
+      const oldest = usedNonces.keys().next().value;
+      if (oldest) usedNonces.delete(oldest);
+      else break;
+    }
+  }
+  usedNonces.set(rand, exp);
 }
 
 export function consumeNonce(wallet: string, nonce: string): boolean {
-  const entry = nonceStore.get(wallet);
-  if (!entry) return false;
-  if (Date.now() > entry.expires) {
-    nonceStore.delete(wallet);
+  const dot = nonce.indexOf(".");
+  if (dot <= 0 || dot === nonce.length - 1) return false;
+  const data = nonce.slice(0, dot);
+  const sig = nonce.slice(dot + 1);
+
+  const expected = hmacHex(data);
+  if (!constantTimeStringEq(sig, expected)) return false;
+
+  let payload: NoncePayload;
+  try {
+    payload = JSON.parse(b64urlDecode(data).toString("utf8")) as NoncePayload;
+  } catch {
     return false;
   }
-  if (entry.nonce !== nonce) return false;
-  nonceStore.delete(wallet); // Single use
-  return true;
-}
+  if (!payload?.wallet || typeof payload.exp !== "number" || typeof payload.rand !== "string") return false;
+  if (payload.wallet !== wallet) return false;
+  if (Date.now() > payload.exp) return false;
 
-function cleanupNonces() {
-  if (nonceStore.size < 100) return;
-  const now = Date.now();
-  for (const [key, entry] of nonceStore) {
-    if (now > entry.expires) nonceStore.delete(key);
-  }
-  while (nonceStore.size > MAX_NONCES) {
-    const oldest = nonceStore.keys().next().value;
-    if (oldest) nonceStore.delete(oldest);
-    else break;
-  }
+  // Replay-guard (best-effort)
+  if (usedNonces.has(payload.rand)) return false;
+  markNonceUsed(payload.rand, payload.exp);
+
+  return true;
 }
 
 // ============================================
@@ -81,24 +165,22 @@ export function createAuthToken(wallet: string): string {
     exp: Date.now() + TOKEN_TTL_MS,
   };
   const data = JSON.stringify(payload);
-  const hmac = createHmac("sha256", AUTH_SECRET).update(data).digest("hex");
-  const token = Buffer.from(JSON.stringify({ d: data, h: hmac })).toString("base64");
-  return token;
+  const sig = hmacHex(data);
+  // Wrap as base64({d, h}) — kept compatible with prior token format.
+  return Buffer.from(JSON.stringify({ d: data, h: sig })).toString("base64");
 }
 
 export function verifyAuthToken(token: string): AuthPayload | null {
   try {
-    const decoded = JSON.parse(Buffer.from(token, "base64").toString("utf-8"));
-    const { d, h } = decoded;
-    if (!d || !h) return null;
+    const decoded = JSON.parse(Buffer.from(token, "base64").toString("utf8"));
+    const { d, h } = decoded as { d?: unknown; h?: unknown };
+    if (typeof d !== "string" || typeof h !== "string") return null;
 
-    // Verify HMAC
-    const expected = createHmac("sha256", AUTH_SECRET).update(d).digest("hex");
-    if (!timingSafeEqual(h, expected)) return null;
+    const expected = hmacHex(d);
+    if (!constantTimeStringEq(h, expected)) return null;
 
-    // Parse and check expiry
-    const payload: AuthPayload = JSON.parse(d);
-    if (!payload.wallet || !payload.exp) return null;
+    const payload = JSON.parse(d) as AuthPayload;
+    if (!payload?.wallet || typeof payload.exp !== "number") return null;
     if (Date.now() > payload.exp) return null;
 
     return payload;
@@ -107,14 +189,15 @@ export function verifyAuthToken(token: string): AuthPayload | null {
   }
 }
 
-// Timing-safe string comparison (prevents timing attacks on HMAC)
-function timingSafeEqual(a: string, b: string): boolean {
+// Constant-time string compare via Node's timingSafeEqual on equal-length buffers.
+function constantTimeStringEq(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  try {
+    return nodeTimingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    // Length mismatch already handled above; this catch is defensive.
+    return false;
   }
-  return result === 0;
 }
 
 // ============================================

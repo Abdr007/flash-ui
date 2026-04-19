@@ -28,7 +28,7 @@ import {
   getClientIp,
   RateLimiter,
   rateLimitResponse,
-  checkBodySize,
+  readBoundedBody,
   safeErrorResponse,
   enforceWalletMatch,
 } from "@/lib/api-security";
@@ -117,12 +117,12 @@ export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!limiter.check(ip)) return rateLimitResponse();
 
-  // ---- Body Size Limit ----
-  const sizeCheck = checkBodySize(req, MAX_BODY_BYTES);
-  if (sizeCheck) return sizeCheck;
+  // ---- Body Size Limit (real read, not header-only) ----
+  const bodyText = await readBoundedBody(req, MAX_BODY_BYTES);
+  if (bodyText instanceof NextResponse) return bodyText;
 
   try {
-    const rawBody = await req.json();
+    const rawBody = JSON.parse(bodyText);
     let action: string, wallet: string, amount: number | undefined, index: number | undefined;
     try {
       ({ action, wallet, amount, index } = FafPostBody.parse(rawBody));

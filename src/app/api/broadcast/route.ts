@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { VersionedTransaction } from "@solana/web3.js";
-import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize } from "@/lib/api-security";
+import { getClientIp, RateLimiter, rateLimitResponse, readBoundedBody } from "@/lib/api-security";
 
 const HELIUS_RPC = process.env.HELIUS_RPC_URL || "https://api.mainnet-beta.solana.com";
 
@@ -64,15 +64,15 @@ export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!limiter.check(ip)) return rateLimitResponse();
 
-  // ---- Body Size Limit ----
-  const sizeCheck = checkBodySize(req, MAX_BODY_BYTES);
-  if (sizeCheck) return sizeCheck;
+  // ---- Body Size Limit (real read, not header-only) ----
+  const bodyText = await readBoundedBody(req, MAX_BODY_BYTES);
+  if (bodyText instanceof NextResponse) return bodyText;
 
   try {
-    const body = await req.json();
-    const txBase64: string = body?.transaction;
+    const body = JSON.parse(bodyText) as { transaction?: unknown };
+    const txBase64 = typeof body?.transaction === "string" ? body.transaction : "";
 
-    if (!txBase64 || typeof txBase64 !== "string") {
+    if (!txBase64) {
       return NextResponse.json({ error: "Missing transaction field (base64)" }, { status: 400 });
     }
 

@@ -7,28 +7,70 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useWalletSign } from "@/hooks/useWalletSign";
 import { useLivePnl } from "@/hooks/useLivePnl";
+import { useFlashStore } from "@/store";
 
 const WalletProvider = dynamic(() => import("@/components/layout/WalletProvider"), { ssr: false });
+
+// Detect wallet-related errors from the global error/unhandledrejection
+// channels so they can be surfaced via the wallet error banner instead of
+// being silently swallowed (which made the "I clicked Connect and nothing
+// happened" bug invisible).
+function isWalletRelatedError(reason: unknown): { walletMessage: string } | null {
+  if (!reason) return null;
+  const obj = reason as { name?: unknown; message?: unknown; constructor?: { name?: unknown } };
+  const name = typeof obj.name === "string" ? obj.name : "";
+  const ctorName = typeof obj.constructor?.name === "string" ? obj.constructor.name : "";
+  const message = typeof obj.message === "string" ? obj.message : "";
+  const haystack = `${name} ${ctorName} ${message}`.toLowerCase();
+  if (
+    haystack.includes("wallet") ||
+    haystack.includes("phantom") ||
+    haystack.includes("solflare") ||
+    haystack.includes("user rejected")
+  ) {
+    return { walletMessage: message || name || "Wallet error" };
+  }
+  return null;
+}
 
 function AppShell({ children }: { children: React.ReactNode }) {
   usePriceStream();
   useWalletSign();
   useLivePnl();
 
-  // Global unhandled error/rejection handlers — prevent silent white screens
+  // Global error/rejection handlers. We DO NOT swallow everything blindly
+  // anymore — wallet errors get routed to the WalletErrorBanner so the user
+  // can act on them, and other errors are logged but not suppressed (so React
+  // dev tools, error reporters, and Vercel can still see them in production).
   useEffect(() => {
+    const setWalletError = useFlashStore.getState().setWalletError;
+
     const onError = (e: ErrorEvent) => {
+      const wallet = isWalletRelatedError(e.error ?? e.message);
+      if (wallet) {
+        setWalletError(wallet.walletMessage);
+        e.preventDefault();
+        return;
+      }
       try {
         console.error("[GlobalError]", e.message, e.filename, e.lineno);
-      } catch {}
-      // Don't let unhandled errors propagate to blank screen
-      e.preventDefault();
+      } catch {
+        // Some embed contexts lack console; ignore.
+      }
+      // Don't preventDefault — let the browser/devtools see real errors.
     };
     const onRejection = (e: PromiseRejectionEvent) => {
+      const wallet = isWalletRelatedError(e.reason);
+      if (wallet) {
+        setWalletError(wallet.walletMessage);
+        e.preventDefault();
+        return;
+      }
       try {
         console.error("[UnhandledRejection]", e.reason);
-      } catch {}
-      e.preventDefault();
+      } catch {
+        // No console — nothing else to do.
+      }
     };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);

@@ -88,7 +88,9 @@ export default function PortfolioHero({ onAction }: PortfolioHeroProps) {
         const total = data.totalUsd ?? 0;
         setTotalWalletUsd(total);
         try {
-          const key = `flash_portfolio_${walletAddress?.slice(0, 8)}`;
+          // Full address — slicing to 8 chars meant any two wallets sharing a
+          // base58 prefix saw each other's portfolio history.
+          const key = `flash_portfolio_${walletAddress}`;
           const stored = sessionStorage.getItem(key);
           if (stored) {
             const prev = JSON.parse(stored);

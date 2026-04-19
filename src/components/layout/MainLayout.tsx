@@ -11,6 +11,7 @@ import ChatPanel from "@/components/chat/ChatPanel";
 import SystemStatus from "@/components/layout/SystemStatus";
 import { SectionBoundary } from "@/components/ErrorBoundary";
 import DataStatusBanner from "@/components/layout/DataStatusBanner";
+import WalletErrorBanner from "@/components/layout/WalletErrorBanner";
 
 // Secondary safety-net boundary for ChatPanel's top-level render.
 //
@@ -73,6 +74,11 @@ export default function MainLayout() {
           <SystemStatus />
         </SectionBoundary>
       </header>
+
+      {/* ---- Wallet Error Banner (shows when wallet adapter throws) ---- */}
+      <SectionBoundary>
+        <WalletErrorBanner />
+      </SectionBoundary>
 
       {/* ---- Data Status Banner (auto-hides when healthy) ---- */}
       <SectionBoundary>

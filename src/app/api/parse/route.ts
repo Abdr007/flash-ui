@@ -5,7 +5,7 @@
 // GROQ_API_KEY never exposed to client.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, sanitizeLlmInput } from "@/lib/api-security";
+import { getClientIp, RateLimiter, rateLimitResponse, readBoundedBody, sanitizeLlmInput } from "@/lib/api-security";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.3-70b-versatile";
@@ -69,12 +69,12 @@ export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!limiter.check(ip)) return rateLimitResponse();
 
-  // ---- Body Size Limit ----
-  const sizeCheck = checkBodySize(req, MAX_BODY_BYTES);
-  if (sizeCheck) return sizeCheck;
+  // ---- Body Size Limit (real read, not header-only) ----
+  const bodyText = await readBoundedBody(req, MAX_BODY_BYTES);
+  if (bodyText instanceof NextResponse) return bodyText;
 
   try {
-    const { input } = await req.json();
+    const { input } = JSON.parse(bodyText) as { input?: unknown };
     if (!input || typeof input !== "string" || input.length > 500) {
       return NextResponse.json({ error: "invalid_input" }, { status: 400 });
     }

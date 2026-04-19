@@ -7,7 +7,7 @@ import {
   ComputeBudgetProgram,
   Connection,
 } from "@solana/web3.js";
-import { getClientIp, RateLimiter, rateLimitResponse, checkBodySize, safeErrorResponse } from "@/lib/api-security";
+import { getClientIp, RateLimiter, rateLimitResponse, readBoundedBody, safeErrorResponse } from "@/lib/api-security";
 
 const STRIP_PROGRAMS = new Set(["L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95"]);
 const FLASH_CU_LIMIT = 420_000;
@@ -25,12 +25,12 @@ export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!limiter.check(ip)) return rateLimitResponse();
 
-  // ---- Body Size Limit ----
-  const sizeCheck = checkBodySize(req, MAX_BODY_BYTES);
-  if (sizeCheck) return sizeCheck;
+  // ---- Body Size Limit (real read, not header-only) ----
+  const bodyText = await readBoundedBody(req, MAX_BODY_BYTES);
+  if (bodyText instanceof NextResponse) return bodyText;
 
   try {
-    const { txBase64, payerKey } = await req.json();
+    const { txBase64, payerKey } = JSON.parse(bodyText) as { txBase64?: unknown; payerKey?: unknown };
 
     // ---- Input Validation ----
     if (!txBase64 || typeof txBase64 !== "string" || txBase64.length > 3000 || txBase64.length < 100) {

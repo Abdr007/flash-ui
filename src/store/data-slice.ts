@@ -18,9 +18,11 @@ export type DataSlice = Pick<
   | "positions"
   | "walletAddress"
   | "walletConnected"
+  | "walletError"
   | "streamStatus"
   | "dataStatus"
   | "setDataError"
+  | "setWalletError"
   | "refreshPrices"
   | "refreshPositions"
   | "handleStreamPrices"
@@ -37,6 +39,7 @@ export function createDataSlice(set: StoreSet, get: StoreGet): DataSlice {
     positions: [],
     walletAddress: null,
     walletConnected: false,
+    walletError: null,
     streamStatus: "disconnected" as const,
 
     dataStatus: {
@@ -44,6 +47,10 @@ export function createDataSlice(set: StoreSet, get: StoreGet): DataSlice {
       pricesError: null,
       positionsLastOk: 0,
       positionsError: null,
+    },
+
+    setWalletError: (message: string | null) => {
+      set({ walletError: message });
     },
 
     // ---- Actions ----
@@ -172,12 +179,18 @@ export function createDataSlice(set: StoreSet, get: StoreGet): DataSlice {
     },
 
     // ---- Wallet ----
+    // NOTE: refreshPositions is intentionally fired here without await — we
+    // want the UI to update immediately on connect; the positions hydrate
+    // asynchronously. WalletSync (in WalletProvider) is the single source of
+    // truth for invoking this action; only one listener exists, so no race.
     setWallet: (address: string | null) => {
       set({
         walletAddress: address,
         walletConnected: !!address,
       });
       if (address) {
+        // Successful connect — clear any prior wallet error.
+        if (get().walletError) set({ walletError: null });
         get().refreshPositions();
       } else {
         set({ positions: [] });
