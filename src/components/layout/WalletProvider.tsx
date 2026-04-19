@@ -2,7 +2,6 @@
 
 import { useMemo, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { ConnectionProvider, WalletProvider as SolanaWalletProvider, useWallet } from "@solana/wallet-adapter-react";
-import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { WalletError, WalletNotReadyError, WalletConnectionError, WalletReadyState } from "@solana/wallet-adapter-base";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
@@ -187,11 +186,17 @@ export default function WalletProviderWrapper({ children }: { children: ReactNod
         banner on every visit even when the user hadn't clicked anything.
       */}
       <SolanaWalletProvider wallets={wallets} autoConnect={false} onError={handleError}>
-        <WalletModalProvider>
-          <WalletSync />
-          <ConnectWatchdog />
-          {children}
-        </WalletModalProvider>
+        {/*
+          We do NOT use @solana/wallet-adapter-react-ui's WalletModalProvider.
+          Its modal has been a recurring source of "modal opens but clicking
+          does nothing" / "modal doesn't appear" bugs after extension auto-
+          updates. We render our own WalletPickerModal in SystemStatus that
+          uses useWallet().wallets directly — same API, none of the upstream
+          modal's quirks.
+        */}
+        <WalletSync />
+        <ConnectWatchdog />
+        {children}
       </SolanaWalletProvider>
     </ConnectionProvider>
   );

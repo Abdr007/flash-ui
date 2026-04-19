@@ -1,16 +1,16 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useFlashStore } from "@/store";
+import WalletPickerModal from "./WalletPickerModal";
 
 export default function SystemStatus() {
   const walletConnected = useFlashStore((s) => s.walletConnected);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const setWalletError = useFlashStore((s) => s.setWalletError);
   const { disconnect, connecting } = useWallet();
-  const { setVisible } = useWalletModal();
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const handleWallet = useCallback(async () => {
     if (walletConnected) {
@@ -26,32 +26,9 @@ export default function SystemStatus() {
       }
       return;
     }
-
-    // ALWAYS open the modal — even if a wallet is already selected, even if
-    // we're currently in a "Connecting..." state. The modal is the single
-    // source of truth for wallet selection. Trying to "smart-skip" the modal
-    // when a wallet is already selected led to silent hangs when the previous
-    // session's wallet was no longer responding (locked, namespace hijacked,
-    // trust expired). The user explicitly clicked Connect — show them the
-    // picker.
     setWalletError(null);
-    // Clear any half-attached prior selection so the user gets a clean modal
-    // and the next select() call triggers a real connect attempt instead of
-    // resolving instantly because the adapter still thinks it's "selected".
-    if (connecting) {
-      try {
-        await disconnect();
-      } catch {
-        // Ignore — best effort.
-      }
-      try {
-        window.localStorage.removeItem("walletName");
-      } catch {
-        // Ignore.
-      }
-    }
-    setVisible(true);
-  }, [walletConnected, disconnect, setWalletError, connecting, setVisible]);
+    setPickerOpen(true);
+  }, [walletConnected, disconnect, setWalletError]);
 
   return (
     <div
@@ -111,12 +88,12 @@ export default function SystemStatus() {
           </span>
         </button>
       ) : (
-        // Button is NEVER disabled. If a previous connect attempt is hanging,
-        // clicking again must always be able to re-open the picker.
         <button onClick={handleWallet} className="btn-cta px-5 py-2 text-[12px] font-bold glow-pulse shrink-0">
-          {connecting ? "Connecting... (click to pick wallet)" : "Connect Wallet"}
+          {connecting ? "Connecting..." : "Connect Wallet"}
         </button>
       )}
+
+      <WalletPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
   );
 }
