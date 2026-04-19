@@ -10,6 +10,7 @@
 // behavior, and can show real diagnostic state to the user.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import type { Wallet } from "@solana/wallet-adapter-react";
 import { WalletReadyState } from "@solana/wallet-adapter-base";
@@ -155,8 +156,13 @@ export default function WalletPickerModal({ open, onClose }: Props) {
   }, []);
 
   if (!open) return null;
+  if (typeof document === "undefined") return null;
 
-  return (
+  // Portal to document.body so the modal escapes parent stacking contexts.
+  // PortfolioHero / MainLayout use z-index inside transformed/blurred wrappers
+  // which create new stacking contexts — without the portal the modal renders
+  // behind the action circles even at z-index 1000.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -165,9 +171,9 @@ export default function WalletPickerModal({ open, onClose }: Props) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.65)",
+        background: "rgba(0,0,0,0.78)",
         backdropFilter: "blur(8px)",
-        zIndex: 1000,
+        zIndex: 2147483646,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -321,6 +327,7 @@ export default function WalletPickerModal({ open, onClose }: Props) {
           Stuck? Clear cached wallet selection &amp; reload
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
