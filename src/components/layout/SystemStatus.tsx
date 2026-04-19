@@ -1,19 +1,56 @@
 "use client";
 
+import { useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { WalletReadyState } from "@solana/wallet-adapter-base";
 import { useFlashStore } from "@/store";
 
 export default function SystemStatus() {
   const walletConnected = useFlashStore((s) => s.walletConnected);
   const walletAddress = useFlashStore((s) => s.walletAddress);
-  const { disconnect } = useWallet();
+  const setWalletError = useFlashStore((s) => s.setWalletError);
+  const { disconnect, wallet, connect, connecting } = useWallet();
   const { setVisible } = useWalletModal();
 
-  const handleWallet = () => {
-    if (walletConnected) disconnect();
-    else setVisible(true);
-  };
+  const handleWallet = useCallback(async () => {
+    if (walletConnected) {
+      try {
+        await disconnect();
+      } catch {
+        // Disconnect can throw if the wallet was already detached server-side.
+      }
+      // Clear any persisted wallet name so the next click goes through the
+      // modal (prevents auto-reselecting a wallet whose trust just expired).
+      try {
+        window.localStorage.removeItem("walletName");
+      } catch {
+        // Storage access may be blocked in private mode.
+      }
+      return;
+    }
+
+    // Clear any stale error before the new attempt.
+    setWalletError(null);
+
+    // If a wallet is already selected and installed, skip the modal and try a
+    // direct connect. This is the path where a user who previously connected
+    // can re-connect with one click.
+    if (wallet && wallet.readyState === WalletReadyState.Installed && !connecting) {
+      try {
+        await connect();
+        return;
+      } catch {
+        // connect() failures are caught and surfaced by WalletProvider's
+        // onError handler — fall through to opening the modal so the user
+        // can pick a different wallet.
+      }
+    }
+
+    // No wallet selected (or selected wallet isn't installed) — open the modal
+    // so the user can pick from the available wallets.
+    setVisible(true);
+  }, [walletConnected, disconnect, setWalletError, wallet, connecting, connect, setVisible]);
 
   return (
     <div
@@ -73,8 +110,12 @@ export default function SystemStatus() {
           </span>
         </button>
       ) : (
-        <button onClick={handleWallet} className="btn-cta px-5 py-2 text-[12px] font-bold glow-pulse shrink-0">
-          Connect Wallet
+        <button
+          onClick={handleWallet}
+          disabled={connecting}
+          className="btn-cta px-5 py-2 text-[12px] font-bold glow-pulse shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {connecting ? "Connecting..." : "Connect Wallet"}
         </button>
       )}
     </div>
