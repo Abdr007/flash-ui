@@ -3,14 +3,13 @@
 import { useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { WalletReadyState } from "@solana/wallet-adapter-base";
 import { useFlashStore } from "@/store";
 
 export default function SystemStatus() {
   const walletConnected = useFlashStore((s) => s.walletConnected);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const setWalletError = useFlashStore((s) => s.setWalletError);
-  const { disconnect, wallet, connect, connecting } = useWallet();
+  const { disconnect, connecting } = useWallet();
   const { setVisible } = useWalletModal();
 
   const handleWallet = useCallback(async () => {
@@ -20,8 +19,6 @@ export default function SystemStatus() {
       } catch {
         // Disconnect can throw if the wallet was already detached server-side.
       }
-      // Clear any persisted wallet name so the next click goes through the
-      // modal (prevents auto-reselecting a wallet whose trust just expired).
       try {
         window.localStorage.removeItem("walletName");
       } catch {
@@ -30,27 +27,31 @@ export default function SystemStatus() {
       return;
     }
 
-    // Clear any stale error before the new attempt.
+    // ALWAYS open the modal — even if a wallet is already selected, even if
+    // we're currently in a "Connecting..." state. The modal is the single
+    // source of truth for wallet selection. Trying to "smart-skip" the modal
+    // when a wallet is already selected led to silent hangs when the previous
+    // session's wallet was no longer responding (locked, namespace hijacked,
+    // trust expired). The user explicitly clicked Connect — show them the
+    // picker.
     setWalletError(null);
-
-    // If a wallet is already selected and installed, skip the modal and try a
-    // direct connect. This is the path where a user who previously connected
-    // can re-connect with one click.
-    if (wallet && wallet.readyState === WalletReadyState.Installed && !connecting) {
+    // Clear any half-attached prior selection so the user gets a clean modal
+    // and the next select() call triggers a real connect attempt instead of
+    // resolving instantly because the adapter still thinks it's "selected".
+    if (connecting) {
       try {
-        await connect();
-        return;
+        await disconnect();
       } catch {
-        // connect() failures are caught and surfaced by WalletProvider's
-        // onError handler — fall through to opening the modal so the user
-        // can pick a different wallet.
+        // Ignore — best effort.
+      }
+      try {
+        window.localStorage.removeItem("walletName");
+      } catch {
+        // Ignore.
       }
     }
-
-    // No wallet selected (or selected wallet isn't installed) — open the modal
-    // so the user can pick from the available wallets.
     setVisible(true);
-  }, [walletConnected, disconnect, setWalletError, wallet, connecting, connect, setVisible]);
+  }, [walletConnected, disconnect, setWalletError, connecting, setVisible]);
 
   return (
     <div
@@ -110,12 +111,10 @@ export default function SystemStatus() {
           </span>
         </button>
       ) : (
-        <button
-          onClick={handleWallet}
-          disabled={connecting}
-          className="btn-cta px-5 py-2 text-[12px] font-bold glow-pulse shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {connecting ? "Connecting..." : "Connect Wallet"}
+        // Button is NEVER disabled. If a previous connect attempt is hanging,
+        // clicking again must always be able to re-open the picker.
+        <button onClick={handleWallet} className="btn-cta px-5 py-2 text-[12px] font-bold glow-pulse shrink-0">
+          {connecting ? "Connecting... (click to pick wallet)" : "Connect Wallet"}
         </button>
       )}
     </div>
