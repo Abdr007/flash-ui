@@ -46,9 +46,43 @@ function readyStateBadge(state: WalletReadyState): { label: string; color: strin
 }
 
 export default function WalletPickerModal({ open, onClose }: Props) {
-  const { wallets, select, connect, connecting, connected } = useWallet();
+  const { wallets, select, connect, connecting, connected, disconnect } = useWallet();
   const setWalletError = useFlashStore((s) => s.setWalletError);
   const [activeWallet, setActiveWallet] = useState<string | null>(null);
+  const [remainingMs, setRemainingMs] = useState(0);
+
+  // While a connect is in progress, tick a countdown so the user knows the
+  // UI isn't hung — it's waiting for the wallet extension to respond. At 0
+  // the watchdog fires and surfaces a real error.
+  useEffect(() => {
+    if (!activeWallet) {
+      setRemainingMs(0);
+      return;
+    }
+    const startedAt = Date.now();
+    setRemainingMs(CONNECT_TIMEOUT_MS);
+    const iv = setInterval(() => {
+      const left = Math.max(0, CONNECT_TIMEOUT_MS - (Date.now() - startedAt));
+      setRemainingMs(left);
+      if (left === 0) clearInterval(iv);
+    }, 250);
+    return () => clearInterval(iv);
+  }, [activeWallet]);
+
+  const handleCancel = useCallback(async () => {
+    setActiveWallet(null);
+    setRemainingMs(0);
+    try {
+      await disconnect();
+    } catch {
+      // disconnect() can throw on a half-attached adapter.
+    }
+    try {
+      window.localStorage.removeItem("walletName");
+    } catch {
+      // Storage blocked; ignore.
+    }
+  }, [disconnect]);
 
   // Sort: Installed first, then Loadable, then NotDetected/Unsupported.
   const sortedWallets = useMemo(() => {
@@ -198,16 +232,18 @@ export default function WalletPickerModal({ open, onClose }: Props) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
           <div>
             <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--color-text-primary)" }}>
-              Connect a wallet
+              {activeWallet ? `Connecting to ${activeWallet}` : "Connect a wallet"}
             </div>
             <div style={{ fontSize: "12px", color: "var(--color-text-tertiary)", marginTop: "4px" }}>
-              {sortedWallets.length === 0
-                ? "No wallets configured."
-                : `${sortedWallets.filter((w) => w.readyState === WalletReadyState.Installed).length} detected`}
+              {activeWallet
+                ? `Check your ${activeWallet} extension and approve${remainingMs > 0 ? ` — ${Math.ceil(remainingMs / 1000)}s` : ""}`
+                : sortedWallets.length === 0
+                  ? "No wallets configured."
+                  : `${sortedWallets.filter((w) => w.readyState === WalletReadyState.Installed).length} detected`}
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={activeWallet ? handleCancel : onClose}
             aria-label="Close"
             style={{
               background: "transparent",
@@ -222,6 +258,72 @@ export default function WalletPickerModal({ open, onClose }: Props) {
             ×
           </button>
         </div>
+
+        {activeWallet && (
+          <div
+            style={{
+              marginBottom: "16px",
+              padding: "16px",
+              background: "rgba(51,201,161,0.06)",
+              border: "1px solid rgba(51,201,161,0.2)",
+              borderRadius: "12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div
+                style={{
+                  width: "18px",
+                  height: "18px",
+                  border: "2px solid rgba(51,201,161,0.3)",
+                  borderTopColor: "var(--color-brand-teal)",
+                  borderRadius: "50%",
+                  animation: "spin 0.8s linear infinite",
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ fontSize: "13px", color: "var(--color-text-primary)", fontWeight: 600 }}>
+                Waiting for {activeWallet}...
+              </div>
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+              {isBrave() ? (
+                <>
+                  <strong>If you don&rsquo;t see a popup:</strong> click the {activeWallet} extension icon in
+                  Brave&rsquo;s toolbar (top-right) to unlock it. If nothing still happens, Brave Wallet is likely
+                  intercepting — set{" "}
+                  <code style={{ background: "rgba(255,255,255,0.06)", padding: "1px 4px", borderRadius: "4px" }}>
+                    brave://settings/wallet
+                  </code>{" "}
+                  → Default Solana Wallet → <strong>Extensions (no fallback)</strong>.
+                </>
+              ) : (
+                <>
+                  <strong>If you don&rsquo;t see a popup:</strong> click the {activeWallet} extension icon in your
+                  browser toolbar (top-right) to unlock it.
+                </>
+              )}
+            </div>
+            <button
+              onClick={handleCancel}
+              style={{
+                marginTop: "4px",
+                padding: "8px 12px",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "8px",
+                color: "var(--color-text-primary)",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Cancel and pick a different wallet
+            </button>
+          </div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {sortedWallets.map((w) => {
