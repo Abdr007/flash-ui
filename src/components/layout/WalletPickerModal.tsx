@@ -159,9 +159,11 @@ export default function WalletPickerModal({ open, onClose }: Props) {
   if (typeof document === "undefined") return null;
 
   // Portal to document.body so the modal escapes parent stacking contexts.
-  // PortfolioHero / MainLayout use z-index inside transformed/blurred wrappers
-  // which create new stacking contexts — without the portal the modal renders
-  // behind the action circles even at z-index 1000.
+  // Backdrop is now FULLY OPAQUE (not rgba-0.78) — belt-and-braces: even if
+  // some ancestor somewhere creates a stacking context we didn't anticipate,
+  // an opaque full-screen element at the end of <body> will still hide the
+  // page underneath. `isolation: isolate` creates a fresh stacking context
+  // so descendant z-indexes can't leak out.
   return createPortal(
     <div
       role="dialog"
@@ -171,9 +173,9 @@ export default function WalletPickerModal({ open, onClose }: Props) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.78)",
-        backdropFilter: "blur(8px)",
+        background: "#05080D",
         zIndex: 2147483646,
+        isolation: "isolate",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -186,7 +188,7 @@ export default function WalletPickerModal({ open, onClose }: Props) {
         style={{
           width: "100%",
           maxWidth: "440px",
-          background: "rgba(14,19,28,0.98)",
+          background: "#0E131C",
           border: "1px solid rgba(51,201,161,0.18)",
           borderRadius: "20px",
           padding: "24px",

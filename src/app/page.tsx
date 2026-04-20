@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import MainLayout from "@/components/layout/MainLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { usePriceStream } from "@/hooks/usePriceStream";
@@ -9,7 +9,7 @@ import { useWalletSign } from "@/hooks/useWalletSign";
 import { useLivePnl } from "@/hooks/useLivePnl";
 import { useFlashStore } from "@/store";
 
-const WalletProvider = dynamic(() => import("@/components/layout/WalletProvider"), { ssr: false });
+const WalletProvider = nextDynamic(() => import("@/components/layout/WalletProvider"), { ssr: false });
 
 // Detect wallet-related errors from the global error/unhandledrejection
 // channels so they can be surfaced via the wallet error banner instead of

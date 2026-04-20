@@ -14,6 +14,17 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // The root page HTML must never be cached at the edge. Without this,
+        // Vercel's prerender cache held a ~5 minute stale copy (observed
+        // x-vercel-cache: HIT, age 344s) — new deploys went live in chunks
+        // but users still loaded HTML that referenced pre-fix chunks until
+        // the stale-time ran out. Forcing no-store on just the HTML means
+        // every page load hits the current deployment, while hashed JS/CSS
+        // chunks continue to cache normally (they're content-addressed).
+        source: "/",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+      },
+      {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
