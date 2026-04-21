@@ -11,6 +11,22 @@ import { useFlashStore } from "@/store";
 // Wallet-adapter persists the last selected wallet here.
 const WALLET_NAME_KEY = "walletName";
 
+// Clear the persisted wallet name at MODULE LOAD time — before the
+// WalletProvider's internal useEffect reads localStorage. Without this,
+// autoConnect silently tries to reconnect the previously-used wallet on
+// every page load, Solflare (correctly) rejects silent reconnects without
+// user confirmation, and the error surfaces as a banner before the user
+// has clicked anything. Clearing it here means autoConnect only fires
+// when the user explicitly picks a wallet in the modal, which is the
+// behavior every major Solana dApp has.
+if (typeof window !== "undefined") {
+  try {
+    window.localStorage.removeItem(WALLET_NAME_KEY);
+  } catch {
+    // Storage access can be blocked in private mode.
+  }
+}
+
 // How long we wait for wallet.connect() to settle before declaring it stuck.
 // In practice an unlocked Solflare/Phantom resolves in ~1-3 seconds. 12s is
 // enough for slow networks but short enough that the user knows something is
