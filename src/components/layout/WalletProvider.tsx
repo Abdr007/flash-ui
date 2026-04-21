@@ -178,13 +178,16 @@ export default function WalletProviderWrapper({ children }: { children: ReactNod
   return (
     <ConnectionProvider endpoint={rpcEndpoint}>
       {/*
-        autoConnect is INTENTIONALLY OFF.
-        With autoConnect on, every page load attempted a silent reconnect
-        using the persisted walletName. That silently failed in Brave and
-        for users whose wallets had rotated trust, surfacing the error
-        banner on every visit even when the user hadn't clicked anything.
+        autoConnect is REQUIRED for the standard modal to work: the modal
+        only calls select(walletName) on click — the actual adapter.connect()
+        is fired by the provider's autoConnect effect when walletName/adapter
+        change. With autoConnect off, clicking a wallet did nothing.
+
+        Silent-reconnect noise is handled in handleError: errors raised by
+        the auto-reconnect on page load are shown in the dismissible banner,
+        same as any other wallet error.
       */}
-      <SolanaWalletProvider wallets={wallets} autoConnect={false} onError={handleError}>
+      <SolanaWalletProvider wallets={wallets} autoConnect={true} onError={handleError}>
         {/*
           Standard @solana/wallet-adapter-react-ui modal — same UX that
           Jupiter, Drift, marginfi, Phantom.app, Solflare.com use. Handles
