@@ -1,16 +1,16 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useFlashStore } from "@/store";
-import WalletPickerModal from "./WalletPickerModal";
 
 export default function SystemStatus() {
   const walletConnected = useFlashStore((s) => s.walletConnected);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const setWalletError = useFlashStore((s) => s.setWalletError);
   const { disconnect, connecting } = useWallet();
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const { setVisible } = useWalletModal();
 
   const handleWallet = useCallback(async () => {
     if (walletConnected) {
@@ -27,8 +27,8 @@ export default function SystemStatus() {
       return;
     }
     setWalletError(null);
-    setPickerOpen(true);
-  }, [walletConnected, disconnect, setWalletError]);
+    setVisible(true);
+  }, [walletConnected, disconnect, setWalletError, setVisible]);
 
   return (
     <div
@@ -92,8 +92,6 @@ export default function SystemStatus() {
           {connecting ? "Connecting..." : "Connect Wallet"}
         </button>
       )}
-
-      <WalletPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
   );
 }
