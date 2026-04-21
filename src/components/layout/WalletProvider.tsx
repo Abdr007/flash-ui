@@ -167,14 +167,15 @@ export default function WalletProviderWrapper({ children }: { children: ReactNod
         return;
       }
 
-      // WalletConnectionError: trust was revoked, popup was dismissed, or the
-      // wallet is locked. Clearing walletName forces the modal next time.
+      // WalletConnectionError fires when: extension is locked, user dismissed
+      // the popup, or trust was revoked. "Locked" is the dominant case in
+      // practice — Solflare (unlike Phantom) does NOT auto-prompt for unlock
+      // when a dApp connects; it rejects immediately. Lead with that because
+      // that's the fix 95% of the time.
       if (error instanceof WalletConnectionError) {
         clearStaleWalletName();
         setWalletError(
-          isBrave()
-            ? "Couldn't connect. Open Solflare/Phantom and unlock it. If Brave Wallet is set as default, switch to Extensions in brave://settings/wallet."
-            : "Couldn't connect to your wallet. Open Solflare/Phantom, unlock it, and click Connect again.",
+          "Your wallet is locked. Click the wallet extension icon in your browser toolbar (top-right), enter your password to unlock, then click Connect Wallet again.",
         );
         return;
       }
