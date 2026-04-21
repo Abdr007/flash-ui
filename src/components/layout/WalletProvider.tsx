@@ -35,6 +35,17 @@ export default function WalletProviderWrapper({ children }: { children: ReactNod
           walletChainType: "solana-only",
           theme: "dark",
           accentColor: "#33c9a1",
+          // Default walletList is Ethereum-focused (metamask, rainbow, ...) so
+          // Solflare doesn't show up unless we name it explicitly. Order here
+          // drives the order shown in Privy's modal.
+          walletList: [
+            "detected_solana_wallets",
+            "phantom",
+            "solflare",
+            "backpack",
+            "jupiter",
+            "wallet_connect_qr_solana",
+          ],
         },
         loginMethods: ["wallet"],
         externalWallets: {
