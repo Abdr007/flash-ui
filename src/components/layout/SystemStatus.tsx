@@ -1,29 +1,42 @@
 "use client";
 
 import { useCallback } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useConnectWallet } from "@privy-io/react-auth";
+import { useWallets } from "@privy-io/react-auth/solana";
 import { useFlashStore } from "@/store";
 
 export default function SystemStatus() {
   const walletConnected = useFlashStore((s) => s.walletConnected);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const setWalletError = useFlashStore((s) => s.setWalletError);
-  const { ready, authenticated, login, logout } = usePrivy();
+  const { ready } = usePrivy();
+  const { ready: walletsReady, wallets } = useWallets();
+  // useConnectWallet opens Privy's modal and connects an external wallet
+  // WITHOUT triggering the Sign-In-With-Solana auth flow that login() runs.
+  // For a trading UI we only need the wallet handle — the SIWS step was
+  // failing and surfacing as "Could not log in with wallet".
+  const { connectWallet } = useConnectWallet();
 
   const handleWallet = useCallback(async () => {
-    if (walletConnected) {
+    if (walletConnected && wallets[0]) {
       try {
-        await logout();
+        await wallets[0].disconnect();
       } catch {
-        // Logout can throw on half-attached sessions; ignore.
+        // Disconnect can throw if the wallet was already detached.
       }
       return;
     }
     setWalletError(null);
-    login();
-  }, [walletConnected, logout, login, setWalletError]);
+    try {
+      connectWallet();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Couldn't open wallet picker";
+      setWalletError(msg);
+      console.error("[wallet] connect failed:", err);
+    }
+  }, [walletConnected, wallets, connectWallet, setWalletError]);
 
-  const connecting = !ready && !authenticated;
+  const connecting = !ready || !walletsReady;
 
   return (
     <div

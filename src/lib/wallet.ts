@@ -11,7 +11,7 @@
 import { useCallback, useMemo } from "react";
 import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
-import { usePrivy } from "@privy-io/react-auth";
+import { useConnectWallet } from "@privy-io/react-auth";
 import {
   useWallets as usePrivyWallets,
   useSignTransaction as usePrivySignTransaction,
@@ -40,8 +40,8 @@ function deserializeTx<T extends AnyTx>(bytes: Uint8Array, original: T): T {
 }
 
 export function useWallet() {
-  const { ready, authenticated, login, logout } = usePrivy();
-  const { wallets } = usePrivyWallets();
+  const { ready, wallets } = usePrivyWallets();
+  const { connectWallet } = useConnectWallet();
   const { signTransaction: privySignTx } = usePrivySignTransaction();
   const { signMessage: privySignMsg } = usePrivySignMessage();
   const { signAndSendTransaction: privySignAndSend } = usePrivySignAndSend();
@@ -59,24 +59,29 @@ export function useWallet() {
     }
   }, [activeWallet]);
 
-  const connected = Boolean(authenticated && activeWallet);
+  // "Connected" here is pure wallet connection — no Privy user / SIWS auth
+  // is required. The Privy auth flow was failing with "Could not log in
+  // with wallet" because we don't need it; we just need the wallet handle.
+  const connected = Boolean(activeWallet);
   const connecting = !ready;
 
   const disconnect = useCallback(async () => {
+    if (!activeWallet) return;
     try {
-      await logout();
+      // ConnectedStandardSolanaWallet exposes disconnect via the wallet
+      // standard. Falls back silently if unsupported.
+      const w = activeWallet as unknown as { disconnect?: () => Promise<void> };
+      if (typeof w.disconnect === "function") await w.disconnect();
     } catch {
-      // Logout can throw on half-attached sessions; ignore.
+      // Disconnect can throw on half-attached sessions; ignore.
     }
-  }, [logout]);
+  }, [activeWallet]);
 
   const connect = useCallback(async () => {
-    // Privy's login() opens their modal which handles Solflare/Phantom/
-    // WalletConnect/etc selection. We do NOT await — login resolves only
-    // after the user completes the flow, and callers expect this to return
-    // immediately after opening the UI.
-    login();
-  }, [login]);
+    // Opens Privy's modal to pick and connect an external wallet. No SIWS
+    // signature is required because we aren't using Privy for auth.
+    connectWallet();
+  }, [connectWallet]);
 
   const signTransaction = useCallback(
     async <T extends AnyTx>(tx: T): Promise<T> => {
