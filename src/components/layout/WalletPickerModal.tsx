@@ -46,7 +46,7 @@ function readyStateBadge(state: WalletReadyState): { label: string; color: strin
 }
 
 export default function WalletPickerModal({ open, onClose }: Props) {
-  const { wallets, select, connect, connecting, connected, disconnect } = useWallet();
+  const { wallets, select, connecting, connected, disconnect } = useWallet();
   const setWalletError = useFlashStore((s) => s.setWalletError);
   const [activeWallet, setActiveWallet] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
@@ -120,19 +120,30 @@ export default function WalletPickerModal({ open, onClose }: Props) {
 
       setActiveWallet(w.adapter.name);
 
-      // select() is synchronous in the adapter — it just swaps the active
-      // wallet. The connect() call is what actually opens the wallet popup.
+      // Kick the connect off the adapter DIRECTLY — not via useWallet()'s
+      // connect(). useWallet's connect reads the provider's current adapter
+      // ref, which in Brave/Chromium is still the previous render's value
+      // at this point in the event loop (select() only queues a state
+      // update), so it either rejects with WalletNotSelectedError or
+      // targets the wrong adapter and hangs forever. Calling
+      // w.adapter.connect() synchronously from the click handler guarantees
+      // (a) the correct adapter, and (b) that the browser still treats this
+      // as a user gesture — Brave blocks Solflare's SDK popup otherwise,
+      // which is the failure mode screenshotted.
+      const connectPromise = w.adapter.connect();
+      // select() syncs React state so useWallet().wallet reflects the
+      // selection. Its listeners will pick up the 'connect' event the
+      // adapter emits when connectPromise resolves.
       try {
         select(w.adapter.name as WalletName);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Couldn't select wallet";
-        setWalletError(msg);
-        setActiveWallet(null);
-        return;
+      } catch {
+        // select() can throw if the name isn't in the wallets array; the
+        // direct adapter.connect() above is authoritative, so swallow and
+        // continue.
       }
 
-      // Race connect() against a 12s timeout so a hung extension popup never
-      // permanently jams the UI.
+      // Race against a 12s timeout so a hung extension / blocked popup
+      // never permanently jams the UI.
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(
           () =>
@@ -148,18 +159,22 @@ export default function WalletPickerModal({ open, onClose }: Props) {
       );
 
       try {
-        await Promise.race([connect(), timeoutPromise]);
-        // Successful connect — let the WalletSync effect propagate state and
-        // close the modal.
+        await Promise.race([connectPromise, timeoutPromise]);
         onClose();
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Connect failed";
         setWalletError(msg);
+        // Clear adapter state so a retry goes through a fresh connect.
+        try {
+          await w.adapter.disconnect();
+        } catch {
+          // Adapter can be in a half-attached state; ignore.
+        }
       } finally {
         setActiveWallet(null);
       }
     },
-    [select, connect, setWalletError, onClose],
+    [select, setWalletError, onClose],
   );
 
   // Close modal on Escape.
