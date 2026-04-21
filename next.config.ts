@@ -51,6 +51,13 @@ const nextConfig: NextConfig = {
               // Defense lives at the route level (rate limits, allowlists) and
               // at the wallet level (signature verification).
               "connect-src 'self' https: wss:",
+              // Privy and WalletConnect both mount iframes — without
+              // frame-src, the default-src 'self' blocks them silently and
+              // the wallet modal just hangs. auth.privy.io hosts Privy's
+              // auth iframe; verify.walletconnect.org / verify.walletconnect.com
+              // host WalletConnect's wallet discovery and deep-link iframes.
+              "frame-src 'self' https://auth.privy.io https://*.privy.io https://*.walletconnect.com https://*.walletconnect.org https://*.reown.com https://solflare.com https://*.solflare.com",
+              "child-src 'self' https://auth.privy.io https://*.privy.io https://*.walletconnect.com https://*.walletconnect.org",
               "worker-src 'self' blob:",
               "manifest-src 'self'",
               "object-src 'none'",

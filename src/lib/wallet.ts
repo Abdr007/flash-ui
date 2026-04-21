@@ -10,6 +10,7 @@
 
 import { useCallback, useMemo } from "react";
 import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
+import bs58 from "bs58";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   useWallets as usePrivyWallets,
@@ -124,8 +125,9 @@ export function useWallet() {
         transaction: bytes,
         wallet: activeWallet,
       });
-      // Privy returns the signature as bytes; callers expect base58 string.
-      return Buffer.from(signature).toString("base64");
+      // Solana signatures are base58-encoded. Wrong encoding here means
+      // downstream Solscan links / confirmation lookups all 404.
+      return bs58.encode(signature);
     },
     [activeWallet, privySignAndSend],
   );
