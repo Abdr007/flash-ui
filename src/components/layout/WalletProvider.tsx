@@ -4,6 +4,8 @@ import { useMemo, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { ConnectionProvider, WalletProvider as SolanaWalletProvider, useWallet } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { WalletError, WalletNotReadyError, WalletConnectionError, WalletReadyState } from "@solana/wallet-adapter-base";
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
+import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { useFlashStore } from "@/store";
 
 // wallet-adapter CSS is imported in app/layout.tsx (Turbopack requires CSS imports in route files).
@@ -142,15 +144,13 @@ export default function WalletProviderWrapper({ children }: { children: ReactNod
     return `${window.location.origin}/api/rpc`;
   }, []);
 
-  // Empty wallets array — we rely entirely on the Wallet Standard discovery
-  // that @solana/wallet-adapter-react performs automatically. Modern Solflare
-  // (>=1.37), Phantom, and Brave Wallet all register via Wallet Standard and
-  // talk to the extension directly via postMessage. The legacy
-  // SolflareWalletAdapter used the @solflare-wallet/sdk, which opens a popup
-  // to solflare.com — Brave blocks that popup, which is why Solflare hung
-  // forever in Brave even with the standard modal. Using only the Wallet
-  // Standard path removes the popup from the flow entirely.
-  const wallets = useMemo(() => [], []);
+  // Register the legacy SDK-based adapters explicitly. The SolflareWalletAdapter
+  // routes connect() through @solflare-wallet/sdk, which opens Solflare's own
+  // popup — the popup shows a password field and approve button in ONE flow,
+  // which is the "click Connect → popup with password → connected" UX the user
+  // had originally. Wallet Standard wallets (Brave Wallet, etc.) still get
+  // auto-discovered and shown alongside these.
+  const wallets = useMemo(() => [new SolflareWalletAdapter(), new PhantomWalletAdapter()], []);
 
   const setWalletError = useFlashStore((s) => s.setWalletError);
 
