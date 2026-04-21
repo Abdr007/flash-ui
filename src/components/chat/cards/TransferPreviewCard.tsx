@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useRef } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@/lib/wallet";
 import { useFlashStore } from "@/store";
 import { ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
 import type { ToolOutput } from "./types";

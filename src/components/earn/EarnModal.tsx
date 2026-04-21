@@ -8,7 +8,7 @@
 // Execution lock: prevents double-submit.
 
 import { useState, useRef, useEffect } from "react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@/lib/wallet";
 import { VersionedTransaction, ComputeBudgetProgram, MessageV0 } from "@solana/web3.js";
 import { formatUsd, safe } from "@/lib/format";
 import {

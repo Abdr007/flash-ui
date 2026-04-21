@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@/lib/wallet";
 import { VersionedTransaction } from "@solana/web3.js";
 import { useFlashStore } from "@/store";
 import { executeSignedTransaction } from "@/lib/tx-executor";

@@ -2,7 +2,7 @@
 
 import { memo, useState, useRef, useEffect } from "react";
 import { useFlashStore } from "@/store";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@/lib/wallet";
 import { Cell, ToolError, TxSuccessCard } from "./shared";
 import type { ToolOutput } from "./types";
 import { safe } from "@/lib/format";

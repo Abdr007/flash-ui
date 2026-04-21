@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@/lib/wallet";
 import type { TxStatus } from "@/components/chat/cards/types";
 
 interface UseExecuteTxParams {

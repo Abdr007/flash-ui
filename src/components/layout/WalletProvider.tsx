@@ -1,65 +1,18 @@
 "use client";
 
-import { useMemo, useEffect, useCallback, useRef, type ReactNode } from "react";
-import { ConnectionProvider, WalletProvider as SolanaWalletProvider, useWallet } from "@solana/wallet-adapter-react";
-import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { WalletError, WalletNotReadyError, WalletConnectionError, WalletReadyState } from "@solana/wallet-adapter-base";
-import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
-import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
+import { type ReactNode, useEffect } from "react";
+import { PrivyProvider } from "@privy-io/react-auth";
+import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
+import { useWallet } from "@/lib/wallet";
 import { useFlashStore } from "@/store";
 
-// wallet-adapter CSS is imported in app/layout.tsx (Turbopack requires CSS imports in route files).
+const PRIVY_APP_ID = "cmo94g9z700d70bihg0jhotz2";
 
-// Wallet-adapter persists the last selected wallet here.
-const WALLET_NAME_KEY = "walletName";
-
-// Clear the persisted wallet name at MODULE LOAD time — before the
-// WalletProvider's internal useEffect reads localStorage. Without this,
-// autoConnect silently tries to reconnect the previously-used wallet on
-// every page load, Solflare (correctly) rejects silent reconnects without
-// user confirmation, and the error surfaces as a banner before the user
-// has clicked anything. Clearing it here means autoConnect only fires
-// when the user explicitly picks a wallet in the modal, which is the
-// behavior every major Solana dApp has.
-if (typeof window !== "undefined") {
-  try {
-    window.localStorage.removeItem(WALLET_NAME_KEY);
-  } catch {
-    // Storage access can be blocked in private mode.
-  }
-}
-
-// How long we wait for wallet.connect() to settle before declaring it stuck.
-// In practice an unlocked Solflare/Phantom resolves in ~1-3 seconds. 12s is
-// enough for slow networks but short enough that the user knows something is
-// wrong and can act.
-const CONNECT_TIMEOUT_MS = 12_000;
-
-function clearStaleWalletName() {
-  try {
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(WALLET_NAME_KEY);
-    }
-  } catch {
-    // Storage access can throw in private mode / strict cookie settings.
-  }
-}
-
-// Brave Wallet ships built into Brave and aliases itself as window.solana,
-// hijacking Phantom's namespace. Solflare uses window.solflare which Brave
-// usually doesn't touch, but the user's Brave Wallet setting can still
-// intercept the modal selection. We detect Brave here so we can show a more
-// actionable hint when a connect attempt fails.
-function isBrave(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const nav = navigator as Navigator & { brave?: { isBrave?: () => Promise<boolean> } };
-  return Boolean(nav.brave);
-}
-
+// Mirror of the previous WalletSync component — keeps the global store's
+// walletAddress in sync with the currently connected wallet.
 function WalletSync() {
-  const { publicKey, connected, wallet } = useWallet();
+  const { publicKey, connected } = useWallet();
   const setWallet = useFlashStore((s) => s.setWallet);
-  const setWalletError = useFlashStore((s) => s.setWalletError);
 
   useEffect(() => {
     if (connected && publicKey) {
@@ -69,155 +22,35 @@ function WalletSync() {
     }
   }, [connected, publicKey, setWallet]);
 
-  // When the user picks a wallet from the modal, surface a clear message if
-  // the extension isn't actually installed (which happens regularly in Brave
-  // because Brave Wallet hides extension wallets when set as default).
-  useEffect(() => {
-    if (!wallet) return;
-    const state = wallet.readyState;
-    if (state === WalletReadyState.NotDetected || state === WalletReadyState.Unsupported) {
-      setWalletError(
-        `${wallet.adapter.name} extension not detected${
-          isBrave()
-            ? ". Brave Wallet can hide it — open brave://settings/wallet → Default Solana Wallet → Extensions (no fallback), then reload."
-            : ". Install it from solflare.com / phantom.app and reload."
-        }`,
-      );
-    }
-  }, [wallet, setWalletError]);
-
-  return null;
-}
-
-// Watchdog: when wallet.connecting is true for longer than CONNECT_TIMEOUT_MS,
-// the connect call has hung (extension is paused, popup never appeared, or
-// something else is intercepting). Force-disconnect so the UI doesn't sit
-// in "Connecting..." forever, and surface a clear error.
-function ConnectWatchdog() {
-  const { connecting, disconnect, wallet } = useWallet();
-  const setWalletError = useFlashStore((s) => s.setWalletError);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    // Clear any pending timer when connecting flips back to false.
-    if (!connecting) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      return;
-    }
-
-    const walletName = wallet?.adapter.name ?? "wallet";
-    timerRef.current = setTimeout(async () => {
-      setWalletError(
-        isBrave()
-          ? `${walletName} didn't respond. Open the extension and unlock it. If Brave Wallet is set as default, switch to "Extensions (no fallback)" in brave://settings/wallet.`
-          : `${walletName} didn't respond. Open the extension, unlock it, and click Connect again.`,
-      );
-      // Force-reset adapter state so the button becomes clickable again.
-      try {
-        await disconnect();
-      } catch {
-        // disconnect() can throw on a half-attached adapter; nothing to do.
-      }
-      clearStaleWalletName();
-    }, CONNECT_TIMEOUT_MS);
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [connecting, disconnect, wallet, setWalletError]);
-
   return null;
 }
 
 export default function WalletProviderWrapper({ children }: { children: ReactNode }) {
-  // RPC endpoint must be computed inside the component, not at module scope —
-  // module-scope evaluation freezes the value to whichever origin loaded the
-  // bundle first, which breaks preview deployments and custom-domain switches.
-  const rpcEndpoint = useMemo(() => {
-    if (typeof window === "undefined") return "https://api.mainnet-beta.solana.com";
-    return `${window.location.origin}/api/rpc`;
-  }, []);
-
-  // Register the legacy SDK-based adapters explicitly. The SolflareWalletAdapter
-  // routes connect() through @solflare-wallet/sdk, which opens Solflare's own
-  // popup — the popup shows a password field and approve button in ONE flow,
-  // which is the "click Connect → popup with password → connected" UX the user
-  // had originally. Wallet Standard wallets (Brave Wallet, etc.) still get
-  // auto-discovered and shown alongside these.
-  const wallets = useMemo(() => [new SolflareWalletAdapter(), new PhantomWalletAdapter()], []);
-
-  const setWalletError = useFlashStore((s) => s.setWalletError);
-
-  const handleError = useCallback(
-    (error: WalletError) => {
-      // WalletNotReadyError: the selected wallet's extension isn't loaded.
-      if (error instanceof WalletNotReadyError) {
-        clearStaleWalletName();
-        setWalletError(
-          isBrave()
-            ? "Wallet extension not detected. In Brave: brave://settings/wallet → Default Solana Wallet → Extensions (no fallback), then reload."
-            : "Wallet extension not detected. Install Solflare or Phantom and reload.",
-        );
-        return;
-      }
-
-      // WalletConnectionError fires when: extension is locked, user dismissed
-      // the popup, or trust was revoked. "Locked" is the dominant case in
-      // practice — Solflare (unlike Phantom) does NOT auto-prompt for unlock
-      // when a dApp connects; it rejects immediately. Lead with that because
-      // that's the fix 95% of the time.
-      if (error instanceof WalletConnectionError) {
-        clearStaleWalletName();
-        setWalletError(
-          "Your wallet is locked. Click the wallet extension icon in your browser toolbar (top-right), enter your password to unlock, then click Connect Wallet again.",
-        );
-        return;
-      }
-
-      // Generic fallback — surface a short message and log full details.
-      const msg = error?.message?.trim() || error?.name || "Wallet error";
-      setWalletError(msg.length > 200 ? `${msg.slice(0, 197)}...` : msg);
-      try {
-        console.warn("[WalletProvider] error:", error);
-      } catch {
-        // No console in some embed contexts.
-      }
-    },
-    [setWalletError],
-  );
-
   return (
-    <ConnectionProvider endpoint={rpcEndpoint}>
-      {/*
-        autoConnect is REQUIRED for the standard modal to work: the modal
-        only calls select(walletName) on click — the actual adapter.connect()
-        is fired by the provider's autoConnect effect when walletName/adapter
-        change. With autoConnect off, clicking a wallet did nothing.
-
-        Silent-reconnect noise is handled in handleError: errors raised by
-        the auto-reconnect on page load are shown in the dismissible banner,
-        same as any other wallet error.
-      */}
-      <SolanaWalletProvider wallets={wallets} autoConnect={true} onError={handleError}>
-        {/*
-          Standard @solana/wallet-adapter-react-ui modal — same UX that
-          Jupiter, Drift, marginfi, Phantom.app, Solflare.com use. Handles
-          Wallet Standard discovery (important for Brave, which registers
-          its built-in wallet via Wallet Standard rather than a legacy
-          window injection).
-        */}
-        <WalletModalProvider>
-          <WalletSync />
-          <ConnectWatchdog />
-          {children}
-        </WalletModalProvider>
-      </SolanaWalletProvider>
-    </ConnectionProvider>
+    <PrivyProvider
+      appId={PRIVY_APP_ID}
+      config={{
+        // Solana-only app — disable Ethereum paths entirely.
+        appearance: {
+          walletChainType: "solana-only",
+          theme: "dark",
+          accentColor: "#33c9a1",
+        },
+        loginMethods: ["wallet"],
+        externalWallets: {
+          solana: {
+            connectors: toSolanaWalletConnectors({
+              // Don't auto-reconnect loudly on page load — avoids the same
+              // silent-reconnect error banner problem we hit with the
+              // wallet-adapter-react setup.
+              shouldAutoConnect: false,
+            }),
+          },
+        },
+      }}
+    >
+      <WalletSync />
+      {children}
+    </PrivyProvider>
   );
 }

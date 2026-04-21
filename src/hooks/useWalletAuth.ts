@@ -17,7 +17,7 @@
 // token — wasteful and a potential nonce-hammer source.
 
 import { useCallback, useEffect } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@/lib/wallet";
 import { useFlashStore } from "@/store";
 
 // Token stored in memory only — never persisted to disk

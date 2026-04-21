@@ -1,43 +1,36 @@
 "use client";
 
 import { useCallback } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { usePrivy } from "@privy-io/react-auth";
 import { useFlashStore } from "@/store";
 
 export default function SystemStatus() {
   const walletConnected = useFlashStore((s) => s.walletConnected);
   const walletAddress = useFlashStore((s) => s.walletAddress);
   const setWalletError = useFlashStore((s) => s.setWalletError);
-  const { disconnect, connecting } = useWallet();
-  const { setVisible } = useWalletModal();
+  const { ready, authenticated, login, logout } = usePrivy();
 
   const handleWallet = useCallback(async () => {
     if (walletConnected) {
       try {
-        await disconnect();
+        await logout();
       } catch {
-        // Disconnect can throw if the wallet was already detached server-side.
-      }
-      try {
-        window.localStorage.removeItem("walletName");
-      } catch {
-        // Storage access may be blocked in private mode.
+        // Logout can throw on half-attached sessions; ignore.
       }
       return;
     }
     setWalletError(null);
-    setVisible(true);
-  }, [walletConnected, disconnect, setWalletError, setVisible]);
+    login();
+  }, [walletConnected, logout, login, setWalletError]);
+
+  const connecting = !ready && !authenticated;
 
   return (
     <div
       className="relative flex items-center justify-between px-4 sm:px-5 h-12 shrink-0"
       style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
     >
-      {/* Brand — left */}
       <div className="flex items-center gap-3">
-        {/* FT mark — brand kit angular lightning bolt */}
         <svg width="36" height="30" viewBox="5 16 58 38" fill="none" aria-hidden="true">
           <path
             d="M49.88 19.7C49.88 20.6 49.94 26.35 49.94 27.58H33.28c-.66 0-1.09.19-1.56.65L19.06 40.89c-.47.47-.9.65-1.55.62h-6.22v-5.69c0-.49.09-.84.47-1.21L26.19 20.2c.31-.34.62-.53 1.09-.53h22.6z"
@@ -64,7 +57,6 @@ export default function SystemStatus() {
         </div>
       </div>
 
-      {/* Wallet — right */}
       {walletConnected ? (
         <button
           onClick={handleWallet}

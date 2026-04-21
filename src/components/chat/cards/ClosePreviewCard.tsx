@@ -6,7 +6,7 @@
 
 import { memo, useState } from "react";
 import { useFlashStore } from "@/store";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@/lib/wallet";
 import { formatPrice, formatUsd, formatPnl } from "@/lib/format";
 import { useExecuteTx } from "@/hooks/useExecuteTx";
 import { Cell, ToolError, TxDisclaimer, TxSuccessCard } from "./shared";
